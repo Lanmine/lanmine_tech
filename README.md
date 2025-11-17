@@ -6,7 +6,7 @@
                                               |
                                               v
                            +----------------------------------+
-                           |      OPNsense Router/Firewall     |
+                           |      OPNsense Router/Firewall    |
                            +-----------------+----------------+
                                   |                     |
                                   | 10G                 | 10G
