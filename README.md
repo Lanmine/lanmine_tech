@@ -1,4 +1,4 @@
-# lanmine_stack
+# lanmine_tech
 
                                     +-------------------+
                                     |   WAN Connection  |
