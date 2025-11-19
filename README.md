@@ -8,23 +8,29 @@ flowchart TD
 
     %% WAN + pfSense
     WAN([WAN Connection])
-    PF[pfsense Router / Firewall]
+    OPNsense[OPNsense Router / Firewall]
 
-    WAN --> PF
+    WAN --> OPNsense
 
     %% Core Switches
-    COREA[Nexus 9180 Core Switch A]
-    COREB[Nexus 9180 Core Switch B]
+    COREA[Core Switch A]
+    COREB[Core Switch B]
 
-    PF --> COREA
-    PF --> COREB
+    OPNsense --> COREA
+    OPNsense --> COREB
 
     COREA <--> COREB
 
-    %% Edge Switch on left side of Core A
+    %% Edge Switches
     EDGE1[Edge Switches]
     EDGE1 --> COREA
     EDGE1 --> COREB
+
+    %% Clients & APs
+    CLIENTS[Clients]
+    APS[Access points]
+    EDGE1 --> CLIENTS
+    EDGE1 --> APS
 
     %% Servers Block
     SRV[Servers]
