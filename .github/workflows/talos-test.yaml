@@ -1,0 +1,43 @@
+name: Talos Test VM
+
+on:
+  push:
+    paths:
+      - terraform/**
+      - secrets/**
+  pull_request:
+    paths:
+      - terraform/**
+      - secrets/**
+
+permissions:
+  contents: read
+
+jobs:
+  talos-test:
+    runs-on: self-hosted
+    env:
+      SOPS_AGE_KEY_FILE: ${{ secrets.SOPS_AGE_KEY_FILE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Terraform Format Check
+        working-directory: terraform/envs/test
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        working-directory: terraform/envs/test
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: terraform/envs/test
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: terraform/envs/test
+        run: terraform plan
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: terraform/envs/test
+        run: terraform apply -auto-approve
