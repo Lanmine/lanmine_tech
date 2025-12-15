@@ -1,3 +1,4 @@
+# Talos test environment
 module "talos_test_node" {
   source = "../../modules/talos-node"
 
