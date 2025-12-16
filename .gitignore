@@ -12,6 +12,8 @@ override.tf.json
 # Terraform variables (may contain secrets)
 *.tfvars
 *.tfvars.json
+# Allow nodes config (no secrets, team-editable)
+!nodes.auto.tfvars
 
 # Local files
 *.backup

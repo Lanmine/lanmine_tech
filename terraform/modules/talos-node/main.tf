@@ -64,6 +64,9 @@ resource "proxmox_vm_qemu" "this" {
   lifecycle {
     ignore_changes = [
       network,
+      efidisk,
+      full_clone,
+      smbios,
     ]
   }
 }
