@@ -1,14 +1,17 @@
 # Talos test environment
-module "talos_test_node" {
-  source = "../../modules/talos-node"
+# Nodes are defined in nodes.auto.tfvars
+
+module "talos_nodes" {
+  source   = "../../modules/talos-node"
+  for_each = { for node in var.talos_nodes : node.name => node }
 
   providers = {
     proxmox = proxmox.main
   }
 
-  name        = "talos-test-01"
-  vmid        = 9201
-  target_node = "proxmox01"
-  vlan_tag    = 10
-  iso         = "local:iso/talos-v1.11.5-amd64.iso"
+  name        = each.value.name
+  vmid        = each.value.vmid
+  target_node = var.target_node
+  vlan_tag    = var.vlan_tag
+  iso         = var.iso
 }
