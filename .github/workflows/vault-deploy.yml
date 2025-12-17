@@ -1,0 +1,57 @@
+name: Deploy Vault VM
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/vault-deploy.yml'
+
+jobs:
+  deploy-vault:
+    runs-on: self-hosted
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Authenticate and get secrets from Vault
+      uses: hashicorp/vault-action@v2
+      with:
+        url: https://10.0.10.21:8200
+        tlsSkipVerify: true
+        method: approle
+        roleId: ${{ secrets.VAULT_ROLE_ID }}
+        secretId: ${{ secrets.VAULT_SECRET_ID }}
+        secrets: |
+          secret/data/infrastructure/proxmox api_url | PROXMOX_API_URL ;
+          secret/data/infrastructure/proxmox api_token_id | PROXMOX_TOKEN_ID ;
+          secret/data/infrastructure/proxmox api_token_secret | PROXMOX_TOKEN_SECRET
+
+    - name: Terraform Init
+      working-directory: ./terraform
+      run: terraform init -upgrade
+      env:
+        TF_VAR_proxmox_api_url: ${{ env.PROXMOX_API_URL }}
+        TF_VAR_proxmox_api_token_id: ${{ env.PROXMOX_TOKEN_ID }}
+        TF_VAR_proxmox_api_token_secret: ${{ env.PROXMOX_TOKEN_SECRET }}
+
+    - name: Terraform Plan
+      working-directory: ./terraform
+      run: terraform plan
+      env:
+        TF_VAR_proxmox_api_url: ${{ env.PROXMOX_API_URL }}
+        TF_VAR_proxmox_api_token_id: ${{ env.PROXMOX_TOKEN_ID }}
+        TF_VAR_proxmox_api_token_secret: ${{ env.PROXMOX_TOKEN_SECRET }}
+
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      working-directory: ./terraform
+      run: terraform apply -auto-approve
+      env:
+        TF_VAR_proxmox_api_url: ${{ env.PROXMOX_API_URL }}
+        TF_VAR_proxmox_api_token_id: ${{ env.PROXMOX_TOKEN_ID }}
+        TF_VAR_proxmox_api_token_secret: ${{ env.PROXMOX_TOKEN_SECRET }}
