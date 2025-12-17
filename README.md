@@ -8,6 +8,7 @@ Infrastructure as Code for the Lanmine Tech homelab environment.
 |----|-----|---------|------|--------|
 | ubuntu-mgmt01 | 10.0.10.20 | Management VM | - | Running |
 | vault-01 | 10.0.10.21 | HashiCorp Vault | 9110 | Running |
+| runner-01 | 10.0.10.22 | GitHub Actions Runner | 9120 | Running |
 
 ## Architecture
 
@@ -22,12 +23,12 @@ Infrastructure as Code for the Lanmine Tech homelab environment.
                     │   10.0.10.0/24  │
                     └────────┬────────┘
                              │
-        ┌────────────────────┼────────────────────┐
-        │                    │                    │
-┌───────┴───────┐   ┌───────┴───────┐   ┌───────┴───────┐
-│  ubuntu-mgmt01 │   │   vault-01    │   │  (future VMs) │
-│  10.0.10.20   │   │  10.0.10.21   │   │               │
-└───────────────┘   └───────────────┘   └───────────────┘
+    ┌────────────────────────┼────────────────────────┐
+    │                        │                        │
+┌───┴───────────┐   ┌───────┴───────┐   ┌────────────┴───┐
+│ ubuntu-mgmt01 │   │   vault-01    │   │   runner-01    │
+│  10.0.10.20   │   │  10.0.10.21   │   │   10.0.10.22   │
+└───────────────┘   └───────────────┘   └────────────────┘
 ```
 
 ## Stack
@@ -74,7 +75,7 @@ vault kv get secret/infrastructure/proxmox
 | 10.0.10.1 | gateway | OPNsense router |
 | 10.0.10.20 | ubuntu-mgmt01 | Management VM |
 | 10.0.10.21 | vault-01 | HashiCorp Vault |
-| 10.0.10.22 | runner-01 | GitHub Actions Runner (planned) |
+| 10.0.10.22 | runner-01 | GitHub Actions Runner |
 | 10.0.10.31-33 | k8s-cp-* | Kubernetes control planes (planned) |
 | 10.0.10.41-43 | k8s-worker-* | Kubernetes workers (planned) |
 
@@ -102,7 +103,7 @@ secret/
 
 - [x] Vault VM deployment
 - [x] Vault initialization & configuration
-- [ ] GitHub runner VM (runner-01)
+- [x] GitHub runner VM (runner-01)
 - [ ] Talos Kubernetes cluster
 - [ ] CI/CD integration with Vault
 
