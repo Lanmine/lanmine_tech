@@ -29,7 +29,8 @@ jobs:
         secrets: |
           secret/data/infrastructure/proxmox api_url | PROXMOX_API_URL ;
           secret/data/infrastructure/proxmox api_token_id | PROXMOX_TOKEN_ID ;
-          secret/data/infrastructure/proxmox api_token_secret | PROXMOX_TOKEN_SECRET
+          secret/data/infrastructure/proxmox api_token_secret | PROXMOX_TOKEN_SECRET ;
+          secret/data/infrastructure/ssh public_key | SSH_PUBLIC_KEY
 
     - name: Terraform Init
       working-directory: ./terraform
@@ -38,6 +39,7 @@ jobs:
         TF_VAR_proxmox_api_url: ${{ env.PROXMOX_API_URL }}
         TF_VAR_proxmox_api_token_id: ${{ env.PROXMOX_TOKEN_ID }}
         TF_VAR_proxmox_api_token_secret: ${{ env.PROXMOX_TOKEN_SECRET }}
+        TF_VAR_ssh_public_key: ${{ env.SSH_PUBLIC_KEY }}
 
     - name: Terraform Plan
       working-directory: ./terraform
@@ -46,6 +48,7 @@ jobs:
         TF_VAR_proxmox_api_url: ${{ env.PROXMOX_API_URL }}
         TF_VAR_proxmox_api_token_id: ${{ env.PROXMOX_TOKEN_ID }}
         TF_VAR_proxmox_api_token_secret: ${{ env.PROXMOX_TOKEN_SECRET }}
+        TF_VAR_ssh_public_key: ${{ env.SSH_PUBLIC_KEY }}
 
     - name: Terraform Apply
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -55,3 +58,4 @@ jobs:
         TF_VAR_proxmox_api_url: ${{ env.PROXMOX_API_URL }}
         TF_VAR_proxmox_api_token_id: ${{ env.PROXMOX_TOKEN_ID }}
         TF_VAR_proxmox_api_token_secret: ${{ env.PROXMOX_TOKEN_SECRET }}
+        TF_VAR_ssh_public_key: ${{ env.SSH_PUBLIC_KEY }}
