@@ -1,4 +1,4 @@
-name: Deploy Vault VM
+name: Terraform Plan
 
 on:
   workflow_dispatch:
@@ -50,12 +50,8 @@ jobs:
         TF_VAR_proxmox_api_token_secret: ${{ env.PROXMOX_TOKEN_SECRET }}
         TF_VAR_ssh_public_key: ${{ env.SSH_PUBLIC_KEY }}
 
-    - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      working-directory: ./terraform
-      run: terraform apply -auto-approve
-      env:
-        TF_VAR_proxmox_api_url: ${{ env.PROXMOX_API_URL }}
-        TF_VAR_proxmox_api_token_id: ${{ env.PROXMOX_TOKEN_ID }}
-        TF_VAR_proxmox_api_token_secret: ${{ env.PROXMOX_TOKEN_SECRET }}
-        TF_VAR_ssh_public_key: ${{ env.SSH_PUBLIC_KEY }}
+    # Apply is disabled - run manually from ubuntu-mgmt01 where state file exists
+    # - name: Terraform Apply
+    #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    #   working-directory: ./terraform
+    #   run: terraform apply -auto-approve
