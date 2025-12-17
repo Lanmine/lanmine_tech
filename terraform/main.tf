@@ -66,3 +66,56 @@ resource "proxmox_vm_qemu" "vault" {
     ignore_changes = [network, sshkeys]
   }
 }
+
+resource "proxmox_vm_qemu" "runner" {
+  name        = "runner-01"
+  vmid        = 9120
+  target_node = "proxmox01"
+  desc        = "GitHub Actions Runner"
+
+  clone      = "ubuntu-24.04-template"
+  full_clone = true
+  vm_state   = "running"
+  agent      = 1
+
+  memory  = 8192
+  sockets = 1
+  cores   = 4
+
+  scsihw = "virtio-scsi-pci"
+
+  disks {
+    scsi {
+      scsi0 {
+        disk {
+          storage = "local-lvm"
+          size    = "50G"
+        }
+      }
+    }
+    ide {
+      ide2 {
+        cloudinit {
+          storage = "local-lvm"
+        }
+      }
+    }
+  }
+
+  network {
+    id     = 0
+    model  = "virtio"
+    bridge = "vmbr0"
+    tag    = 10
+  }
+
+  # Cloud-init
+  os_type    = "cloud-init"
+  ipconfig0  = "ip=10.0.10.22/24,gw=10.0.10.1"
+  nameserver = "10.0.10.1"
+  sshkeys    = var.ssh_public_key
+
+  lifecycle {
+    ignore_changes = [network, sshkeys]
+  }
+}
