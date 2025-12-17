@@ -63,18 +63,43 @@ Replaced custom scripts with hashicorp/vault-action@v2:
 
 ---
 
+## 2025-12-17: GitHub Actions Runner VM
+
+### Added runner-01 VM
+- **VMID**: 9120
+- **IP**: 10.0.10.22
+- **Specs**: 4 cores, 8GB RAM, 50GB disk
+- **Purpose**: Dedicated GitHub Actions runner
+
+### Post-Deploy Setup
+After VM is created, SSH in and install runner:
+```bash
+ssh ubuntu@10.0.10.22
+
+# Install runner (get token from GitHub Settings → Actions → Runners)
+mkdir actions-runner && cd actions-runner
+curl -o actions-runner-linux-x64-2.329.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.329.0/actions-runner-linux-x64-2.329.0.tar.gz
+tar xzf actions-runner-linux-x64-2.329.0.tar.gz
+./config.sh --url https://github.com/Lanmine/lanmine_tech --token [TOKEN]
+sudo ./svc.sh install
+sudo ./svc.sh start
+```
+
+---
+
 ## Current Infrastructure
 
 | VM | IP | Purpose | Status |
 |----|-----|---------|--------|
-| ubuntu-mgmt01 | 10.0.10.20 | Management & GitHub Runner | Running |
+| ubuntu-mgmt01 | 10.0.10.20 | Management | Running |
 | vault-01 | 10.0.10.21 | HashiCorp Vault | Running |
+| runner-01 | 10.0.10.22 | GitHub Actions Runner | Running |
 
 ---
 
 ## Next Steps
 
-1. Add VAULT_ROLE_ID and VAULT_SECRET_ID to GitHub secrets
-2. Test updated workflow
+1. ~~Add VAULT_ROLE_ID and VAULT_SECRET_ID to GitHub secrets~~ Done
+2. Test workflow with dedicated runner
 3. Set up Vault policies for least-privilege access
 4. Plan Kubernetes deployment when ready
