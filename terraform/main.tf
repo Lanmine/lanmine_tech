@@ -18,7 +18,7 @@ resource "proxmox_vm_qemu" "vault" {
   name        = "vault-01"
   vmid        = 9110
   target_node = "proxmox01"
-  desc        = "HashiCorp Vault server"
+  description = "HashiCorp Vault server"
 
   clone      = "ubuntu-24.04-template"
   full_clone = true
@@ -71,7 +71,7 @@ resource "proxmox_vm_qemu" "runner" {
   name        = "runner-01"
   vmid        = 9120
   target_node = "proxmox01"
-  desc        = "GitHub Actions Runner"
+  description = "GitHub Actions Runner"
 
   clone      = "ubuntu-24.04-template"
   full_clone = true
