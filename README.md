@@ -1,5 +1,7 @@
 # Lanmine Tech Infrastructure
 
+![cybrpanda](cybrpanda-171225.png)
+
 Infrastructure as Code for the Lanmine Tech homelab environment.
 
 ## Current Status
