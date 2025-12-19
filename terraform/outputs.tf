@@ -5,12 +5,12 @@ output "vault_ip" {
 
 output "vault_vmid" {
   description = "Proxmox VM ID of the Vault VM"
-  value       = proxmox_vm_qemu.vault.vmid
+  value       = proxmox_virtual_environment_vm.vault.vm_id
 }
 
 output "vault_name" {
   description = "Name of the Vault VM"
-  value       = proxmox_vm_qemu.vault.name
+  value       = proxmox_virtual_environment_vm.vault.name
 }
 
 output "runner_ip" {
@@ -20,10 +20,10 @@ output "runner_ip" {
 
 output "runner_vmid" {
   description = "Proxmox VM ID of the Runner VM"
-  value       = proxmox_vm_qemu.runner.vmid
+  value       = proxmox_virtual_environment_vm.runner.vm_id
 }
 
 output "runner_name" {
   description = "Name of the Runner VM"
-  value       = proxmox_vm_qemu.runner.name
+  value       = proxmox_virtual_environment_vm.runner.name
 }

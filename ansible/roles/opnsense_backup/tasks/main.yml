@@ -1,0 +1,65 @@
+---
+- name: Set timestamp for backup
+  set_fact:
+    backup_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+
+- name: Set backup filename
+  set_fact:
+    backup_filename: "config-{{ backup_timestamp }}.xml.age"
+    backup_path: "{{ backup_dir }}/config-{{ backup_timestamp }}.xml.age"
+
+- name: Ensure backup directory exists
+  file:
+    path: "{{ backup_dir }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+
+- name: Download OPNsense config.xml
+  fetch:
+    src: "{{ config_source }}"
+    dest: "/tmp/opnsense-config-{{ backup_timestamp }}.xml"
+    flat: yes
+
+- name: Get age public key from Vault
+  set_fact:
+    age_pub_key: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/opnsense-backup', validate_certs=false).secret.age_public_key }}"
+  delegate_to: localhost
+
+- name: Encrypt config with age
+  command: >
+    age --encrypt 
+    --recipient {{ age_pub_key }}
+    --armor 
+    --output {{ backup_path }}
+    /tmp/opnsense-config-{{ backup_timestamp }}.xml
+  delegate_to: localhost
+
+- name: Remove temporary unencrypted file
+  file:
+    path: "/tmp/opnsense-config-{{ backup_timestamp }}.xml"
+    state: absent
+  delegate_to: localhost
+
+- name: Find all OPNsense backups
+  find:
+    paths: "{{ backup_dir }}"
+    patterns: "config-*.xml.age"
+  register: backup_files
+  delegate_to: localhost
+
+- name: Sort backups by modification time
+  set_fact:
+    sorted_backups: "{{ backup_files.files | sort(attribute='mtime') | map(attribute='path') | list }}"
+
+- name: Delete old backups (keep last {{ backup_retention_count }})
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ sorted_backups[:-backup_retention_count] }}"
+  when: sorted_backups | length > backup_retention_count
+  delegate_to: localhost
+
+- name: Display backup info
+  debug:
+    msg: "OPNsense backup created: {{ backup_filename }}"
