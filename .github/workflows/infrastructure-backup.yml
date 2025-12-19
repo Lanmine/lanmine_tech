@@ -1,0 +1,42 @@
+name: Infrastructure Backup
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly, Sunday at 2 AM UTC
+  workflow_dispatch:      # Manual trigger
+
+jobs:
+  backup:
+    name: Backup Infrastructure Configs
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Authenticate to Vault
+        uses: hashicorp/vault-action@v2
+        with:
+          url: https://10.0.10.21:8200
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.VAULT_ROLE_ID }}
+          secretId: ${{ secrets.VAULT_SECRET_ID }}
+          exportToken: true
+
+      - name: Run Ansible backup playbook
+        run: |
+          cd ansible
+          ansible-playbook playbooks/backup-all.yml
+        env:
+          VAULT_ADDR: https://10.0.10.21:8200
+          ANSIBLE_FORCE_COLOR: 'true'
+
+      - name: Push backup changes
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git push
+        if: success()

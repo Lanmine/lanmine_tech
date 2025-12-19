@@ -1,0 +1,14 @@
+---
+# Proxmox backup role defaults
+backup_dir: "{{ playbook_dir }}/../backups/proxmox"
+timestamp_format: "%Y-%m-%d-%H%M%S"
+backup_retention_count: 3
+
+# Directories to backup from Proxmox
+proxmox_config_paths:
+  - "/etc/pve/storage.cfg"
+  - "/etc/pve/datacenter.cfg"
+  - "/etc/pve/user.cfg"
+  - "/etc/pve/nodes"
+  - "/etc/pve/firewall"
+  - "/etc/network/interfaces"

@@ -1,0 +1,11 @@
+---
+# HashiCorp Vault configuration
+vault_addr: "https://10.0.10.21:8200"
+vault_validate_certs: false
+
+# Vault authentication will use environment variables:
+# - VAULT_ADDR (set above)
+# - VAULT_TOKEN (provided at runtime or via GitHub Actions)
+
+# Backup retention
+backup_retention_count: 3

@@ -1,0 +1,51 @@
+---
+- name: Backup OPNsense Configuration
+  hosts: opnsense
+  gather_facts: true
+  roles:
+    - opnsense_backup
+
+- name: Backup Proxmox Configuration
+  hosts: proxmox
+  gather_facts: true
+  roles:
+    - proxmox_backup
+
+- name: Commit backups to Git
+  hosts: localhost
+  gather_facts: true
+  tasks:
+    - name: Check if there are changes to commit
+      command: git status --porcelain backups/
+      register: git_status
+      changed_when: false
+      args:
+        chdir: "{{ playbook_dir }}/.."
+
+    - name: Add backup files to git
+      command: git add backups/
+      args:
+        chdir: "{{ playbook_dir }}/.."
+      when: git_status.stdout != ""
+
+    - name: Commit backup changes
+      command: >
+        git commit -m "chore: weekly infrastructure backup [skip ci]
+        
+        - OPNsense config backup
+        - Proxmox config backup
+        - Automated backup on {{ ansible_date_time.date }}"
+      args:
+        chdir: "{{ playbook_dir }}/.."
+      when: git_status.stdout != ""
+      register: git_commit
+
+    - name: Display commit result
+      debug:
+        msg: "{{ git_commit.stdout_lines }}"
+      when: git_status.stdout != ""
+
+    - name: No changes to commit
+      debug:
+        msg: "No backup changes to commit"
+      when: git_status.stdout == ""
