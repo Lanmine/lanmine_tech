@@ -132,3 +132,61 @@ resource "proxmox_virtual_environment_vm" "runner" {
     ]
   }
 }
+
+resource "proxmox_virtual_environment_vm" "authentik" {
+  name      = "authentik-01"
+  vm_id     = 9125
+  node_name = "proxmox01"
+  tags      = ["infrastructure", "auth"]
+
+  description = "Authentik SSO and Identity Provider"
+
+  agent {
+    enabled = true
+  }
+
+  cpu {
+    cores   = 2
+    sockets = 1
+    type    = "host"
+  }
+
+  memory {
+    dedicated = 4096
+  }
+
+  disk {
+    datastore_id = "local-lvm"
+    size         = 50
+    interface    = "scsi0"
+  }
+
+  network_device {
+    bridge  = "vmbr0"
+    vlan_id = 10
+  }
+
+  initialization {
+    ip_config {
+      ipv4 {
+        address = "10.0.10.25/24"
+        gateway = "10.0.10.1"
+      }
+    }
+    dns {
+      servers = ["10.0.10.1"]
+    }
+    user_account {
+      keys     = [var.ssh_public_key]
+      username = "ubuntu"
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      initialization,
+      disk,
+      network_device,
+    ]
+  }
+}
