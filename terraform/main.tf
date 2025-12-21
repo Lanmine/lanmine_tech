@@ -7,7 +7,7 @@ terraform {
   }
 
   backend "pg" {
-    connstr = var.pg_conn_str
+    conn_str = var.pg_conn_str
   }
 }
 
