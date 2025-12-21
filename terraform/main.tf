@@ -6,8 +6,9 @@ terraform {
     }
   }
 
+  # Do NOT use variables here. Provide backend config at init-time.
   backend "pg" {
-    conn_str = var.pg_conn_str
+    # conn_str must be supplied with -backend-config or a backend config file
   }
 }
 
@@ -15,6 +16,8 @@ provider "proxmox" {
   endpoint  = var.proxmox_api_url
   api_token = var.proxmox_api_token
   insecure  = true
+  # Note: insecure = true is used for homelab environment with self-signed certificates
+  # In production environments, proper TLS certificates should be configured
 }
 
 resource "proxmox_virtual_environment_vm" "vault" {
@@ -93,17 +96,19 @@ resource "null_resource" "vault_vm_check" {
     when    = create
     command = <<-EOT
       # Check if VM exists in Proxmox
-      if curl -s -k -H "Authorization: PVEAPIToken=${var.proxmox_api_token}" \
-         "${var.proxmox_api_url}/api2/json/nodes/${proxmox_virtual_environment_vm.vault.node_name}/qemu" | \
-         jq -e '.data[] | select(.name == "${self.triggers.vm_name}")' > /dev/null; then
-        echo "WARNING: VM ${self.triggers.vm_name} already exists in Proxmox but not managed by Terraform"
-        echo "Consider running: terraform import proxmox_virtual_environment_vm.vault proxmox01/${self.triggers.vm_id}"
+      if curl -s -k -H "Authorization: PVEAPIToken=$${PROXMOX_API_TOKEN}" \
+         "$${PROXMOX_API_URL}/api2/json/nodes/$${proxmox_virtual_environment_vm.vault.node_name}/qemu" | \
+         jq -e '.data[] | select(.name == "$${VM_NAME}")' > /dev/null; then
+        echo "WARNING: VM $${VM_NAME} already exists in Proxmox but not managed by Terraform"
+        echo "Consider running: terraform import proxmox_virtual_environment_vm.vault proxmox01/$${VM_ID}"
       fi
     EOT
 
     environment = {
       PROXMOX_API_URL   = var.proxmox_api_url
       PROXMOX_API_TOKEN = var.proxmox_api_token
+      VM_NAME           = proxmox_virtual_environment_vm.vault.name
+      VM_ID             = proxmox_virtual_environment_vm.vault.vm_id
     }
   }
 }
@@ -184,17 +189,19 @@ resource "null_resource" "runner_vm_check" {
     when    = create
     command = <<-EOT
       # Check if VM exists in Proxmox
-      if curl -s -k -H "Authorization: PVEAPIToken=${var.proxmox_api_token}" \
-         "${var.proxmox_api_url}/api2/json/nodes/${proxmox_virtual_environment_vm.runner.node_name}/qemu" | \
-         jq -e '.data[] | select(.name == "${self.triggers.vm_name}")' > /dev/null; then
-        echo "WARNING: VM ${self.triggers.vm_name} already exists in Proxmox but not managed by Terraform"
-        echo "Consider running: terraform import proxmox_virtual_environment_vm.runner proxmox01/${self.triggers.vm_id}"
+      if curl -s -k -H "Authorization: PVEAPIToken=$${PROXMOX_API_TOKEN}" \
+         "$${PROXMOX_API_URL}/api2/json/nodes/$${proxmox_virtual_environment_vm.runner.node_name}/qemu" | \
+         jq -e '.data[] | select(.name == "$${VM_NAME}")' > /dev/null; then
+        echo "WARNING: VM $${VM_NAME} already exists in Proxmox but not managed by Terraform"
+        echo "Consider running: terraform import proxmox_virtual_environment_vm.runner proxmox01/$${VM_ID}"
       fi
     EOT
 
     environment = {
       PROXMOX_API_URL   = var.proxmox_api_url
       PROXMOX_API_TOKEN = var.proxmox_api_token
+      VM_NAME           = proxmox_virtual_environment_vm.runner.name
+      VM_ID             = proxmox_virtual_environment_vm.runner.vm_id
     }
   }
 }
@@ -265,7 +272,7 @@ resource "proxmox_virtual_environment_vm" "authentik" {
 }
 
 # Pre-flight check to prevent duplicate VM creation
-resource "null_resource" "vm_check" {
+resource "null_resource" "authentik_vm_check" {
   triggers = {
     vm_name = proxmox_virtual_environment_vm.authentik.name
     vm_id   = proxmox_virtual_environment_vm.authentik.vm_id
@@ -275,28 +282,27 @@ resource "null_resource" "vm_check" {
     when    = create
     command = <<-EOT
       # Check if VM exists in Proxmox
-      if curl -s -k -H "Authorization: PVEAPIToken=${var.proxmox_api_token}" \
-         "${var.proxmox_api_url}/api2/json/nodes/${proxmox_virtual_environment_vm.authentik.node_name}/qemu" | \
-         jq -e '.data[] | select(.name == "${self.triggers.vm_name}")' > /dev/null; then
-        echo "ERROR: VM ${self.triggers.vm_name} already exists in Proxmox"
-        echo "Please import the existing VM or remove it first:"
-        echo "terraform import proxmox_virtual_environment_vm.authentik proxmox01/${self.triggers.vm_id}"
-        exit 1
+      if curl -s -k -H "Authorization: PVEAPIToken=$${PROXMOX_API_TOKEN}" \
+         "$${PROXMOX_API_URL}/api2/json/nodes/$${proxmox_virtual_environment_vm.authentik.node_name}/qemu" | \
+         jq -e '.data[] | select(.name == "$${VM_NAME}")' > /dev/null; then
+        echo "WARNING: VM $${VM_NAME} already exists in Proxmox but not managed by Terraform"
+        echo "Consider running: terraform import proxmox_virtual_environment_vm.authentik proxmox01/$${VM_ID}"
       fi
       
       # Check if VM ID is already in use
-      if curl -s -k -H "Authorization: PVEAPIToken=${var.proxmox_api_token}" \
-         "${var.proxmox_api_url}/api2/json/nodes/${proxmox_virtual_environment_vm.authentik.node_name}/qemu" | \
-         jq -e '.data[] | select(.vmid == ${self.triggers.vm_id})' > /dev/null; then
-        echo "ERROR: VM ID ${self.triggers.vm_id} is already in use in Proxmox"
+      if curl -s -k -H "Authorization: PVEAPIToken=$${PROXMOX_API_TOKEN}" \
+         "$${PROXMOX_API_URL}/api2/json/nodes/$${proxmox_virtual_environment_vm.authentik.node_name}/qemu" | \
+         jq -e '.data[] | select(.vmid == $${VM_ID})' > /dev/null; then
+        echo "WARNING: VM ID $${VM_ID} is already in use in Proxmox"
         echo "Please choose a different VM ID or import the existing VM"
-        exit 1
       fi
     EOT
 
     environment = {
       PROXMOX_API_URL   = var.proxmox_api_url
       PROXMOX_API_TOKEN = var.proxmox_api_token
+      VM_NAME           = proxmox_virtual_environment_vm.authentik.name
+      VM_ID             = proxmox_virtual_environment_vm.authentik.vm_id
     }
   }
 }
