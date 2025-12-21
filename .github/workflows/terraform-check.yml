@@ -1,0 +1,95 @@
+name: terraform-check
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    env:
+      TF_IN_AUTOMATION: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      # Use hashicorp/vault-action to authenticate and inject secrets into the environment.
+      # Adjust the Vault secret paths / KV version to match your Vault layout.
+      - name: Read credentials from Vault
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ secrets.VAULT_ADDR }}
+          method: approle
+          roleId: ${{ secrets.VAULT_ROLE_ID }}
+          secretId: ${{ secrets.VAULT_SECRET_ID }}
+          # Format: <path> <field> <env_name>
+          # If your Vault KV is v2 (mounted at "secret"), you may need secret/data/terraform/proxmox
+          secrets: |
+            secret/infrastructure/proxmox api_url | PM_API_URL
+            secret/infrastructure/proxmox api_token_id | PM_API_TOKEN_ID
+            secret/infrastructure/proxmox api_token_secret | PM_API_TOKEN_SECRET
+            secret/infrastructure/postgres connection_string | PG_CONN_STR
+
+      - name: Quick Proxmox API connectivity check
+        env:
+          PM_API_URL: ${{ env.PM_API_URL }}
+          PM_API_TOKEN_ID: ${{ env.PM_API_TOKEN_ID }}
+          PM_API_TOKEN_SECRET: ${{ env.PM_API_TOKEN_SECRET }}
+        run: |
+          set -euo pipefail
+          echo "Checking Proxmox API connectivity..."
+          # -k allows self-signed certs; remove -k if using trusted certs
+          curl -sS --fail -k \
+            -H "Authorization: PVEAPIToken=${PM_API_TOKEN_ID}=${PM_API_TOKEN_SECRET}" \
+            "${PM_API_URL}/api2/json/version"
+
+      - name: Terraform Init
+        working-directory: terraform
+        env:
+          TF_IN_AUTOMATION: true
+          PM_API_URL: ${{ env.PM_API_URL }}
+          PM_API_TOKEN_ID: ${{ env.PM_API_TOKEN_ID }}
+          PM_API_TOKEN_SECRET: ${{ env.PM_API_TOKEN_SECRET }}
+          PG_CONN_STR: ${{ env.PG_CONN_STR }}
+        run: terraform init -backend-config="conn_str=${PG_CONN_STR}" -input=false
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Terraform Plan (no apply)
+        working-directory: terraform
+        env:
+          TF_IN_AUTOMATION: true
+        run: |
+          terraform plan -input=false -no-color -out=tfplan
+
+      - name: Show Plan (log + save)
+        working-directory: terraform
+        run: |
+          terraform show -no-color tfplan | tee plan.txt
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: terraform/plan.txt
+
+      - name: Comment plan on PR
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body-file: terraform/plan.txt
+          title: Terraform plan
