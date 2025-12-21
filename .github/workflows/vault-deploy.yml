@@ -48,7 +48,6 @@ jobs:
 
       - name: Terraform Init
         working-directory: ./terraform
-        continue-on-error: true
         run: |
           echo "Starting Terraform init..."
           terraform init -upgrade
@@ -199,7 +198,6 @@ jobs:
 
       - name: Terraform Init
         working-directory: ./terraform
-        continue-on-error: true
         run: |
           echo "Starting Terraform init..."
           terraform init -upgrade
