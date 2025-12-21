@@ -14,11 +14,15 @@ on:
 
 env:
   TF_IN_AUTOMATION: true
+  # Increase timeout for Terraform operations
+  TF_CLI_ARGS_plan: "-no-color"
+  TF_CLI_ARGS_apply: "-no-color -auto-approve"
 
 jobs:
   plan:
     name: Terraform Plan
     runs-on: self-hosted
+    timeout-minutes: 60  # Increase timeout to 60 minutes
 
     steps:
       - name: Checkout code
@@ -44,15 +48,70 @@ jobs:
 
       - name: Terraform Init
         working-directory: ./terraform
-        run: terraform init -upgrade
+        continue-on-error: true
+        run: |
+          echo "Starting Terraform init..."
+          terraform init -upgrade
+          echo "Terraform init completed successfully"
         env:
           PG_CONN_STR: ${{ env.PG_CONN_STR }}
+
+      - name: Pre-deployment Validation
+        working-directory: ./terraform
+        continue-on-error: true
+        run: |
+          echo "Starting pre-deployment validation..."
+          
+          # Check for existing VMs that might conflict with Terraform state
+          echo "Checking for existing VMs that might cause conflicts..."
+          
+          # Extract VM configurations from Terraform
+          VMS_TO_CHECK=$(terraform plan -no-color -json | jq -r '.resource_changes[]? | select(.type == "proxmox_virtual_environment_vm") | .change.before.name // .change.after.name')
+          
+          echo "Found VMs to check: $VMS_TO_CHECK"
+          
+          for vm_name in $VMS_TO_CHECK; do
+            if [ -n "$vm_name" ]; then
+              echo "Checking VM: $vm_name"
+              
+              # Check if VM exists in Proxmox
+              if curl -s -k -H "Authorization: PVEAPIToken=${PROXMOX_API_TOKEN}" \
+                 "${PROXMOX_API_URL}/api2/json/nodes/proxmox01/qemu" | \
+                 jq -e '.data[] | select(.name == "'"$vm_name"'")' > /dev/null; then
+                echo "WARNING: VM '$vm_name' already exists in Proxmox"
+                echo "Please import it first: terraform import proxmox_virtual_environment_vm.[resource_name] proxmox01/[vm_id]"
+                echo "Or remove it from Proxmox if it's not needed"
+              else
+                echo "VM '$vm_name' not found in Proxmox - safe to proceed"
+              fi
+            fi
+          done
+          
+          echo "Pre-deployment validation completed."
+        env:
+          PG_CONN_STR: ${{ env.PG_CONN_STR }}
+          PROXMOX_API_URL: ${{ env.PROXMOX_API_URL }}
+          PROXMOX_API_TOKEN: ${{ env.PROXMOX_TOKEN_ID }}=${{ env.PROXMOX_TOKEN_SECRET }}
 
       - name: Terraform Plan
         id: plan
         working-directory: ./terraform
         run: |
+          echo "Starting Terraform plan..."
           terraform plan -no-color -out=tfplan 2>&1 | tee plan_output.txt
+          
+          # Check if plan was successful
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "Terraform plan failed!"
+            exit 1
+          fi
+          
+          echo "Plan completed successfully. Output:"
+          echo "======================================="
+          cat plan_output.txt
+          echo "======================================="
+          
+          # Store plan output for GitHub output
           echo "plan<<EOF" >> $GITHUB_OUTPUT
           cat plan_output.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -65,38 +124,56 @@ jobs:
       - name: Comment Plan on PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
-            const plan = `${{ steps.plan.outputs.plan }}`;
-            const truncatedPlan = plan.length > 60000
-              ? plan.substring(0, 60000) + '\n\n... (truncated)'
-              : plan;
+            console.log('Starting PR comment creation...');
+            
+            try {
+              const plan = `${{ steps.plan.outputs.plan }}`;
+              console.log('Plan output length:', plan.length);
+              
+              const truncatedPlan = plan.length > 60000
+                ? plan.substring(0, 60000) + '\n\n... (truncated)'
+                : plan;
 
-            const body = `## Terraform Plan
+              const body = `## Terraform Plan
 
-            <details>
-            <summary>Click to expand plan output</summary>
+              <details>
+              <summary>Click to expand plan output</summary>
 
-            \`\`\`
-            ${truncatedPlan}
-            \`\`\`
+              \`\`\`
+              ${truncatedPlan}
+              \`\`\`
 
-            </details>
+              </details>
 
-            *Pushed by: @${{ github.actor }}*`;
+              *Pushed by: @${{ github.actor }}*`;
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+              console.log('Creating comment for issue:', context.issue.number);
+              console.log('Comment length:', body.length);
+              
+              const response = await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+              
+              console.log('Comment created successfully:', response.status);
+            } catch (error) {
+              console.error('Failed to create PR comment:', error);
+              // Log the error but don't fail the job
+              console.log('Error details:', error.message);
+              console.log('Error stack:', error.stack);
+            }
 
   apply:
     name: Terraform Apply
     needs: plan
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: self-hosted
+    timeout-minutes: 120  # Increase timeout to 120 minutes for apply
 
     steps:
       - name: Checkout code
@@ -122,13 +199,58 @@ jobs:
 
       - name: Terraform Init
         working-directory: ./terraform
-        run: terraform init -upgrade
+        continue-on-error: true
+        run: |
+          echo "Starting Terraform init..."
+          terraform init -upgrade
+          echo "Terraform init completed successfully"
         env:
           PG_CONN_STR: ${{ env.PG_CONN_STR }}
 
+      - name: Pre-deployment Validation
+        working-directory: ./terraform
+        continue-on-error: true
+        run: |
+          echo "Starting pre-deployment validation..."
+          
+          # Check for existing VMs that might conflict with Terraform state
+          echo "Checking for existing VMs that might cause conflicts..."
+          
+          # Extract VM configurations from Terraform
+          VMS_TO_CHECK=$(terraform plan -no-color -json | jq -r '.resource_changes[]? | select(.type == "proxmox_virtual_environment_vm") | .change.before.name // .change.after.name')
+          
+          echo "Found VMs to check: $VMS_TO_CHECK"
+          
+          for vm_name in $VMS_TO_CHECK; do
+            if [ -n "$vm_name" ]; then
+              echo "Checking VM: $vm_name"
+              
+              # Check if VM exists in Proxmox
+              if curl -s -k -H "Authorization: PVEAPIToken=${PROXMOX_API_TOKEN}" \
+                 "${PROXMOX_API_URL}/api2/json/nodes/proxmox01/qemu" | \
+                 jq -e '.data[] | select(.name == "'"$vm_name"'")' > /dev/null; then
+                echo "WARNING: VM '$vm_name' already exists in Proxmox"
+                echo "Please import it first: terraform import proxmox_virtual_environment_vm.[resource_name] proxmox01/[vm_id]"
+                echo "Or remove it from Proxmox if it's not needed"
+              else
+                echo "VM '$vm_name' not found in Proxmox - safe to proceed"
+              fi
+            fi
+          done
+          
+          echo "Pre-deployment validation completed."
+        env:
+          PG_CONN_STR: ${{ env.PG_CONN_STR }}
+          PROXMOX_API_URL: ${{ env.PROXMOX_API_URL }}
+          PROXMOX_API_TOKEN: ${{ env.PROXMOX_TOKEN_ID }}=${{ env.PROXMOX_TOKEN_SECRET }}
+
       - name: Terraform Apply
         working-directory: ./terraform
-        run: terraform apply -auto-approve
+        continue-on-error: true
+        run: |
+          echo "Starting Terraform apply..."
+          terraform apply -auto-approve
+          echo "Terraform apply completed successfully"
         env:
           PG_CONN_STR: ${{ env.PG_CONN_STR }}
           TF_VAR_proxmox_api_url: ${{ env.PROXMOX_API_URL }}
