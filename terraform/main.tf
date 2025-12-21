@@ -12,9 +12,9 @@ terraform {
 }
 
 provider "proxmox" {
-  endpoint = var.proxmox_api_url
+  endpoint  = var.proxmox_api_url
   api_token = var.proxmox_api_token
-  insecure = true
+  insecure  = true
 }
 
 resource "proxmox_virtual_environment_vm" "vault" {
@@ -135,7 +135,7 @@ resource "proxmox_virtual_environment_vm" "runner" {
 
 resource "proxmox_virtual_environment_vm" "authentik" {
   name      = "authentik-01"
-  vm_id     = 9125
+  vm_id     = 9135
   node_name = "proxmox01"
   tags      = ["infrastructure", "auth"]
 
