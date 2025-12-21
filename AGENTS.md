@@ -64,6 +64,25 @@ terraform init
 terraform plan
 ```
 
+**Note**: Always prefer using Vault variables in command line operations rather than hardcoding secrets or using environment variables outside of Vault-managed contexts.
+
+### VM Import Instructions
+
+If a VM exists in Proxmox but is not managed by Terraform, you can import it:
+
+```bash
+# For authentik-01
+terraform import proxmox_virtual_environment_vm.authentik proxmox01/9199
+
+# For vault-01  
+terraform import proxmox_virtual_environment_vm.vault proxmox01/9110
+
+# For runner-01
+terraform import proxmox_virtual_environment_vm.runner proxmox01/9120
+```
+
+**Important**: After importing, run `terraform plan` to see the state and ensure everything is properly configured.
+
 ## Key Conventions
 
 - VMs use cloud-init with Ubuntu 24.04 templates
@@ -91,6 +110,7 @@ terraform plan
 - **Centralized Documentation**: All project documentation should be gathered in a single `README.md` file
 - **No Script Generation**: Do not create scripts without explicit discussion. Talk through each command individually before execution
 - **Command-by-Command Approach**: Present commands one at a time, explain what they do, and wait for confirmation before proceeding
+- **No Unnecessary Scripts**: Avoid creating scripts for tasks that can be accomplished with individual commands. Maintain simplicity and avoid over-engineering.
 
 ## Build/Commands
 
@@ -128,6 +148,19 @@ terraform plan
 - SSH key management in .ssh/ directory
 - Ansible installed on runner-01 for configuration management
 - All secrets managed through HashiCorp Vault
+
+## Security Requirements
+
+**CRITICAL**: Never store secrets, tokens, or sensitive information in cleartext in this repository. All sensitive data must be managed through HashiCorp Vault only. This includes:
+
+- API keys and tokens
+- Passwords and credentials
+- SSH private keys
+- Database connection strings
+- Cloudflare tunnel tokens
+- Any other sensitive configuration
+
+The repository should contain only infrastructure code, configuration templates, and documentation. All actual secrets are fetched at runtime from Vault using secure authentication methods.
 
 ## Special Configuration
 

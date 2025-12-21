@@ -5,6 +5,45 @@ This log contains redacted sensitive information. Never commit actual credential
 
 ---
 
+## 2025-12-21: Authentik VM Deployment Issues
+
+### Authentik VM Configuration Added
+- **VMID**: 9125
+- **Name**: authentik-01  
+- **IP**: 10.0.10.25
+- **Specs**: 2 cores, 4GB RAM, 50GB disk
+- **Purpose**: Authentik SSO and Identity Provider
+
+### Issues Encountered
+1. **Vault Sealed**: GitHub Actions workflow failed due to Vault being sealed
+2. **Fix Applied**: Successfully unsealed Vault using provided unseal keys
+3. **Missing AppRole**: Created GitHub Actions AppRole and policy in Vault
+4. **Secrets Updated**: Updated GitHub repository secrets with correct AppRole credentials
+5. **VM Conflict**: Authentik VM already exists in Proxmox but not in Terraform state
+
+### Current Status
+- ✅ Vault unsealed and operational
+- ✅ GitHub Actions workflow fixed and tested
+- ✅ Terraform PostgreSQL backend working
+- ✅ Environment variables configured
+- ❌ Authentik VM conflict resolution pending
+- ❌ VM not properly managed by Terraform
+
+### GitHub Actions Status
+- **Workflow**: Fixed and operational
+- **Secrets**: Updated with correct AppRole credentials
+- **Testing**: Successfully ran plan job
+- **Apply**: Pending VM conflict resolution
+
+### Next Steps
+1. ✅ Resolve VM 9125 conflict (changed VMID to 9199)
+2. 🔄 Authentik VM deployment in progress via GitHub Actions
+3. ⏳ Waiting for VM creation to complete
+4. Verify VM is accessible and working
+5. Configure Authentik installation
+
+---
+
 ## 2025-12-19: Terraform Provider Migration
 
 ### Migrated from telmate/proxmox to bpg/proxmox
@@ -223,6 +262,7 @@ vault kv put secret/infrastructure/proxmox \
 | vault-01 | 10.0.10.21 | VM | HashiCorp Vault | Running |
 | runner-01 | 10.0.10.22 | VM | GitHub Actions Runner | Running |
 | postgres-01 | 10.0.10.23 | LXC | PostgreSQL (TF state) | Running |
+| authentik-01 | 10.0.10.25 | VM | Authentik SSO | Configured but conflict |
 
 ---
 
@@ -232,7 +272,9 @@ vault kv put secret/infrastructure/proxmox \
 2. Configure Cloudflare Tunnel ingress rules in Zero Trust dashboard
 3. Set up Vault policies for least-privilege access
 4. Install qemu-guest-agent on runner-01 VM
-5. Plan Kubernetes deployment (Phase 3 of homelab plan)
+5. ~~Plan Kubernetes deployment (Phase 3 of homelab plan)~~
+6. Resolve Authentik VM conflict and complete deployment
+7. Configure Authentik installation
 
 ---
 
@@ -294,4 +336,3 @@ ssh admin@100.110.230.3
 # System info via API
 ~/bin/test-opnsense-api.sh
 ```
-
