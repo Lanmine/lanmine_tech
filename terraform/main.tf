@@ -135,7 +135,7 @@ resource "proxmox_virtual_environment_vm" "runner" {
 
 resource "proxmox_virtual_environment_vm" "authentik" {
   name      = "authentik-01"
-  vm_id     = 9135
+  vm_id     = 9199
   node_name = "proxmox01"
   tags      = ["infrastructure", "auth"]
 
