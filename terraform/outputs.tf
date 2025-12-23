@@ -1,29 +1,23 @@
-output "vault_ip" {
-  description = "IP address of the Vault VM"
-  value       = "10.0.10.21"
+output "vm_ips" {
+  description = "IP addresses of managed VMs"
+  value = {
+    for name, vm in proxmox_virtual_environment_vm.vm :
+    name => vm.initialization[0].ip_config[0].ipv4[0].address
+  }
 }
 
-output "vault_vmid" {
-  description = "Proxmox VM ID of the Vault VM"
-  value       = proxmox_virtual_environment_vm.vault.vm_id
+output "vm_ids" {
+  description = "Proxmox VM IDs"
+  value = {
+    for name, vm in proxmox_virtual_environment_vm.vm :
+    name => vm.vm_id
+  }
 }
 
-output "vault_name" {
-  description = "Name of the Vault VM"
-  value       = proxmox_virtual_environment_vm.vault.name
-}
-
-output "runner_ip" {
-  description = "IP address of the Runner VM"
-  value       = "10.0.10.22"
-}
-
-output "runner_vmid" {
-  description = "Proxmox VM ID of the Runner VM"
-  value       = proxmox_virtual_environment_vm.runner.vm_id
-}
-
-output "runner_name" {
-  description = "Name of the Runner VM"
-  value       = proxmox_virtual_environment_vm.runner.name
+output "vm_names" {
+  description = "VM names"
+  value = {
+    for name, vm in proxmox_virtual_environment_vm.vm :
+    name => vm.name
+  }
 }

@@ -1,23 +1,21 @@
-variable "pg_conn_str" {
-  type        = string
-  sensitive   = true
-  description = "PostgreSQL connection string for Terraform state backend"
-}
-
 variable "proxmox_api_url" {
+  description = "Proxmox API endpoint (e.g. https://proxmox01:8006)"
   type        = string
-  sensitive   = true
-  description = "Proxmox API URL (e.g., https://proxmox:8006)"
 }
 
 variable "proxmox_api_token" {
+  description = "Proxmox API token (user@realm!tokenid=secret)"
   type        = string
   sensitive   = true
-  description = "Proxmox API token in format: user@realm!tokenid=secret"
+}
+
+variable "proxmox_insecure" {
+  description = "Allow insecure TLS (self-signed certs)"
+  type        = bool
+  default     = true
 }
 
 variable "ssh_public_key" {
+  description = "SSH public key injected via cloud-init"
   type        = string
-  sensitive   = true
-  description = "SSH public key for VM access"
 }
