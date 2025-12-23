@@ -33,15 +33,10 @@ jobs:
         with:
           terraform_version: "1.9.0"
 
-      - name: Add Terraform to PATH
-        run: |
-          echo "Adding terraform to PATH..."
-          echo "/home/runner/_work/_temp/5b8715d7-a452-4e51-8d02-eb6975029330" >> $GITHUB_PATH
-
       - name: Authenticate and get secrets from Vault
         uses: hashicorp/vault-action@v2
         with:
-          url: https://10.0.10.21:8200
+          url: ${{ secrets.VAULT_ADDR }}
           tlsSkipVerify: true
           method: approle
           roleId: ${{ secrets.VAULT_ROLE_ID }}
@@ -57,48 +52,10 @@ jobs:
         working-directory: ./terraform
         run: |
           echo "Starting Terraform init..."
-          export PATH=$PATH:/home/runner/_work/_temp/5b8715d7-a452-4e51-8d02-eb6975029330
-          terraform init -upgrade
+          terraform init -backend-config="conn_str=${PG_CONN_STR}" -upgrade -input=false
           echo "Terraform init completed successfully"
         env:
           PG_CONN_STR: ${{ env.PG_CONN_STR }}
-
-      - name: Pre-deployment Validation
-        working-directory: ./terraform
-        continue-on-error: true
-        run: |
-          echo "Starting pre-deployment validation..."
-          
-          # Check for existing VMs that might conflict with Terraform state
-          echo "Checking for existing VMs that might cause conflicts..."
-          
-          # Extract VM configurations from Terraform
-          VMS_TO_CHECK=$(terraform plan -no-color -json | jq -r '.resource_changes[]? | select(.type == "proxmox_virtual_environment_vm") | .change.before.name // .change.after.name')
-          
-          echo "Found VMs to check: $VMS_TO_CHECK"
-          
-          for vm_name in $VMS_TO_CHECK; do
-            if [ -n "$vm_name" ]; then
-              echo "Checking VM: $vm_name"
-              
-              # Check if VM exists in Proxmox
-              if curl -s -k -H "Authorization: PVEAPIToken=${PROXMOX_API_TOKEN}" \
-                 "${PROXMOX_API_URL}/api2/json/nodes/proxmox01/qemu" | \
-                 jq -e '.data[] | select(.name == "'"$vm_name"'")' > /dev/null; then
-                echo "WARNING: VM '$vm_name' already exists in Proxmox"
-                echo "Please import it first: terraform import proxmox_virtual_environment_vm.[resource_name] proxmox01/[vm_id]"
-                echo "Or remove it from Proxmox if it's not needed"
-              else
-                echo "VM '$vm_name' not found in Proxmox - safe to proceed"
-              fi
-            fi
-          done
-          
-          echo "Pre-deployment validation completed."
-        env:
-          PG_CONN_STR: ${{ env.PG_CONN_STR }}
-          PROXMOX_API_URL: ${{ env.PROXMOX_API_URL }}
-          PROXMOX_API_TOKEN: ${{ env.PROXMOX_TOKEN_ID }}=${{ env.PROXMOX_TOKEN_SECRET }}
 
       - name: Terraform Plan
         id: plan
@@ -191,15 +148,10 @@ jobs:
         with:
           terraform_version: "1.9.0"
 
-      - name: Add Terraform to PATH
-        run: |
-          echo "Adding terraform to PATH..."
-          echo "/home/runner/_work/_temp/5b8715d7-a452-4e51-8d02-eb6975029330" >> $GITHUB_PATH
-
       - name: Authenticate and get secrets from Vault
         uses: hashicorp/vault-action@v2
         with:
-          url: https://10.0.10.21:8200
+          url: ${{ secrets.VAULT_ADDR }}
           tlsSkipVerify: true
           method: approle
           roleId: ${{ secrets.VAULT_ROLE_ID }}
@@ -215,48 +167,10 @@ jobs:
         working-directory: ./terraform
         run: |
           echo "Starting Terraform init..."
-          export PATH=$PATH:/home/runner/_work/_temp/5b8715d7-a452-4e51-8d02-eb6975029330
-          terraform init -upgrade
+          terraform init -backend-config="conn_str=${PG_CONN_STR}" -upgrade -input=false
           echo "Terraform init completed successfully"
         env:
           PG_CONN_STR: ${{ env.PG_CONN_STR }}
-
-      - name: Pre-deployment Validation
-        working-directory: ./terraform
-        continue-on-error: true
-        run: |
-          echo "Starting pre-deployment validation..."
-          
-          # Check for existing VMs that might conflict with Terraform state
-          echo "Checking for existing VMs that might cause conflicts..."
-          
-          # Extract VM configurations from Terraform
-          VMS_TO_CHECK=$(terraform plan -no-color -json | jq -r '.resource_changes[]? | select(.type == "proxmox_virtual_environment_vm") | .change.before.name // .change.after.name')
-          
-          echo "Found VMs to check: $VMS_TO_CHECK"
-          
-          for vm_name in $VMS_TO_CHECK; do
-            if [ -n "$vm_name" ]; then
-              echo "Checking VM: $vm_name"
-              
-              # Check if VM exists in Proxmox
-              if curl -s -k -H "Authorization: PVEAPIToken=${PROXMOX_API_TOKEN}" \
-                 "${PROXMOX_API_URL}/api2/json/nodes/proxmox01/qemu" | \
-                 jq -e '.data[] | select(.name == "'"$vm_name"'")' > /dev/null; then
-                echo "WARNING: VM '$vm_name' already exists in Proxmox"
-                echo "Please import it first: terraform import proxmox_virtual_environment_vm.[resource_name] proxmox01/[vm_id]"
-                echo "Or remove it from Proxmox if it's not needed"
-              else
-                echo "VM '$vm_name' not found in Proxmox - safe to proceed"
-              fi
-            fi
-          done
-          
-          echo "Pre-deployment validation completed."
-        env:
-          PG_CONN_STR: ${{ env.PG_CONN_STR }}
-          PROXMOX_API_URL: ${{ env.PROXMOX_API_URL }}
-          PROXMOX_API_TOKEN: ${{ env.PROXMOX_TOKEN_ID }}=${{ env.PROXMOX_TOKEN_SECRET }}
 
       - name: Terraform Apply
         working-directory: ./terraform
