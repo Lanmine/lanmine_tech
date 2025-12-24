@@ -1,8 +1,9 @@
 name: Terraform Check
 
 on:
+  workflow_dispatch:  # Manual trigger
   push:
-    branches: [dev]  # Test on dev pushes first
+    branches: [dev]
   pull_request:
     branches: [main]
 
