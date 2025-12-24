@@ -1,0 +1,37 @@
+name: Terraform Check
+
+on:
+  push:
+    branches: [dev]  # Test on dev pushes first
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: self-hosted
+
+    steps:
+      - name: Debug - Runner info
+        run: |
+          echo "=== Runner Environment ==="
+          echo "Hostname: $(hostname)"
+          echo "User: $(whoami)"
+          echo "PWD: $(pwd)"
+          echo "PATH: $PATH"
+          echo ""
+          echo "=== Versions ==="
+          terraform --version || echo "Terraform not found"
+          echo ""
+          echo "=== Network ==="
+          ping -c 1 10.0.10.21 && echo "Can reach Vault" || echo "Cannot reach Vault"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Debug - Repo contents
+        run: |
+          echo "=== Repo root ==="
+          ls -la
+          echo ""
+          echo "=== Terraform dir ==="
+          ls -la terraform/
