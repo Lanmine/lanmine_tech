@@ -1,11 +1,15 @@
 name: Terraform Check
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
   push:
     branches: [dev]
   pull_request:
     branches: [main]
+
+env:
+  VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+  VAULT_SKIP_VERIFY: "1"
 
 jobs:
   check:
@@ -18,10 +22,10 @@ jobs:
           echo "Hostname: $(hostname)"
           echo "User: $(whoami)"
           echo "PWD: $(pwd)"
-          echo "PATH: $PATH"
           echo ""
           echo "=== Versions ==="
-          terraform --version || echo "Terraform not found"
+          terraform --version
+          vault --version
           echo ""
           echo "=== Network ==="
           ping -c 1 10.0.10.21 && echo "Can reach Vault" || echo "Cannot reach Vault"
@@ -29,22 +33,51 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Debug - Repo contents
-        run: |
-          echo "=== Repo root ==="
-          ls -la
-          echo ""
-          echo "=== Terraform dir ==="
-          ls -la terraform/
-
       - name: Terraform Format Check
         working-directory: terraform
         run: terraform fmt -check -diff
 
+      - name: Vault Login
+        run: |
+          vault write -field=token auth/approle/login \
+            role_id=${{ secrets.VAULT_ROLE_ID }} \
+            secret_id=${{ secrets.VAULT_SECRET_ID }} > .vault-token
+          echo "VAULT_TOKEN=$(cat .vault-token)" >> $GITHUB_ENV
+          rm .vault-token
+
+      - name: Load Secrets from Vault
+        working-directory: terraform
+        run: |
+          echo "Loading secrets from Vault..."
+
+          # Proxmox credentials
+          TF_VAR_proxmox_api_url="$(vault kv get -field=api_url secret/infrastructure/proxmox)"
+          TOKEN_ID="$(vault kv get -field=api_token_id secret/infrastructure/proxmox)"
+          TOKEN_SECRET="$(vault kv get -field=api_token_secret secret/infrastructure/proxmox)"
+          TF_VAR_proxmox_api_token="${TOKEN_ID}=${TOKEN_SECRET}"
+
+          # SSH key
+          TF_VAR_ssh_public_key="$(vault kv get -field=public_key secret/infrastructure/ssh)"
+
+          # PostgreSQL backend
+          PG_CONN_STR="$(vault kv get -field=conn_str secret/infrastructure/postgres)"
+
+          # Export to GitHub environment
+          echo "TF_VAR_proxmox_api_url=${TF_VAR_proxmox_api_url}" >> $GITHUB_ENV
+          echo "TF_VAR_proxmox_api_token=${TF_VAR_proxmox_api_token}" >> $GITHUB_ENV
+          echo "TF_VAR_ssh_public_key=${TF_VAR_ssh_public_key}" >> $GITHUB_ENV
+          echo "PG_CONN_STR=${PG_CONN_STR}" >> $GITHUB_ENV
+
+          echo "Secrets loaded successfully"
+
       - name: Terraform Init
         working-directory: terraform
-        run: terraform init -backend=false
+        run: terraform init -backend-config="conn_str=${PG_CONN_STR}"
 
       - name: Terraform Validate
         working-directory: terraform
         run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan -no-color
