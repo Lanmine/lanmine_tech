@@ -36,3 +36,15 @@ jobs:
           echo ""
           echo "=== Terraform dir ==="
           ls -la terraform/
+
+      - name: Terraform Format Check
+        working-directory: terraform
+        run: terraform fmt -check -diff
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
