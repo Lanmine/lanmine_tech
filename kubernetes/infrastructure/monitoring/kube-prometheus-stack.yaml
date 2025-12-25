@@ -36,7 +36,7 @@ spec:
         retention: 3d
         # TODO: Add storageSpec when storage class is configured
 
-    # Disable components not needed for small clusters
+    # Disable components not needed for small clusters or incompatible with Talos
     kubeEtcd:
       enabled: false  # Talos manages etcd differently
     kubeControllerManager:
@@ -45,3 +45,7 @@ spec:
       enabled: false  # Not exposed in Talos by default
     kubeProxy:
       enabled: true
+
+    # Disable node-exporter - requires privileged access that violates Talos PodSecurity
+    prometheus-node-exporter:
+      enabled: false
