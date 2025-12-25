@@ -1,0 +1,80 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: traefik
+  namespace: traefik
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: traefik
+      version: "33.x"
+      sourceRef:
+        kind: HelmRepository
+        name: traefik
+        namespace: flux-system
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    # Deployment configuration
+    deployment:
+      replicas: 1
+
+    # Service configuration - LoadBalancer for external access
+    service:
+      type: LoadBalancer
+      spec:
+        loadBalancerIP: 10.0.10.40
+
+    # Ports configuration
+    ports:
+      web:
+        port: 8000
+        exposedPort: 80
+        protocol: TCP
+      websecure:
+        port: 8443
+        exposedPort: 443
+        protocol: TCP
+        tls:
+          enabled: true
+
+    # Enable dashboard (accessible via port-forward or IngressRoute)
+    ingressRoute:
+      dashboard:
+        enabled: true
+        matchRule: Host(`traefik.lanmine.local`)
+        entryPoints:
+          - websecure
+
+    # Logs
+    logs:
+      general:
+        level: INFO
+      access:
+        enabled: true
+
+    # Providers
+    providers:
+      kubernetesCRD:
+        enabled: true
+        allowCrossNamespace: true
+      kubernetesIngress:
+        enabled: true
+        publishedService:
+          enabled: true
+
+    # Resource limits
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
