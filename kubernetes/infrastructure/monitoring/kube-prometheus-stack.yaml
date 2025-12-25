@@ -47,5 +47,5 @@ spec:
       enabled: true
 
     # Disable node-exporter - requires privileged access that violates Talos PodSecurity
-    prometheus-node-exporter:
+    nodeExporter:
       enabled: false
