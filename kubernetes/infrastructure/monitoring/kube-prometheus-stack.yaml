@@ -1,0 +1,65 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+  namespace: monitoring
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: kube-prometheus-stack
+      version: "67.x"
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+        namespace: flux-system
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    # Grafana config
+    grafana:
+      adminPassword: "lanmine-admin"  # Change this!
+      ingress:
+        enabled: false  # Enable when you add Traefik
+      persistence:
+        enabled: true
+        size: 5Gi
+
+    # Prometheus config
+    prometheus:
+      prometheusSpec:
+        retention: 7d
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 20Gi
+
+    # Alertmanager config
+    alertmanager:
+      alertmanagerSpec:
+        storage:
+          volumeClaimTemplate:
+            spec:
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 5Gi
+
+    # Disable components not needed for small clusters
+    kubeEtcd:
+      enabled: false  # Talos manages etcd differently
+    kubeControllerManager:
+      enabled: false  # Not exposed in Talos by default
+    kubeScheduler:
+      enabled: false  # Not exposed in Talos by default
+    kubeProxy:
+      enabled: true
