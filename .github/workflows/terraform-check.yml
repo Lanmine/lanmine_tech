@@ -1,65 +1,64 @@
-name: terraform-check
+name: Terraform Check
 
 on:
-  pull_request:
   workflow_dispatch:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [main]
 
-permissions:
-  contents: read
+env:
+  VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+  VAULT_SKIP_VERIFY: "1"
 
 jobs:
-  terraform:
-    runs-on: ubuntu-latest
+  check:
+    runs-on: self-hosted
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.6
+      - name: Terraform Format Check
+        working-directory: terraform
+        run: terraform fmt -check -diff
 
-      - name: Install Vault CLI
+      - name: Vault Login
         run: |
-          curl -fsSL https://releases.hashicorp.com/vault/1.15.6/vault_1.15.6_linux_amd64.zip -o vault.zip
-          unzip vault.zip
-          sudo mv vault /usr/local/bin/
-          vault version
+          vault write -field=token auth/approle/login \
+            role_id=${{ secrets.VAULT_ROLE_ID }} \
+            secret_id=${{ secrets.VAULT_SECRET_ID }} > .vault-token
+          echo "VAULT_TOKEN=$(cat .vault-token)" >> $GITHUB_ENV
+          rm .vault-token
 
-      # ---- Vault Authentication ----
-      # Assumes AppRole secrets are stored in GitHub Secrets
-      - name: Authenticate to Vault
-        env:
-          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-          VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
-          VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
+      - name: Load Secrets from Vault
         run: |
-          export VAULT_TOKEN=$(vault write -field=token auth/approle/login \
-            role_id="$VAULT_ROLE_ID" \
-            secret_id="$VAULT_SECRET_ID")
+          # Proxmox credentials
+          TF_VAR_proxmox_api_url="$(vault kv get -field=api_url secret/infrastructure/proxmox)"
+          TOKEN_ID="$(vault kv get -field=api_token_id secret/infrastructure/proxmox)"
+          TOKEN_SECRET="$(vault kv get -field=api_token_secret secret/infrastructure/proxmox)"
+          TF_VAR_proxmox_api_token="${TOKEN_ID}=${TOKEN_SECRET}"
 
-          echo "VAULT_TOKEN=$VAULT_TOKEN" >> $GITHUB_ENV
+          # SSH key
+          TF_VAR_ssh_public_key="$(vault kv get -field=public_key secret/infrastructure/ssh)"
 
-      - name: Load Terraform secrets from Vault
-        run: |
-          source ./load_tf_secrets.sh
+          # PostgreSQL backend
+          PG_CONN_STR="$(vault kv get -field=connection_string secret/infrastructure/postgres)"
+
+          # Export to GitHub environment
+          echo "TF_VAR_proxmox_api_url=${TF_VAR_proxmox_api_url}" >> $GITHUB_ENV
+          echo "TF_VAR_proxmox_api_token=${TF_VAR_proxmox_api_token}" >> $GITHUB_ENV
+          echo "TF_VAR_ssh_public_key=${TF_VAR_ssh_public_key}" >> $GITHUB_ENV
+          echo "PG_CONN_STR=${PG_CONN_STR}" >> $GITHUB_ENV
 
       - name: Terraform Init
-        working-directory: lanmine_tech/terraform
-        env:
-          TF_IN_AUTOMATION: true
-        run: |
-          terraform init \
-            -backend-config="conn_str=${{ secrets.PG_CONN_STR }}" \
-            -input=false
+        working-directory: terraform
+        run: terraform init -backend-config="conn_str=${PG_CONN_STR}"
 
       - name: Terraform Validate
-        working-directory: lanmine_tech/terraform
+        working-directory: terraform
         run: terraform validate
 
-      - name: Terraform Plan (no apply)
-        working-directory: lanmine_tech/terraform
-        env:
-          TF_IN_AUTOMATION: true
-        run: terraform plan -input=false
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan -no-color
