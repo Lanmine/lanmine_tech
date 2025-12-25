@@ -28,31 +28,18 @@ spec:
       ingress:
         enabled: false  # Enable when you add Traefik
       persistence:
-        enabled: true
-        size: 5Gi
+        enabled: false  # TODO: Enable with storage class
 
     # Prometheus config
     prometheus:
       prometheusSpec:
-        retention: 7d
-        storageSpec:
-          volumeClaimTemplate:
-            spec:
-              accessModes: ["ReadWriteOnce"]
-              resources:
-                requests:
-                  storage: 20Gi
+        retention: 3d
+        # TODO: Add storageSpec when storage class is configured
 
     # Alertmanager config
     alertmanager:
-      alertmanagerSpec:
-        storage:
-          volumeClaimTemplate:
-            spec:
-              accessModes: ["ReadWriteOnce"]
-              resources:
-                requests:
-                  storage: 5Gi
+      alertmanagerSpec: {}
+      # TODO: Add storage when storage class is configured
 
     # Disable components not needed for small clusters
     kubeEtcd:
