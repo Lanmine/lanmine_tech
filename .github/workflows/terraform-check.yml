@@ -60,7 +60,7 @@ jobs:
           TF_VAR_ssh_public_key="$(vault kv get -field=public_key secret/infrastructure/ssh)"
 
           # PostgreSQL backend
-          PG_CONN_STR="$(vault kv get -field=conn_str secret/infrastructure/postgres)"
+          PG_CONN_STR="$(vault kv get -field=connection_string secret/infrastructure/postgres)"
 
           # Export to GitHub environment
           echo "TF_VAR_proxmox_api_url=${TF_VAR_proxmox_api_url}" >> $GITHUB_ENV
