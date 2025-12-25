@@ -59,6 +59,22 @@ jobs:
         working-directory: terraform
         run: terraform validate
 
+      - name: Debug - Network to Proxmox
+        run: |
+          echo "=== Testing Proxmox API connectivity ==="
+          time curl -sk -o /dev/null -w "HTTP %{http_code} - Time: %{time_total}s\n" "${TF_VAR_proxmox_api_url}/version" || true
+          echo ""
+          echo "=== Ping test ==="
+          ping -c 3 10.0.10.5
+
       - name: Terraform Plan
         working-directory: terraform
-        run: terraform plan -no-color
+        env:
+          TF_LOG: DEBUG
+        run: |
+          echo "=== Starting terraform plan at $(date) ==="
+          time terraform plan -no-color 2>&1 | tee plan.log
+          echo "=== Finished at $(date) ==="
+          echo ""
+          echo "=== Slow operations (>5s) ==="
+          grep -E "^\d{4}" plan.log | head -50 || true
