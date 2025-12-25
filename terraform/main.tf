@@ -29,6 +29,40 @@ provider "proxmox" {
 ###############################################################################
 
 locals {
+  # Talos Kubernetes cluster nodes
+  talos_nodes = {
+    cp1 = {
+      name        = "talos-cp-01"
+      vm_id       = 9200
+      cpu         = 2
+      memory      = 4096
+      ip          = "10.0.10.30/24"
+      role        = "controlplane"
+      description = "Talos Kubernetes control plane"
+    }
+
+    worker1 = {
+      name        = "talos-worker-01"
+      vm_id       = 9201
+      cpu         = 4
+      memory      = 8192
+      ip          = "10.0.10.31/24"
+      role        = "worker"
+      description = "Talos Kubernetes worker node"
+    }
+
+    worker2 = {
+      name        = "talos-worker-02"
+      vm_id       = 9202
+      cpu         = 4
+      memory      = 8192
+      ip          = "10.0.10.32/24"
+      role        = "worker"
+      description = "Talos Kubernetes worker node"
+    }
+  }
+
+  # Regular VMs (Ubuntu-based)
   vms = {
     vault = {
       name        = "vault-01"
@@ -126,6 +160,72 @@ resource "proxmox_virtual_environment_vm" "vm" {
     prevent_destroy = true
 
     # Cloud-init is one-shot; drift here is expected
+    ignore_changes = [
+      initialization,
+    ]
+  }
+}
+
+###############################################################################
+# Talos Kubernetes Cluster
+###############################################################################
+
+resource "proxmox_virtual_environment_vm" "talos" {
+  for_each = local.talos_nodes
+
+  name        = each.value.name
+  vm_id       = each.value.vm_id
+  node_name   = "proxmox01"
+  tags        = ["kubernetes", each.value.role]
+  description = each.value.description
+
+  clone {
+    vm_id = 9100 # talos-template
+  }
+
+  agent {
+    enabled = false # Talos doesn't run qemu-guest-agent by default
+  }
+
+  cpu {
+    cores   = each.value.cpu
+    sockets = 1
+    type    = "host"
+  }
+
+  memory {
+    dedicated = each.value.memory
+  }
+
+  disk {
+    datastore_id = "local-lvm"
+    size         = 50
+    interface    = "scsi0"
+  }
+
+  network_device {
+    bridge  = "vmbr0"
+    vlan_id = 10
+  }
+
+  # Talos uses machine config, not cloud-init
+  # IP will be configured via talosctl apply-config
+  initialization {
+    ip_config {
+      ipv4 {
+        address = each.value.ip
+        gateway = "10.0.10.1"
+      }
+    }
+
+    dns {
+      servers = ["10.0.10.1"]
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+
     ignore_changes = [
       initialization,
     ]
