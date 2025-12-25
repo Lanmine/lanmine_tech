@@ -16,20 +16,6 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Debug - Runner info
-        run: |
-          echo "=== Runner Environment ==="
-          echo "Hostname: $(hostname)"
-          echo "User: $(whoami)"
-          echo "PWD: $(pwd)"
-          echo ""
-          echo "=== Versions ==="
-          terraform --version
-          vault --version
-          echo ""
-          echo "=== Network ==="
-          ping -c 1 10.0.10.21 && echo "Can reach Vault" || echo "Cannot reach Vault"
-
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -46,10 +32,7 @@ jobs:
           rm .vault-token
 
       - name: Load Secrets from Vault
-        working-directory: terraform
         run: |
-          echo "Loading secrets from Vault..."
-
           # Proxmox credentials
           TF_VAR_proxmox_api_url="$(vault kv get -field=api_url secret/infrastructure/proxmox)"
           TOKEN_ID="$(vault kv get -field=api_token_id secret/infrastructure/proxmox)"
@@ -67,8 +50,6 @@ jobs:
           echo "TF_VAR_proxmox_api_token=${TF_VAR_proxmox_api_token}" >> $GITHUB_ENV
           echo "TF_VAR_ssh_public_key=${TF_VAR_ssh_public_key}" >> $GITHUB_ENV
           echo "PG_CONN_STR=${PG_CONN_STR}" >> $GITHUB_ENV
-
-          echo "Secrets loaded successfully"
 
       - name: Terraform Init
         working-directory: terraform
