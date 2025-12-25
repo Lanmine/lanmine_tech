@@ -36,11 +36,6 @@ spec:
         retention: 3d
         # TODO: Add storageSpec when storage class is configured
 
-    # Alertmanager config
-    alertmanager:
-      alertmanagerSpec: {}
-      # TODO: Add storage when storage class is configured
-
     # Disable components not needed for small clusters
     kubeEtcd:
       enabled: false  # Talos manages etcd differently
