@@ -1,0 +1,9 @@
+# Talos secrets - DO NOT COMMIT
+controlplane.yaml
+worker.yaml
+worker1.yaml
+worker2.yaml
+talosconfig
+kubeconfig
+*.key
+*.crt
