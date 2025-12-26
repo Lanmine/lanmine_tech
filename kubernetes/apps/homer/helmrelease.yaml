@@ -24,13 +24,17 @@ spec:
       repository: b4bz/homer
       tag: latest
 
+    # Disable default config generation
+    env:
+      INIT_ASSETS: "0"
+
     service:
       main:
         ports:
           http:
             port: 8080
 
-    configmap:
+    configMaps:
       config:
         enabled: true
         data:
