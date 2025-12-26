@@ -10,8 +10,8 @@ spec:
     app.kubernetes.io/instance: traefik-traefik
   ports:
     - name: traefik
-      port: 9000
-      targetPort: 9000
+      port: 8080
+      targetPort: 8080
 ---
 # Tailscale access to Traefik dashboard with automatic HTTPS
 apiVersion: networking.k8s.io/v1
@@ -27,7 +27,7 @@ spec:
     service:
       name: traefik-dashboard
       port:
-        number: 9000
+        number: 8080
   tls:
     - hosts:
         - traefik
