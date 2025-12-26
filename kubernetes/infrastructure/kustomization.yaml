@@ -4,5 +4,6 @@ resources:
   - storage
   - metallb
   - cert-manager
+  - tailscale
   - ingress
   - monitoring
