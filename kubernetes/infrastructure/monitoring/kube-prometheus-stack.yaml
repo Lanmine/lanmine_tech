@@ -26,9 +26,28 @@ spec:
     grafana:
       adminPassword: "lanmine-admin"  # Change this!
       ingress:
-        enabled: false  # Enable when you add Traefik
+        enabled: false  # Using Traefik IngressRoute instead
       persistence:
         enabled: false  # TODO: Enable with storage class
+
+      # Authentik OAuth configuration
+      envFromSecret: grafana-oauth
+      grafana.ini:
+        server:
+          root_url: https://grafana.lionfish-caiman.ts.net
+        auth.generic_oauth:
+          enabled: true
+          name: Authentik
+          allow_sign_up: true
+          client_id: ${client_id}
+          client_secret: ${client_secret}
+          scopes: openid email profile
+          auth_url: https://authentik-01.lionfish-caiman.ts.net/application/o/authorize/
+          token_url: https://authentik-01.lionfish-caiman.ts.net/application/o/token/
+          api_url: https://authentik-01.lionfish-caiman.ts.net/application/o/userinfo/
+          role_attribute_path: contains(groups[*], 'Grafana Admins') && 'Admin' || contains(groups[*], 'Grafana Editors') && 'Editor' || 'Viewer'
+        auth:
+          signout_redirect_url: https://authentik-01.lionfish-caiman.ts.net/application/o/grafana/end-session/
 
     # Prometheus config
     prometheus:
