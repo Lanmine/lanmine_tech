@@ -74,6 +74,45 @@ This file provides essential guidance for automated coding agents operating in t
 | runner-01 | 10.0.10.22 | GitHub Actions self-hosted runner |
 | postgres-01 | 10.0.10.23 | PostgreSQL (Terraform state backend) |
 | authentik-01 | 10.0.10.25 | Authentik SSO and Identity Provider |
+| talos-cp-01 | 10.0.10.30 | Talos Kubernetes control plane |
+| talos-worker-01 | 10.0.10.31 | Talos Kubernetes worker |
+| talos-worker-02 | 10.0.10.32 | Talos Kubernetes worker |
+
+## Kubernetes Cluster
+
+- **Distribution**: Talos Linux (immutable, API-driven)
+- **Config**: `talos/` directory contains talosconfig, kubeconfig, and machine configs
+- **GitOps**: Flux CD (`kubernetes/` directory)
+- **Ingress**: Traefik (LoadBalancer IP: 10.0.10.40)
+- **Monitoring**: kube-prometheus-stack (Grafana at https://grafana.lionfish-caiman.ts.net)
+- **Remote Access**: Tailscale Operator with automatic Let's Encrypt HTTPS
+
+### Key Commands
+
+```bash
+# Talos cluster management
+export TALOSCONFIG=/home/ubuntu-mgmt01/infra/lanmine_tech/talos/talosconfig
+talosctl health
+talosctl dashboard
+
+# Kubernetes access
+export KUBECONFIG=/home/ubuntu-mgmt01/infra/lanmine_tech/talos/kubeconfig
+kubectl get nodes
+kubectl get pods -A
+
+# Flux GitOps
+flux reconcile source git flux-system
+flux reconcile kustomization apps
+flux reconcile kustomization infrastructure
+```
+
+### Vault Secrets for Kubernetes
+
+| Path | Purpose |
+|------|---------|
+| `secret/infrastructure/tailscale` | Tailscale OAuth credentials |
+| `secret/infrastructure/authentik` | Grafana OAuth client credentials |
+| `secret/infrastructure/grafana` | Grafana admin password |
 
 ## MCP Servers
 

@@ -71,8 +71,38 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 |------|-----|---------|
 | proxmox | 10.0.10.5 | Proxmox VE hypervisor |
 | opnsense | 10.0.10.1 | Firewall/gateway |
-| vault | 10.0.10.21 | HashiCorp Vault |
-| runner | 10.0.10.22 | GitHub Actions self-hosted runner |
+| vault-01 | 10.0.10.21 | HashiCorp Vault |
+| runner-01 | 10.0.10.22 | GitHub Actions self-hosted runner |
+| postgres-01 | 10.0.10.23 | PostgreSQL (Terraform state backend) |
+| authentik-01 | 10.0.10.25 | Authentik SSO and Identity Provider |
+| talos-cp-01 | 10.0.10.30 | Talos Kubernetes control plane |
+| talos-worker-01 | 10.0.10.31 | Talos Kubernetes worker |
+| talos-worker-02 | 10.0.10.32 | Talos Kubernetes worker |
+
+## Kubernetes Cluster
+
+- **Distribution**: Talos Linux
+- **Ingress**: Traefik (LoadBalancer IP: 10.0.10.40)
+- **GitOps**: Flux CD
+- **Monitoring**: kube-prometheus-stack (Prometheus, Grafana, Alertmanager)
+- **Certificates**: cert-manager with internal CA (lanmine-ca-issuer)
+- **Load Balancer**: MetalLB (IP range: 10.0.10.40-10.0.10.49)
+- **Storage**: local-path-provisioner
+- **Remote Access**: Tailscale Operator with Let's Encrypt HTTPS
+
+### Tailscale Services
+
+| Service | URL |
+|---------|-----|
+| Grafana | https://grafana.lionfish-caiman.ts.net |
+| Traefik | https://traefik.lionfish-caiman.ts.net/dashboard/ |
+
+### Grafana Authentication
+
+Grafana uses Authentik OAuth for SSO. Configuration:
+- OAuth credentials stored in Vault at `secret/infrastructure/authentik`
+- Kubernetes secret `grafana-oauth` in monitoring namespace
+- Browser redirects go to Tailscale URL, server-side calls use LAN IP (10.0.10.25:9000)
 
 ## MCP Servers
 
