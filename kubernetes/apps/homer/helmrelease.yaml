@@ -39,7 +39,7 @@ spec:
         enabled: true
         data:
           config.yml: |
-            title: "Lanmine Homelab"
+            title: "Lanmine"
             subtitle: "Infrastructure Dashboard"
             logo: "assets/tools/sample.png"
             header: true
