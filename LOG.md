@@ -72,6 +72,28 @@ Moved Grafana admin password from hardcoded value to Vault:
 - Kubernetes secret `grafana-admin` in monitoring namespace
 - HelmRelease uses `admin.existingSecret` to reference the secret
 
+### Homer Dashboard
+
+Deployed Homer as a homelab dashboard with links to all services.
+
+**Deployment:**
+- Helm chart: gabe565/homer
+- Namespace: `homer`
+- URL: https://home.lionfish-caiman.ts.net
+
+**Configuration:**
+- ConfigMap-based configuration via `configMaps.config`
+- `INIT_ASSETS: "0"` to disable default demo config
+- Tailscale Ingress with automatic Let's Encrypt HTTPS
+
+**Services Linked:**
+- Infrastructure: Proxmox (port 8006), Vault (port 8200), OPNsense
+- Kubernetes: Grafana, Traefik
+- Authentication: Authentik
+
+**Files:**
+- `kubernetes/apps/homer/` - All Homer manifests
+
 ---
 
 ## 2025-12-21: Authentik VM Deployment Issues
