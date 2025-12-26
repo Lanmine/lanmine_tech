@@ -1,0 +1,118 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: homer
+  namespace: homer
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: homer
+      version: "0.x"
+      sourceRef:
+        kind: HelmRepository
+        name: gabe565
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    image:
+      repository: b4bz/homer
+      tag: latest
+
+    service:
+      main:
+        ports:
+          http:
+            port: 8080
+
+    configmap:
+      config:
+        enabled: true
+        data:
+          config.yml: |
+            title: "Lanmine Homelab"
+            subtitle: "Infrastructure Dashboard"
+            logo: "assets/tools/sample.png"
+            header: true
+            footer: false
+
+            theme: default
+            colors:
+              light:
+                highlight-primary: "#3367d6"
+                highlight-secondary: "#4285f4"
+                highlight-hover: "#5a95f5"
+                background: "#f5f5f5"
+                card-background: "#ffffff"
+                text: "#363636"
+                text-header: "#424242"
+                text-title: "#303030"
+                text-subtitle: "#424242"
+                card-shadow: rgba(0, 0, 0, 0.1)
+                link: "#3273dc"
+                link-hover: "#363636"
+                background-image: false
+              dark:
+                highlight-primary: "#3367d6"
+                highlight-secondary: "#4285f4"
+                highlight-hover: "#5a95f5"
+                background: "#131313"
+                card-background: "#2b2b2b"
+                text: "#eaeaea"
+                text-header: "#ffffff"
+                text-title: "#fafafa"
+                text-subtitle: "#f5f5f5"
+                card-shadow: rgba(0, 0, 0, 0.4)
+                link: "#3273dc"
+                link-hover: "#ffdd57"
+                background-image: false
+
+            links: []
+
+            services:
+              - name: "Infrastructure"
+                icon: "fas fa-server"
+                items:
+                  - name: "Proxmox"
+                    logo: "assets/tools/sample.png"
+                    subtitle: "Virtualization Platform"
+                    url: "https://proxmox.tech.lanmine.no"
+                    target: "_blank"
+                  - name: "Vault"
+                    logo: "assets/tools/sample.png"
+                    subtitle: "Secrets Management"
+                    url: "https://vault.tech.lanmine.no"
+                    target: "_blank"
+                  - name: "OPNsense"
+                    logo: "assets/tools/sample.png"
+                    subtitle: "Firewall & Router"
+                    url: "https://opnsense.tech.lanmine.no"
+                    target: "_blank"
+
+              - name: "Kubernetes"
+                icon: "fas fa-dharmachakra"
+                items:
+                  - name: "Grafana"
+                    logo: "assets/tools/sample.png"
+                    subtitle: "Monitoring & Dashboards"
+                    url: "https://grafana.lionfish-caiman.ts.net"
+                    target: "_blank"
+                  - name: "Traefik"
+                    logo: "assets/tools/sample.png"
+                    subtitle: "Ingress Controller"
+                    url: "https://traefik.lionfish-caiman.ts.net/dashboard/"
+                    target: "_blank"
+
+              - name: "Authentication"
+                icon: "fas fa-shield-alt"
+                items:
+                  - name: "Authentik"
+                    logo: "assets/tools/sample.png"
+                    subtitle: "Identity Provider"
+                    url: "https://authentik-01.lionfish-caiman.ts.net"
+                    target: "_blank"
