@@ -30,6 +30,12 @@ spec:
       persistence:
         enabled: false  # TODO: Enable with storage class
 
+      # Resolve Authentik Tailscale hostname to LAN IP
+      hostAliases:
+        - ip: "10.0.10.25"
+          hostnames:
+            - "authentik-01.lionfish-caiman.ts.net"
+
       # Authentik OAuth configuration
       envFromSecret: grafana-oauth
       grafana.ini:
