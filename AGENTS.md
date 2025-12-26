@@ -85,6 +85,7 @@ This file provides essential guidance for automated coding agents operating in t
 - **GitOps**: Flux CD (`kubernetes/` directory)
 - **Ingress**: Traefik (LoadBalancer IP: 10.0.10.40)
 - **Monitoring**: kube-prometheus-stack (Grafana at https://grafana.lionfish-caiman.ts.net)
+- **Dashboard**: Homer (https://home.lionfish-caiman.ts.net)
 - **Remote Access**: Tailscale Operator with automatic Let's Encrypt HTTPS
 
 ### Key Commands
