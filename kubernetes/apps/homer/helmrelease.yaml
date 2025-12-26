@@ -41,7 +41,7 @@ spec:
           config.yml: |
             title: "Lanmine"
             subtitle: "Infrastructure Dashboard"
-            logo: "assets/tools/sample.png"
+            logo: "https://cdn-icons-png.flaticon.com/512/2779/2779527.png"
             header: true
             footer: false
 
