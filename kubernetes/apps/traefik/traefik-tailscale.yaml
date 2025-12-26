@@ -1,0 +1,33 @@
+# Service for Traefik dashboard/API
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik-dashboard
+  namespace: traefik
+spec:
+  selector:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: traefik-traefik
+  ports:
+    - name: traefik
+      port: 9000
+      targetPort: 9000
+---
+# Tailscale access to Traefik dashboard with automatic HTTPS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: traefik-dashboard-tailscale
+  namespace: traefik
+  annotations:
+    tailscale.com/funnel: "false"
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: traefik-dashboard
+      port:
+        number: 9000
+  tls:
+    - hosts:
+        - traefik
