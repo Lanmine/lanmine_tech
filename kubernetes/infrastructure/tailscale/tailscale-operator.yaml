@@ -24,6 +24,7 @@ spec:
   values:
     oauth:
       clientSecret: "operator-oauth"
+      audience: ""
     operatorConfig:
       hostname: "k8s-operator"
       defaultTags: "tag:k8s"
