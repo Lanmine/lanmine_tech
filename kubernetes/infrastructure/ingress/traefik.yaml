@@ -46,8 +46,8 @@ spec:
           enabled: true
 
     # Enable API/dashboard in insecure mode for Tailscale access
-    api:
-      insecure: true
+    additionalArguments:
+      - "--api.insecure=true"
 
     # Enable dashboard (accessible via port-forward or IngressRoute)
     ingressRoute:
