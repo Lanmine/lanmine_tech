@@ -22,18 +22,12 @@ spec:
     remediation:
       retries: 3
   values:
-    # OAuth credentials - create at https://login.tailscale.com/admin/settings/oauth
-    oauth:
-      clientId: ""      # Set via secret
-      clientSecret: ""  # Set via secret
+    # OAuth credentials from operator-oauth secret (created manually)
+    oauth: {}
     operatorConfig:
       hostname: "k8s-operator"
-  valuesFrom:
-    - kind: Secret
-      name: tailscale-operator-oauth
-      valuesKey: clientId
-      targetPath: oauth.clientId
-    - kind: Secret
-      name: tailscale-operator-oauth
-      valuesKey: clientSecret
-      targetPath: oauth.clientSecret
+      defaultTags:
+        - "tag:k8s"
+    proxyConfig:
+      defaultTags:
+        - "tag:k8s"
