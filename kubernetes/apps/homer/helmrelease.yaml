@@ -97,6 +97,11 @@ spec:
                     subtitle: "Firewall & Router"
                     url: "https://opnsense.lionfish-caiman.ts.net"
                     target: "_blank"
+                  - name: "GitHub"
+                    icon: "fab fa-github"
+                    subtitle: "Infrastructure as Code"
+                    url: "https://github.com/Lanmine/lanmine_tech"
+                    target: "_blank"
 
               - name: "Kubernetes"
                 icon: "fas fa-dharmachakra"
