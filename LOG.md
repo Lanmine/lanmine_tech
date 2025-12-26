@@ -5,6 +5,75 @@ This log contains redacted sensitive information. Never commit actual credential
 
 ---
 
+## 2025-12-26: Tailscale Operator & Grafana OAuth with Authentik
+
+### Tailscale Kubernetes Operator
+
+Deployed Tailscale Operator for secure remote access to cluster services with automatic Let's Encrypt HTTPS.
+
+**Setup:**
+1. Created OAuth client in Tailscale Admin Console with scopes: Auth Keys (Write), Devices (Read/Write)
+2. Stored credentials in Vault at `secret/infrastructure/tailscale`
+3. Created Kubernetes secret `operator-oauth` in `tailscale` namespace
+4. Deployed operator via Flux HelmRelease
+
+**Configuration:**
+- Operator hostname: `k8s-operator`
+- Default tags: `tag:k8s` (must exist in Tailscale ACL)
+- Ingress class: `tailscale`
+
+**Exposed Services:**
+| Service | Tailscale URL |
+|---------|---------------|
+| Grafana | https://grafana.lionfish-caiman.ts.net |
+| Traefik | https://traefik.lionfish-caiman.ts.net/dashboard/ |
+
+**Files:**
+- `kubernetes/infrastructure/tailscale/` - Operator manifests
+- `kubernetes/apps/traefik/traefik-tailscale.yaml` - Traefik Tailscale ingress
+- `kubernetes/apps/monitoring/grafana-ingress.yaml` - Grafana Tailscale ingress
+
+### Grafana OAuth with Authentik
+
+Configured Grafana to use Authentik as OAuth provider for SSO.
+
+**Authentik Setup:**
+1. Created OAuth2/OpenID Provider named `grafana`
+2. Created Application linked to the provider
+3. Redirect URI: `https://grafana.lionfish-caiman.ts.net/login/generic_oauth`
+
+**Grafana Configuration:**
+- OAuth credentials stored in Vault at `secret/infrastructure/authentik`
+- Kubernetes secret `grafana-oauth` in `monitoring` namespace with `client_id` and `client_secret`
+- `envFromSecret: grafana-oauth` in Grafana Helm values
+
+**Network Configuration:**
+Since Grafana pods can't resolve Tailscale hostnames, OAuth endpoints use:
+- `auth_url`: Tailscale URL (browser redirect)
+- `token_url`: LAN IP `http://10.0.10.25:9000/application/o/token/`
+- `api_url`: LAN IP `http://10.0.10.25:9000/application/o/userinfo/`
+
+**Role Mapping:**
+```
+contains(groups[*], 'Grafana Admins') && 'Admin' ||
+contains(groups[*], 'Grafana Editors') && 'Editor' || 'Viewer'
+```
+
+### Traefik Dashboard Fix
+
+Fixed 502 error accessing Traefik dashboard via Tailscale:
+1. Changed service port from 9000 to 8080 (correct dashboard port)
+2. Enabled `--api.insecure=true` via `additionalArguments` in Helm values
+
+### Grafana Admin Password
+
+Moved Grafana admin password from hardcoded value to Vault:
+- Stored in Vault at `secret/infrastructure/grafana`
+- Kubernetes secret `grafana-admin` in monitoring namespace
+- HelmRelease uses `admin.existingSecret` to reference the secret
+
+---
+
 ## 2025-12-21: Authentik VM Deployment Issues
 
 ### Authentik VM Configuration Added

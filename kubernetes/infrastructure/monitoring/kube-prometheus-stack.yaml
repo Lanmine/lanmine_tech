@@ -24,17 +24,15 @@ spec:
   values:
     # Grafana config
     grafana:
-      adminPassword: "lanmine-admin"  # Change this!
+      # Admin credentials from secret (password stored in Vault at secret/infrastructure/grafana)
+      admin:
+        existingSecret: grafana-admin
+        userKey: admin-user
+        passwordKey: admin-password
       ingress:
         enabled: false  # Using Traefik IngressRoute instead
       persistence:
         enabled: false  # TODO: Enable with storage class
-
-      # Resolve Authentik Tailscale hostname to LAN IP
-      hostAliases:
-        - ip: "10.0.10.25"
-          hostnames:
-            - "authentik-01.lionfish-caiman.ts.net"
 
       # Authentik OAuth configuration
       envFromSecret: grafana-oauth
@@ -48,9 +46,10 @@ spec:
           client_id: ${client_id}
           client_secret: ${client_secret}
           scopes: openid email profile
+          # Use Tailscale URL for browser redirects, LAN URL for server-side calls
           auth_url: https://authentik-01.lionfish-caiman.ts.net/application/o/authorize/
-          token_url: https://authentik-01.lionfish-caiman.ts.net/application/o/token/
-          api_url: https://authentik-01.lionfish-caiman.ts.net/application/o/userinfo/
+          token_url: http://10.0.10.25:9000/application/o/token/
+          api_url: http://10.0.10.25:9000/application/o/userinfo/
           role_attribute_path: contains(groups[*], 'Grafana Admins') && 'Admin' || contains(groups[*], 'Grafana Editors') && 'Editor' || 'Viewer'
         auth:
           signout_redirect_url: https://authentik-01.lionfish-caiman.ts.net/application/o/grafana/end-session/
