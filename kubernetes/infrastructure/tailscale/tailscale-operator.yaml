@@ -22,6 +22,8 @@ spec:
     remediation:
       retries: 3
   values:
+    oauth:
+      clientSecret: "operator-oauth"
     operatorConfig:
       hostname: "k8s-operator"
       defaultTags:
@@ -29,3 +31,8 @@ spec:
     proxyConfig:
       defaultTags:
         - "tag:k8s"
+  valuesFrom:
+    - kind: Secret
+      name: operator-oauth
+      valuesKey: client_id
+      targetPath: oauth.clientId
