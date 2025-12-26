@@ -3,5 +3,6 @@ kind: Kustomization
 resources:
   - storage
   - metallb
+  - cert-manager
   - ingress
   - monitoring
