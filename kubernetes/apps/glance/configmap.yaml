@@ -5,24 +5,10 @@ metadata:
   namespace: glance
 data:
   custom.css: |
-    @import url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@latest/patched-fonts/Ubuntu/Regular/UbuntuNerdFont-Regular.ttf');
-
-    @font-face {
-      font-family: 'Ubuntu Nerd Font';
-      src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@latest/patched-fonts/Ubuntu/Regular/UbuntuNerdFont-Regular.ttf') format('truetype');
-      font-weight: normal;
-      font-style: normal;
-    }
-
-    @font-face {
-      font-family: 'Ubuntu Nerd Font';
-      src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@latest/patched-fonts/Ubuntu/Bold/UbuntuNerdFont-Bold.ttf') format('truetype');
-      font-weight: bold;
-      font-style: normal;
-    }
+    @import url('https://cdn.jsdelivr.net/npm/iosevka-webfont@14.0.1/iosevka.css');
 
     * {
-      font-family: 'Ubuntu Nerd Font', 'Ubuntu', sans-serif !important;
+      font-family: 'Iosevka Web', 'Iosevka', monospace !important;
     }
   glance.yml: |
     theme:
