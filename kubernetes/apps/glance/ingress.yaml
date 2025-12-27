@@ -1,0 +1,14 @@
+apiVersion: tailscale.com/v1alpha1
+kind: Ingress
+metadata:
+  name: glance
+  namespace: glance
+spec:
+  defaultBackend:
+    service:
+      name: glance
+      port:
+        number: 8080
+  tls:
+    - hosts:
+        - glance

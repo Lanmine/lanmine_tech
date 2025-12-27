@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glance-config
+  namespace: glance
+data:
+  glance.yml: |
+    theme:
+      background-color: 0 0 16
+      primary-color: 43 59 81
+      positive-color: 61 66 44
+      negative-color: 6 96 59
+
+    pages:
+      - name: Platform
+        width: slim
+        hide-desktop-navigation: true
+        columns:
+          - size: full
+            widgets:
+              # =========================
+              # Network / Edge
+              # =========================
+              - type: monitor
+                title: Network Edge
+                cache: 1m
+                sites:
+                  - title: OPNsense
+                    url: https://opnsense.lionfish-caiman.ts.net
+                    icon: di:opnsense
+                    alt-status-codes:
+                      - 401
+                      - 403
+
+                  - title: Traefik
+                    url: https://traefik.lionfish-caiman.ts.net/dashboard/
+                    icon: di:traefik
+                    alt-status-codes:
+                      - 401
+                      - 403
+
+              # =========================
+              # Control Plane
+              # =========================
+              - type: monitor
+                title: Control Plane
+                cache: 1m
+                sites:
+                  - title: Authentik
+                    url: https://authentik-01.lionfish-caiman.ts.net
+                    icon: di:authentik
+                    alt-status-codes:
+                      - 401
+                      - 403
+
+                  - title: Vault
+                    url: https://vault-01.lionfish-caiman.ts.net:8200
+                    icon: di:vault
+                    alt-status-codes:
+                      - 401
+                      - 403
+
+                  - title: Proxmox
+                    url: https://proxmox01.lionfish-caiman.ts.net:8006
+                    icon: di:proxmox
+                    allow-insecure: true
+
+              # =========================
+              # Observability
+              # =========================
+              - type: monitor
+                title: Observability
+                cache: 1m
+                sites:
+                  - title: Grafana
+                    url: https://grafana.lionfish-caiman.ts.net
+                    icon: di:grafana
+                    alt-status-codes:
+                      - 401
+                      - 403
+
+              # =========================
+              # Repo Awareness
+              # =========================
+              - type: repository
+                repository: Lanmine/lanmine_tech
+                pull-requests-limit: 5
+                issues-limit: 5
+                commits-limit: 2
