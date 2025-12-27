@@ -48,7 +48,7 @@ data:
                 sites:
                   - title: OPNsense
                     url: https://opnsense.lionfish-caiman.ts.net
-                    status-url: https://10.0.10.1
+                    check-url: https://10.0.10.1
                     icon: di:opnsense
                     allow-insecure: true
                     alt-status-codes:
@@ -57,7 +57,7 @@ data:
 
                   - title: Traefik
                     url: https://traefik.lionfish-caiman.ts.net/dashboard/
-                    status-url: http://traefik-dashboard.traefik.svc.cluster.local:8080/dashboard/
+                    check-url: http://traefik-dashboard.traefik.svc.cluster.local:8080/dashboard/
                     icon: di:traefik
                     alt-status-codes:
                       - 401
@@ -72,7 +72,7 @@ data:
                 sites:
                   - title: Authentik
                     url: https://authentik-01.lionfish-caiman.ts.net
-                    status-url: https://10.0.10.25:9443
+                    check-url: https://10.0.10.25:9443
                     icon: di:authentik
                     allow-insecure: true
                     alt-status-codes:
@@ -84,7 +84,7 @@ data:
 
                   - title: Vault
                     url: https://vault-01.lionfish-caiman.ts.net:8200
-                    status-url: https://10.0.10.21:8200
+                    check-url: https://10.0.10.21:8200
                     icon: di:vault
                     allow-insecure: true
                     alt-status-codes:
@@ -96,7 +96,7 @@ data:
 
                   - title: Proxmox
                     url: https://proxmox01.lionfish-caiman.ts.net:8006
-                    status-url: https://10.0.10.5:8006
+                    check-url: https://10.0.10.5:8006
                     icon: di:proxmox
                     allow-insecure: true
                     alt-status-codes:
@@ -113,7 +113,7 @@ data:
                 sites:
                   - title: Grafana
                     url: https://grafana.lionfish-caiman.ts.net
-                    status-url: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local
+                    check-url: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local
                     icon: di:grafana
                     alt-status-codes:
                       - 401
