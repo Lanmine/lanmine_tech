@@ -6,3 +6,4 @@ resources:
   - kube-prometheus-stack.yaml
   - flux-monitoring.yaml
   - flux-dashboard.yaml
+  - network-dashboard.yaml

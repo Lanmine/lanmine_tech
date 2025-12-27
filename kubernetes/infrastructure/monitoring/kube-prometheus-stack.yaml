@@ -39,6 +39,11 @@ spec:
       grafana.ini:
         server:
           root_url: https://grafana.lionfish-caiman.ts.net
+        security:
+          allow_embedding: true
+        auth.anonymous:
+          enabled: true
+          org_role: Viewer
         auth.generic_oauth:
           enabled: true
           name: Authentik
