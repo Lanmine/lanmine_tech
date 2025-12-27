@@ -22,6 +22,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /app/config
+            - name: assets
+              mountPath: /app/assets
           resources:
             requests:
               memory: "64Mi"
@@ -33,3 +35,9 @@ spec:
         - name: config
           configMap:
             name: glance-config
+        - name: assets
+          configMap:
+            name: glance-config
+            items:
+              - key: custom.css
+                path: custom.css
