@@ -5,10 +5,19 @@ metadata:
   namespace: glance
 data:
   custom.css: |
-    @import url('https://cdn.jsdelivr.net/npm/@fontsource/iosevka/index.css');
+    @font-face {
+      font-family: 'UbuntuNerdFont';
+      src: url('https://raw.githubusercontent.com/ryanoasis/nerd-fonts/master/patched-fonts/Ubuntu/Regular/UbuntuNerdFont-Regular.ttf') format('truetype');
+      font-weight: normal;
+    }
+    @font-face {
+      font-family: 'UbuntuNerdFont';
+      src: url('https://raw.githubusercontent.com/ryanoasis/nerd-fonts/master/patched-fonts/Ubuntu/Bold/UbuntuNerdFont-Bold.ttf') format('truetype');
+      font-weight: bold;
+    }
 
     * {
-      font-family: 'Iosevka', monospace !important;
+      font-family: 'UbuntuNerdFont', 'Ubuntu', sans-serif !important;
     }
   glance.yml: |
     server:
@@ -28,11 +37,8 @@ data:
         columns:
           - size: full
             widgets:
-              # =========================
-              # Network / Edge
-              # =========================
               - type: monitor
-                title: Network Edge
+                title: Services
                 cache: 1m
                 sites:
                   - title: OPNsense
@@ -52,13 +58,6 @@ data:
                       - 401
                       - 403
 
-              # =========================
-              # Control Plane
-              # =========================
-              - type: monitor
-                title: Control Plane
-                cache: 1m
-                sites:
                   - title: Authentik
                     url: https://authentik-01.lionfish-caiman.ts.net
                     check-url: https://10.0.10.25:9443
@@ -93,13 +92,6 @@ data:
                       - 302
                       - 307
 
-              # =========================
-              # Observability
-              # =========================
-              - type: monitor
-                title: Observability
-                cache: 1m
-                sites:
                   - title: Grafana
                     url: https://grafana.lionfish-caiman.ts.net
                     check-url: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local
