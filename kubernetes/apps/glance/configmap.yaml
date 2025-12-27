@@ -5,10 +5,10 @@ metadata:
   namespace: glance
 data:
   custom.css: |
-    @import url('https://cdn.jsdelivr.net/npm/iosevka-webfont@14.0.1/iosevka.css');
+    @import url('https://cdn.jsdelivr.net/npm/@fontsource/iosevka/index.css');
 
     * {
-      font-family: 'Iosevka Web', 'Iosevka', monospace !important;
+      font-family: 'Iosevka', monospace !important;
     }
   glance.yml: |
     theme:
