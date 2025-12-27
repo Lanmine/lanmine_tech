@@ -76,6 +76,9 @@ data:
                     icon: di:authentik
                     allow-insecure: true
                     alt-status-codes:
+                      - 301
+                      - 302
+                      - 307
                       - 401
                       - 403
 
@@ -85,6 +88,9 @@ data:
                     icon: di:vault
                     allow-insecure: true
                     alt-status-codes:
+                      - 301
+                      - 302
+                      - 307
                       - 401
                       - 403
 
@@ -93,6 +99,10 @@ data:
                     status-url: https://10.0.10.5:8006
                     icon: di:proxmox
                     allow-insecure: true
+                    alt-status-codes:
+                      - 301
+                      - 302
+                      - 307
 
               # =========================
               # Observability
