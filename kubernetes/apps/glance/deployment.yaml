@@ -21,8 +21,7 @@ spec:
               name: http
           volumeMounts:
             - name: config
-              mountPath: /app/glance.yml
-              subPath: glance.yml
+              mountPath: /app/config
           resources:
             requests:
               memory: "64Mi"
