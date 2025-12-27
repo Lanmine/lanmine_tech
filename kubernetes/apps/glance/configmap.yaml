@@ -26,14 +26,15 @@ data:
                 cache: 1m
                 sites:
                   - title: OPNsense
-                    url: https://opnsense.lionfish-caiman.ts.net
+                    url: https://10.0.10.1
                     icon: di:opnsense
+                    allow-insecure: true
                     alt-status-codes:
                       - 401
                       - 403
 
                   - title: Traefik
-                    url: https://traefik.lionfish-caiman.ts.net/dashboard/
+                    url: http://traefik-dashboard.traefik.svc.cluster.local:8080/dashboard/
                     icon: di:traefik
                     alt-status-codes:
                       - 401
@@ -47,21 +48,23 @@ data:
                 cache: 1m
                 sites:
                   - title: Authentik
-                    url: https://authentik-01.lionfish-caiman.ts.net
+                    url: https://10.0.10.25:9443
                     icon: di:authentik
+                    allow-insecure: true
                     alt-status-codes:
                       - 401
                       - 403
 
                   - title: Vault
-                    url: https://vault-01.lionfish-caiman.ts.net:8200
+                    url: https://10.0.10.21:8200
                     icon: di:vault
+                    allow-insecure: true
                     alt-status-codes:
                       - 401
                       - 403
 
                   - title: Proxmox
-                    url: https://proxmox01.lionfish-caiman.ts.net:8006
+                    url: https://10.0.10.5:8006
                     icon: di:proxmox
                     allow-insecure: true
 
@@ -73,7 +76,7 @@ data:
                 cache: 1m
                 sites:
                   - title: Grafana
-                    url: https://grafana.lionfish-caiman.ts.net
+                    url: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local
                     icon: di:grafana
                     alt-status-codes:
                       - 401
