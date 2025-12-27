@@ -48,18 +48,18 @@ data:
             "overrides": [
               {
                 "matcher": { "id": "byRegexp", "options": ".*transmit.*" },
-                "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }]
+                "properties": [{ "id": "color", "value": { "fixedColor": "#5b8cb8", "mode": "fixed" } }]
               },
               {
                 "matcher": { "id": "byRegexp", "options": ".*receive.*" },
-                "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+                "properties": [{ "id": "color", "value": { "fixedColor": "#4d994d", "mode": "fixed" } }]
               }
             ]
           },
           "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
           "id": 1,
           "options": {
-            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+            "legend": { "showLegend": false },
             "tooltip": { "mode": "multi", "sort": "desc" }
           },
           "targets": [
