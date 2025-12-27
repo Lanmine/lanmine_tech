@@ -38,6 +38,7 @@ data:
           - size: full
             widgets:
               - type: iframe
+                title: Network Traffic
                 source: https://grafana.lionfish-caiman.ts.net/d-solo/network-traffic/network-traffic?orgId=1&panelId=1&theme=dark
                 height: 200
 
