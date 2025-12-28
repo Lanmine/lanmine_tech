@@ -29,8 +29,8 @@ spec:
       targetPath: bouncer.crowdsec_bouncer_api_key
   values:
     bouncer:
-      crowdsec_lapi_url: http://crowdsec-lapi.crowdsec.svc.cluster.local:8080
-      crowdsec_agent_host: crowdsec-lapi.crowdsec.svc.cluster.local:8080
+      crowdsec_lapi_url: http://crowdsec-service.crowdsec.svc.cluster.local:8080
+      crowdsec_agent_host: crowdsec-service.crowdsec.svc.cluster.local:8080
 
     resources:
       requests:
