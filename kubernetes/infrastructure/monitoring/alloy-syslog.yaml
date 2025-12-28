@@ -1,0 +1,156 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: alloy-syslog
+  namespace: monitoring
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: alloy
+      version: "0.x"
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+        namespace: flux-system
+  install:
+    crds: Skip
+    remediation:
+      retries: 3
+  upgrade:
+    crds: Skip
+    remediation:
+      retries: 3
+  values:
+    fullnameOverride: alloy-syslog
+
+    alloy:
+      extraPorts:
+        - name: syslog-udp
+          port: 514
+          targetPort: 5514
+          protocol: UDP
+        - name: syslog-tcp
+          port: 1514
+          targetPort: 5514
+          protocol: TCP
+      configMap:
+        create: true
+        content: |
+          // ============================================
+          // SYSLOG: Receive logs from infrastructure hosts
+          // ============================================
+
+          // Syslog receiver for infrastructure hosts
+          loki.source.syslog "infra" {
+            listener {
+              address  = "0.0.0.0:5514"
+              protocol = "udp"
+              labels   = {
+                job = "syslog",
+              }
+            }
+            listener {
+              address  = "0.0.0.0:5514"
+              protocol = "tcp"
+              labels   = {
+                job = "syslog",
+              }
+            }
+            forward_to = [loki.process.syslog.receiver]
+          }
+
+          // Process syslog messages
+          loki.process "syslog" {
+            forward_to = [loki.write.default.receiver]
+
+            // Extract hostname and facility from syslog
+            stage.regex {
+              expression = "^<(?P<priority>\\d+)>\\s*(?P<timestamp>\\S+\\s+\\S+\\s+\\S+)?\\s*(?P<hostname>\\S+)?\\s*(?P<app>\\S+)?(?:\\[(?P<pid>\\d+)\\])?:?\\s*(?P<message>.*)$"
+            }
+
+            // Set labels from extracted fields
+            stage.labels {
+              values = {
+                hostname = "",
+                app      = "",
+              }
+            }
+
+            // Add cluster label
+            stage.static_labels {
+              values = {
+                cluster = "lanmine",
+                source  = "syslog",
+              }
+            }
+
+            // Map known hostnames to friendly names
+            stage.match {
+              selector = "{hostname=~\"opnsense.*|10\\\\.0\\\\.10\\\\.1\"}"
+              stage.static_labels {
+                values = {
+                  host = "opnsense",
+                  type = "firewall",
+                }
+              }
+            }
+
+            stage.match {
+              selector = "{hostname=~\"proxmox.*|pve.*|10\\\\.0\\\\.10\\\\.5\"}"
+              stage.static_labels {
+                values = {
+                  host = "proxmox",
+                  type = "hypervisor",
+                }
+              }
+            }
+
+            stage.match {
+              selector = "{hostname=~\"vault.*|10\\\\.0\\\\.10\\\\.21\"}"
+              stage.static_labels {
+                values = {
+                  host = "vault",
+                  type = "secrets",
+                }
+              }
+            }
+
+            stage.match {
+              selector = "{hostname=~\"runner.*|10\\\\.0\\\\.10\\\\.22\"}"
+              stage.static_labels {
+                values = {
+                  host = "runner",
+                  type = "ci",
+                }
+              }
+            }
+          }
+
+          // Send logs to Loki
+          loki.write "default" {
+            endpoint {
+              url = "http://loki:3100/loki/api/v1/push"
+            }
+          }
+
+    # Single replica deployment (not DaemonSet)
+    controller:
+      type: deployment
+      replicas: 1
+
+    # Resource limits
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+    # Service for external access
+    service:
+      enabled: true
+      type: LoadBalancer
+      annotations:
+        metallb.universe.tf/loadBalancerIPs: "10.0.10.50"

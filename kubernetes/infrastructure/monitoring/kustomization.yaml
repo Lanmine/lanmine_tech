@@ -8,6 +8,7 @@ resources:
   - loki.yaml
   - tempo.yaml
   - alloy.yaml
+  - alloy-syslog.yaml
   - flux-monitoring.yaml
   - flux-dashboard.yaml
   - network-dashboard.yaml
