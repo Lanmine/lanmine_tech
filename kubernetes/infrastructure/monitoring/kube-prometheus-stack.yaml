@@ -32,7 +32,9 @@ spec:
       ingress:
         enabled: false  # Using Traefik IngressRoute instead
       persistence:
-        enabled: false  # TODO: Enable with storage class
+        enabled: true
+        storageClassName: longhorn
+        size: 5Gi
 
       # Authentik OAuth configuration
       envFromSecret: grafana-oauth
@@ -97,8 +99,15 @@ spec:
     # Prometheus config
     prometheus:
       prometheusSpec:
-        retention: 3d
-        # TODO: Add storageSpec when storage class is configured
+        retention: 7d
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: longhorn
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 20Gi
 
     # Disable components not needed for small clusters or incompatible with Talos
     kubeEtcd:

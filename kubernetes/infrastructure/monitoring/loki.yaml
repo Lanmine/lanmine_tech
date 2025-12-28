@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: loki
-      version: "6.x"
+      version: "6.24.x"
       sourceRef:
         kind: HelmRepository
         name: grafana
@@ -73,7 +73,7 @@ spec:
       persistence:
         enabled: true
         size: 10Gi
-        storageClass: local-path
+        storageClass: longhorn
 
     # Disable distributed components (using SingleBinary mode)
     backend:

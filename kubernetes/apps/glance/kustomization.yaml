@@ -7,4 +7,3 @@ resources:
   - service.yaml
   - configmap.yaml
   - ingress.yaml
-  - ingressroute.yaml

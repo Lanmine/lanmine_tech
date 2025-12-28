@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: tempo
-      version: "1.x"
+      version: "1.14.x"
       sourceRef:
         kind: HelmRepository
         name: grafana
@@ -61,7 +61,7 @@ spec:
     persistence:
       enabled: true
       size: 10Gi
-      storageClassName: local-path
+      storageClassName: longhorn
 
     # Service configuration
     service:

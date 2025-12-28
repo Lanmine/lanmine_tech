@@ -1,0 +1,67 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: longhorn
+  namespace: longhorn-system
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: longhorn
+      version: "1.7.x"
+      sourceRef:
+        kind: HelmRepository
+        name: longhorn
+        namespace: flux-system
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    persistence:
+      # Default storage class
+      defaultClass: true
+      defaultClassReplicaCount: 2
+      reclaimPolicy: Delete
+
+    defaultSettings:
+      # Replica settings for 2-node cluster
+      defaultReplicaCount: 2
+      # Data locality for performance
+      defaultDataLocality: best-effort
+      # Guaranteed engine manager CPU
+      guaranteedInstanceManagerCPU: 12
+      # Storage over-provisioning (allow 200% of actual capacity)
+      storageOverProvisioningPercentage: 200
+      # Minimum storage available percentage
+      storageMinimalAvailablePercentage: 15
+      # Auto-salvage replicas
+      autoSalvage: true
+      # Node drain policy
+      nodeDrainPolicy: block-if-contains-last-replica
+
+    # Resource limits for Longhorn components
+    longhornManager:
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+    longhornDriver:
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+    # UI access via Tailscale (optional)
+    ingress:
+      enabled: false
+
+    # Prometheus ServiceMonitor
+    metrics:
+      serviceMonitor:
+        enabled: true

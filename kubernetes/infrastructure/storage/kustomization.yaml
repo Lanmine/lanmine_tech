@@ -3,3 +3,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - local-path-provisioner.yaml
+  - longhorn-namespace.yaml
+  - longhorn-helmrepository.yaml
+  - longhorn.yaml
