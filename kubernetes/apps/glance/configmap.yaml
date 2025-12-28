@@ -31,7 +31,7 @@ data:
       custom-css-file: /assets/custom.css
 
     pages:
-      - name: Platform
+      - name: lanmine_tech
         width: slim
         hide-desktop-navigation: true
         columns:
@@ -39,7 +39,7 @@ data:
             widgets:
               - type: iframe
                 title: Network Traffic
-                source: https://grafana.lionfish-caiman.ts.net/d-solo/network-traffic/network-traffic?orgId=1&panelId=1&theme=dark
+                source: https://grafana.lionfish-caiman.ts.net/d-solo/network-traffic/network-traffic?orgId=1&panelId=1&theme=dark&kiosk
                 height: 200
 
               - type: monitor
