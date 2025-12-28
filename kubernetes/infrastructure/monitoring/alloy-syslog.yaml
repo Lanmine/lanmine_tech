@@ -34,10 +34,6 @@ spec:
           port: 1514
           targetPort: 5514
           protocol: TCP
-        - name: talos-tcp
-          port: 5170
-          targetPort: 5170
-          protocol: TCP
       configMap:
         create: true
         content: |
@@ -138,39 +134,6 @@ spec:
             }
           }
 
-          // ============================================
-          // TALOS: Receive JSON logs from Talos nodes
-          // ============================================
-
-          // Receive Talos logs via TCP (json_lines format)
-          otelcol.receiver.tcplog "talos" {
-            listen_address = "0.0.0.0:5170"
-            add_attributes = true
-            output {
-              logs = [otelcol.processor.transform.talos.input]
-            }
-          }
-
-          // Transform Talos logs
-          otelcol.processor.transform "talos" {
-            error_mode = "ignore"
-            log_statements {
-              context = "log"
-              statements = [
-                "set(attributes[\"job\"], \"talos\")",
-                "set(attributes[\"cluster\"], \"lanmine\")",
-                "set(attributes[\"type\"], \"talos\")",
-              ]
-            }
-            output {
-              logs = [otelcol.exporter.loki.talos.input]
-            }
-          }
-
-          // Export Talos logs to Loki
-          otelcol.exporter.loki "talos" {
-            forward_to = [loki.write.default.receiver]
-          }
 
     # Single replica deployment (not DaemonSet)
     controller:
