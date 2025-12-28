@@ -1,0 +1,161 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: alloy
+  namespace: monitoring
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: alloy
+      version: "0.x"
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+        namespace: flux-system
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    alloy:
+      configMap:
+        create: true
+        content: |
+          // Discover Kubernetes pods for log collection
+          discovery.kubernetes "pods" {
+            role = "pod"
+          }
+
+          // Relabel discovered pods to extract useful labels
+          discovery.relabel "pods" {
+            targets = discovery.kubernetes.pods.targets
+
+            // Keep only running pods
+            rule {
+              source_labels = ["__meta_kubernetes_pod_phase"]
+              regex         = "Pending|Succeeded|Failed|Completed"
+              action        = "drop"
+            }
+
+            // Set namespace label
+            rule {
+              source_labels = ["__meta_kubernetes_namespace"]
+              target_label  = "namespace"
+            }
+
+            // Set pod name label
+            rule {
+              source_labels = ["__meta_kubernetes_pod_name"]
+              target_label  = "pod"
+            }
+
+            // Set container name label
+            rule {
+              source_labels = ["__meta_kubernetes_pod_container_name"]
+              target_label  = "container"
+            }
+
+            // Set node name label
+            rule {
+              source_labels = ["__meta_kubernetes_pod_node_name"]
+              target_label  = "node"
+            }
+
+            // Set app label from pod label
+            rule {
+              source_labels = ["__meta_kubernetes_pod_label_app"]
+              target_label  = "app"
+            }
+
+            // Set app.kubernetes.io/name label
+            rule {
+              source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+              target_label  = "app_kubernetes_io_name"
+            }
+
+            // Set the log file path
+            rule {
+              source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+              target_label  = "__path__"
+              separator     = "/"
+              replacement   = "/var/log/pods/*$1/*.log"
+            }
+          }
+
+          // Collect logs from discovered pod log files
+          loki.source.kubernetes "pods" {
+            targets    = discovery.relabel.pods.output
+            forward_to = [loki.process.pods.receiver]
+          }
+
+          // Process logs: parse container runtime format and add labels
+          loki.process "pods" {
+            forward_to = [loki.write.default.receiver]
+
+            // Parse CRI log format (timestamp stdout/stderr F/P message)
+            stage.cri {}
+
+            // Add static label for log source
+            stage.static_labels {
+              values = {
+                cluster = "lanmine",
+              }
+            }
+          }
+
+          // Send logs to Loki
+          loki.write "default" {
+            endpoint {
+              url = "http://loki:3100/loki/api/v1/push"
+            }
+          }
+
+      # Mount paths for log collection
+      mounts:
+        extra:
+          - name: pods-logs
+            mountPath: /var/log/pods
+            readOnly: true
+          - name: var-lib-docker
+            mountPath: /var/lib/docker/containers
+            readOnly: true
+
+    # DaemonSet controller for running on all nodes
+    controller:
+      type: daemonset
+
+      # Tolerate all taints to run on all nodes including control plane
+      tolerations:
+        - operator: Exists
+
+      # Volume definitions
+      volumes:
+        extra:
+          - name: pods-logs
+            hostPath:
+              path: /var/log/pods
+          - name: var-lib-docker
+            hostPath:
+              path: /var/lib/docker/containers
+
+    # Resource limits
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+    # Service account for Kubernetes API access
+    serviceAccount:
+      create: true
+
+    # RBAC for discovering pods
+    rbac:
+      create: true

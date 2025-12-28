@@ -1,0 +1,107 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: loki
+  namespace: monitoring
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: loki
+      version: "6.x"
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+        namespace: flux-system
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    # Deploy in monolithic mode (single binary) for simplicity
+    deploymentMode: SingleBinary
+
+    loki:
+      # Disable authentication for internal cluster use
+      auth_enabled: false
+
+      # Common config for single replica
+      commonConfig:
+        replication_factor: 1
+
+      # Use filesystem storage (no S3/GCS)
+      storage:
+        type: filesystem
+
+      # Schema config for filesystem storage
+      schemaConfig:
+        configs:
+          - from: "2024-01-01"
+            store: tsdb
+            object_store: filesystem
+            schema: v13
+            index:
+              prefix: index_
+              period: 24h
+
+      # Retention settings
+      limits_config:
+        retention_period: 168h  # 7 days
+        ingestion_rate_mb: 4
+        ingestion_burst_size_mb: 6
+        max_query_series: 500
+
+      # Compactor for retention enforcement
+      compactor:
+        retention_enabled: true
+        delete_request_store: filesystem
+
+    # Single binary deployment
+    singleBinary:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+      persistence:
+        enabled: true
+        size: 10Gi
+        storageClass: local-path
+
+    # Disable distributed components (using SingleBinary mode)
+    backend:
+      replicas: 0
+    read:
+      replicas: 0
+    write:
+      replicas: 0
+
+    # Disable gateway (not needed for internal access)
+    gateway:
+      enabled: false
+
+    # Disable caches (not needed for small deployments)
+    chunksCache:
+      enabled: false
+    resultsCache:
+      enabled: false
+
+    # Disable self-monitoring
+    monitoring:
+      selfMonitoring:
+        enabled: false
+        grafanaAgent:
+          installOperator: false
+      lokiCanary:
+        enabled: false
+
+    # Disable test pod
+    test:
+      enabled: false

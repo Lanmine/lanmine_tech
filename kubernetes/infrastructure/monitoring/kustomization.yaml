@@ -3,7 +3,10 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - helmrepository.yaml
+  - grafana-helmrepository.yaml
   - kube-prometheus-stack.yaml
+  - loki.yaml
+  - alloy.yaml
   - flux-monitoring.yaml
   - flux-dashboard.yaml
   - network-dashboard.yaml

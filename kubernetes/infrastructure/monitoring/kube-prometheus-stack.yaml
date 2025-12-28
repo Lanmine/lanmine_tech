@@ -61,6 +61,17 @@ spec:
         auth:
           signout_redirect_url: https://authentik-01.lionfish-caiman.ts.net/application/o/grafana/end-session/
 
+      # Loki datasource for log aggregation
+      additionalDataSources:
+        - name: Loki
+          type: loki
+          uid: loki
+          url: http://loki:3100
+          access: proxy
+          isDefault: false
+          jsonData:
+            maxLines: 1000
+
     # Prometheus config
     prometheus:
       prometheusSpec:
