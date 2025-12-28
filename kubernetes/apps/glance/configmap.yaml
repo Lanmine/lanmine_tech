@@ -39,7 +39,7 @@ data:
             widgets:
               - type: iframe
                 title: Network Traffic
-                source: https://grafana.lionfish-caiman.ts.net/d-solo/network-traffic/network-traffic?orgId=1&panelId=1&theme=dark&kiosk
+                source: https://grafana-embed.lionfish-caiman.ts.net
                 height: 200
 
               - type: monitor

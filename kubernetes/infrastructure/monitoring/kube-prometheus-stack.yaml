@@ -41,6 +41,8 @@ spec:
           root_url: https://grafana.lionfish-caiman.ts.net
         security:
           allow_embedding: true
+          cookie_samesite: none
+          cookie_secure: true
         auth.anonymous:
           enabled: true
           org_role: Viewer
