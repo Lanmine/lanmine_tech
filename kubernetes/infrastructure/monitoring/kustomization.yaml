@@ -13,3 +13,4 @@ resources:
   - flux-monitoring.yaml
   - flux-dashboard.yaml
   - network-dashboard.yaml
+  - infrastructure-logs-dashboard.yaml
