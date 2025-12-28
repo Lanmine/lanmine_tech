@@ -61,7 +61,7 @@ spec:
         auth:
           signout_redirect_url: https://authentik-01.lionfish-caiman.ts.net/application/o/grafana/end-session/
 
-      # Loki datasource for log aggregation
+      # Additional datasources for observability
       additionalDataSources:
         - name: Loki
           type: loki
@@ -71,6 +71,28 @@ spec:
           isDefault: false
           jsonData:
             maxLines: 1000
+            derivedFields:
+              - name: TraceID
+                matcherRegex: '"traceId":"([a-f0-9]+)"'
+                url: '$${__value.raw}'
+                datasourceUid: tempo
+        - name: Tempo
+          type: tempo
+          uid: tempo
+          url: http://tempo:3100
+          access: proxy
+          isDefault: false
+          jsonData:
+            tracesToLogsV2:
+              datasourceUid: loki
+              spanStartTimeShift: '-1h'
+              spanEndTimeShift: '1h'
+              filterByTraceID: true
+              filterBySpanID: false
+            nodeGraph:
+              enabled: true
+            serviceMap:
+              datasourceUid: prometheus
 
     # Prometheus config
     prometheus:

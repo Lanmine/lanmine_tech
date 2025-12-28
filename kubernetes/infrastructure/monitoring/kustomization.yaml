@@ -6,6 +6,7 @@ resources:
   - grafana-helmrepository.yaml
   - kube-prometheus-stack.yaml
   - loki.yaml
+  - tempo.yaml
   - alloy.yaml
   - flux-monitoring.yaml
   - flux-dashboard.yaml

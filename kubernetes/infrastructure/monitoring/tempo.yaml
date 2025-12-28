@@ -1,0 +1,72 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: tempo
+  namespace: monitoring
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: tempo
+      version: "1.x"
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+        namespace: flux-system
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    # Monolithic deployment mode
+    tempo:
+      # Disable multitenancy for simplicity
+      multitenancyEnabled: false
+
+      # Receiver configuration for trace ingestion
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: "0.0.0.0:4317"
+            http:
+              endpoint: "0.0.0.0:4318"
+
+      # Storage configuration
+      storage:
+        trace:
+          backend: local
+          local:
+            path: /var/tempo/traces
+          wal:
+            path: /var/tempo/wal
+
+      # Retention settings
+      retention: 168h  # 7 days
+
+    # Resource limits
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    # Persistence
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClassName: local-path
+
+    # Service configuration
+    service:
+      type: ClusterIP
+
+    # Disable tempo-query (use Grafana directly)
+    tempoQuery:
+      enabled: false
