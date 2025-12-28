@@ -5,6 +5,42 @@ This log contains redacted sensitive information. Never commit actual credential
 
 ---
 
+## 2025-12-28: Glance Dashboard Deployment
+
+### Replaced Homer with Glance
+
+Deployed Glance as the new homelab dashboard, replacing Homer for a cleaner monitoring experience.
+
+**Glance Configuration:**
+- URL: https://glance.lionfish-caiman.ts.net
+- Namespace: `glance`
+- Custom theme with dark background (HSL 0 0 16)
+- Green status indicators (positive-color: 120 60 50)
+- Ubuntu Nerd Font via CDN
+
+**Service Monitors:**
+Configured health checks using LAN IPs (pods can't resolve Tailscale hostnames):
+- OPNsense: check-url https://10.0.10.1
+- Traefik: check-url http://traefik-dashboard.traefik.svc.cluster.local:8080/dashboard/
+- Authentik: check-url https://10.0.10.25:9443
+- Vault: check-url https://10.0.10.21:8200
+- Proxmox: check-url https://10.0.10.5:8006
+- Grafana: check-url http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local
+
+**GitHub Repository Widget:**
+- Shows last 5 commits, PRs, and issues from Lanmine/lanmine_tech
+
+**Files:**
+- `kubernetes/apps/glance/` - All Glance manifests (namespace, deployment, service, configmap, ingress)
+
+### Removed Homer
+
+Homer dashboard removed in favor of Glance. Deleted:
+- `kubernetes/apps/homer/` directory
+- Reference in `kubernetes/apps/kustomization.yaml`
+
+---
+
 ## 2025-12-26: Tailscale Operator & Grafana OAuth with Authentik
 
 ### Tailscale Kubernetes Operator

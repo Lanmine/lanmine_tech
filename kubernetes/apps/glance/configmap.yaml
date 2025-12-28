@@ -37,11 +37,6 @@ data:
         columns:
           - size: full
             widgets:
-              - type: iframe
-                title: Network Traffic
-                source: https://grafana-embed.lionfish-caiman.ts.net
-                height: 200
-
               - type: monitor
                 title: Services
                 cache: 1m

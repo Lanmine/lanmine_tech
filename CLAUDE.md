@@ -94,7 +94,7 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 
 | Service | URL |
 |---------|-----|
-| Homer | https://home.lionfish-caiman.ts.net |
+| Glance | https://glance.lionfish-caiman.ts.net |
 | Grafana | https://grafana.lionfish-caiman.ts.net |
 | Traefik | https://traefik.lionfish-caiman.ts.net/dashboard/ |
 
