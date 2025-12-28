@@ -23,6 +23,16 @@ spec:
       retries: 3
   values:
     alloy:
+      # Expose OTLP ports for trace ingestion
+      extraPorts:
+        - name: otlp-grpc
+          port: 4317
+          targetPort: 4317
+          protocol: TCP
+        - name: otlp-http
+          port: 4318
+          targetPort: 4318
+          protocol: TCP
       configMap:
         create: true
         content: |
@@ -193,15 +203,3 @@ spec:
     # RBAC for discovering pods
     rbac:
       create: true
-
-    # Expose OTLP ports for trace ingestion
-    alloy:
-      extraPorts:
-        - name: otlp-grpc
-          port: 4317
-          targetPort: 4317
-          protocol: TCP
-        - name: otlp-http
-          port: 4318
-          targetPort: 4318
-          protocol: TCP
