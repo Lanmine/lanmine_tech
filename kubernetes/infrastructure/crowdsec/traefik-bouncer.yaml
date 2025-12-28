@@ -1,0 +1,37 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: crowdsec-traefik-bouncer
+  namespace: crowdsec
+spec:
+  interval: 30m
+  dependsOn:
+    - name: crowdsec
+      namespace: crowdsec
+  chart:
+    spec:
+      chart: crowdsec-traefik-bouncer
+      version: "0.x"
+      sourceRef:
+        kind: HelmRepository
+        name: crowdsec
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    bouncer:
+      crowdsec_lapi_url: http://crowdsec-lapi.crowdsec.svc.cluster.local:8080
+      crowdsec_bouncer_api_key_existingSecret: crowdsec-bouncer-key
+      crowdsec_bouncer_api_key_existingSecretKey: api_key
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi

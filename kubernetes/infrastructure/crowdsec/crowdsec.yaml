@@ -1,0 +1,109 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: crowdsec
+  namespace: crowdsec
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: crowdsec
+      version: "0.x"
+      sourceRef:
+        kind: HelmRepository
+        name: crowdsec
+        namespace: flux-system
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    container_runtime: containerd
+
+    # LAPI configuration
+    lapi:
+      replicas: 1
+      env:
+        - name: ENROLL_KEY
+          valueFrom:
+            secretKeyRef:
+              name: crowdsec-keys
+              key: enroll_key
+              optional: true
+        - name: ENROLL_INSTANCE_NAME
+          value: "k8s-lanmine"
+        - name: ENROLL_TAGS
+          value: "kubernetes traefik"
+
+      # Pre-register the Traefik bouncer
+      # Secret must be created from Vault before deployment:
+      # kubectl create secret generic crowdsec-bouncer-key -n crowdsec \
+      #   --from-literal=api_key=$(vault kv get -field=traefik_bouncer_api_key secret/infrastructure/crowdsec)
+      bouncers:
+        - name: traefik-bouncer
+          existingSecret: crowdsec-bouncer-key
+          existingSecretKey: api_key
+
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+
+      persistentVolume:
+        data:
+          enabled: true
+          size: 1Gi
+          storageClassName: local-path
+        config:
+          enabled: true
+          size: 100Mi
+          storageClassName: local-path
+
+      # Register bouncers
+      dashboard:
+        enabled: false
+
+      metrics:
+        enabled: true
+        serviceMonitor:
+          enabled: true
+
+    # Agent configuration - parses logs and runs scenarios
+    agent:
+      replicas: 1
+
+      # Collections to install
+      acquisition:
+        - namespace: traefik
+          podName: traefik-*
+          program: traefik
+
+      env:
+        - name: COLLECTIONS
+          value: "crowdsecurity/traefik crowdsecurity/http-cve crowdsecurity/base-http-scenarios"
+        - name: PARSERS
+          value: "crowdsecurity/traefik-logs"
+
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+
+      # Wait for LAPI
+      wait_for_lapi:
+        enabled: true
+
+      metrics:
+        enabled: true
+        serviceMonitor:
+          enabled: true
