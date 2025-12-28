@@ -41,19 +41,21 @@ spec:
           // SYSLOG: Receive logs from infrastructure hosts
           // ============================================
 
-          // Syslog receiver for infrastructure hosts
+          // Syslog receiver for infrastructure hosts (BSD/RFC3164 format)
           loki.source.syslog "infra" {
             listener {
-              address  = "0.0.0.0:5514"
-              protocol = "udp"
-              labels   = {
+              address       = "0.0.0.0:5514"
+              protocol      = "udp"
+              syslog_format = "rfc3164"
+              labels        = {
                 job = "syslog",
               }
             }
             listener {
-              address  = "0.0.0.0:5514"
-              protocol = "tcp"
-              labels   = {
+              address       = "0.0.0.0:5514"
+              protocol      = "tcp"
+              syslog_format = "rfc3164"
+              labels        = {
                 job = "syslog",
               }
             }
