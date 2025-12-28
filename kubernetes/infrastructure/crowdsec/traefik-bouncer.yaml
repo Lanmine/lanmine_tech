@@ -22,11 +22,14 @@ spec:
   upgrade:
     remediation:
       retries: 3
+  valuesFrom:
+    - kind: Secret
+      name: crowdsec-bouncer-key
+      valuesKey: api_key
+      targetPath: bouncer.crowdsec_bouncer_api_key
   values:
     bouncer:
       crowdsec_lapi_url: http://crowdsec-lapi.crowdsec.svc.cluster.local:8080
-      crowdsec_bouncer_api_key_existingSecret: crowdsec-bouncer-key
-      crowdsec_bouncer_api_key_existingSecretKey: api_key
 
     resources:
       requests:
