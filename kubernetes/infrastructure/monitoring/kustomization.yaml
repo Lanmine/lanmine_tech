@@ -6,6 +6,7 @@ resources:
   - grafana-helmrepository.yaml
   - kube-prometheus-stack.yaml
   - loki.yaml
+  - loki-external.yaml
   - tempo.yaml
   - alloy.yaml
   - alloy-syslog.yaml
