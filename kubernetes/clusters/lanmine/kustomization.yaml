@@ -5,4 +5,5 @@ resources:
   - infrastructure.yaml
   - metallb-config.yaml
   - cert-manager-config.yaml
+  - external-secrets-config.yaml
   - apps.yaml

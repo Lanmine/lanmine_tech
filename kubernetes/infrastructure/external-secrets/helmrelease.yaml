@@ -1,0 +1,47 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: external-secrets
+  namespace: external-secrets
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: external-secrets
+      version: "0.12.x"
+      sourceRef:
+        kind: HelmRepository
+        name: external-secrets
+        namespace: flux-system
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    # Install CRDs
+    installCRDs: true
+
+    # Webhook for validation
+    webhook:
+      create: true
+
+    # Cert controller for webhook certs
+    certController:
+      create: true
+
+    # Resource limits
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+    # ServiceMonitor for Prometheus
+    serviceMonitor:
+      enabled: true
