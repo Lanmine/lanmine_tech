@@ -24,7 +24,18 @@ spec:
   values:
     # Deployment configuration
     deployment:
-      replicas: 1
+      replicas: 2
+
+    # Spread replicas across nodes for HA
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: traefik
+              topologyKey: kubernetes.io/hostname
 
     # Service configuration - LoadBalancer for external access
     service:
