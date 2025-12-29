@@ -33,7 +33,7 @@ spec:
         enabled: false  # Using Traefik IngressRoute instead
       persistence:
         enabled: true
-        storageClassName: local-path
+        storageClassName: longhorn
         size: 5Gi
 
       # Authentik OAuth configuration
@@ -103,7 +103,7 @@ spec:
         storageSpec:
           volumeClaimTemplate:
             spec:
-              storageClassName: local-path
+              storageClassName: longhorn
               accessModes: ["ReadWriteOnce"]
               resources:
                 requests:
