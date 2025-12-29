@@ -61,7 +61,7 @@ spec:
     persistence:
       enabled: true
       size: 10Gi
-      storageClassName: longhorn
+      storageClassName: local-path
 
     # Service configuration
     service:
