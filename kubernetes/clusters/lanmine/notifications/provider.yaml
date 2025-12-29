@@ -1,0 +1,14 @@
+---
+# GitHub commit status provider
+# Shows Flux reconciliation status on GitHub commits
+# Requires secret with 'token' key containing a GitHub PAT with repo:status scope
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata:
+  name: github-status
+  namespace: flux-system
+spec:
+  type: github
+  address: https://github.com/Lanmine/lanmine_tech
+  secretRef:
+    name: github-token

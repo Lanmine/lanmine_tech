@@ -1,0 +1,25 @@
+---
+# Alert on Flux reconciliation failures
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Alert
+metadata:
+  name: flux-system-alerts
+  namespace: flux-system
+spec:
+  providerRef:
+    name: github-status
+  eventSeverity: error
+  eventSources:
+    - kind: GitRepository
+      name: '*'
+    - kind: Kustomization
+      name: '*'
+    - kind: HelmRelease
+      name: '*'
+      namespace: '*'
+    - kind: HelmRepository
+      name: '*'
+  exclusionList:
+    - "error.*lookup.*no such host"
+    - "error.*timeout"
+  suspend: false
