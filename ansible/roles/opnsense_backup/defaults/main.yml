@@ -3,4 +3,4 @@
 backup_dir: "{{ playbook_dir }}/../backups/opnsense"
 config_source: "/conf/config.xml"
 timestamp_format: "%Y-%m-%d-%H%M%S"
-backup_retention_count: 3
+backup_retention_count: 7

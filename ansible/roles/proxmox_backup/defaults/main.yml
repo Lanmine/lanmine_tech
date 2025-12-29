@@ -2,7 +2,7 @@
 # Proxmox backup role defaults
 backup_dir: "{{ playbook_dir }}/../backups/proxmox"
 timestamp_format: "%Y-%m-%d-%H%M%S"
-backup_retention_count: 3
+backup_retention_count: 7
 
 # Directories to backup from Proxmox
 proxmox_config_paths:
