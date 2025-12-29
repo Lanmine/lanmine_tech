@@ -77,7 +77,19 @@ spec:
 
     # Agent configuration - parses logs and runs scenarios
     agent:
-      replicas: 1
+      replicas: 2
+
+      # Spread agents across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: crowdsec
+                    app.kubernetes.io/component: agent
+                topologyKey: kubernetes.io/hostname
 
       # Collections to install
       acquisition:
