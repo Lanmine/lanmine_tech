@@ -4,6 +4,10 @@ metadata:
   name: longhorn
   namespace: longhorn-system
 spec:
+  # SUSPENDED: Longhorn requires iSCSI tools. Add iscsi-tools and util-linux-tools
+  # extensions to Talos before enabling. See:
+  # https://longhorn.io/docs/1.7.0/advanced-resources/os-distro-specific/talos-linux-support/
+  suspend: true
   interval: 30m
   chart:
     spec:
