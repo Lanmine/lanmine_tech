@@ -27,6 +27,19 @@ spec:
     # LAPI configuration
     lapi:
       replicas: 1
+
+      # Anti-affinity for HA readiness
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: crowdsec
+                    app.kubernetes.io/component: lapi
+                topologyKey: kubernetes.io/hostname
+
       env:
         - name: ENROLL_KEY
           valueFrom:
@@ -60,11 +73,11 @@ spec:
         data:
           enabled: true
           size: 1Gi
-          storageClassName: local-path
+          storageClassName: longhorn
         config:
           enabled: true
           size: 100Mi
-          storageClassName: local-path
+          storageClassName: longhorn
 
       # Register bouncers
       dashboard:
