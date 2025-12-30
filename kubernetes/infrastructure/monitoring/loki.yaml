@@ -73,7 +73,7 @@ spec:
       persistence:
         enabled: true
         size: 10Gi
-        storageClass: local-path
+        storageClass: longhorn
 
     # Disable distributed components (using SingleBinary mode)
     backend:
