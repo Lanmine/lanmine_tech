@@ -21,7 +21,7 @@ spec:
               name: http
           volumeMounts:
             - name: config
-              mountPath: /app/glance.yml
+              mountPath: /app/config/glance.yml
               subPath: glance.yml
             - name: assets
               mountPath: /app/assets
