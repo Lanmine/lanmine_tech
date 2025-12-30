@@ -1,0 +1,68 @@
+---
+- name: Set timestamp for backup
+  set_fact:
+    backup_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+
+- name: Set backup filename
+  set_fact:
+    backup_filename: "vault-raft-{{ backup_timestamp }}.snap.age"
+    backup_path: "{{ backup_dir }}/vault-raft-{{ backup_timestamp }}.snap.age"
+    temp_snap: "/tmp/vault-raft-{{ backup_timestamp }}.snap"
+
+- name: Ensure backup directory exists
+  file:
+    path: "{{ backup_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Get Vault token from Vault
+  set_fact:
+    vault_token: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/vault', validate_certs=false).secret.root_token }}"
+
+- name: Take Vault raft snapshot
+  uri:
+    url: "{{ vault_addr }}/v1/sys/storage/raft/snapshot"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ vault_token }}"
+    dest: "{{ temp_snap }}"
+    validate_certs: true
+  register: snapshot_result
+
+- name: Get age public key from Vault
+  set_fact:
+    age_pub_key: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/vault-backup', validate_certs=false).secret.age_public_key }}"
+
+- name: Encrypt snapshot with age
+  command: >
+    age --encrypt
+    --recipient {{ age_pub_key }}
+    --armor
+    --output {{ backup_path }}
+    {{ temp_snap }}
+
+- name: Remove temporary unencrypted snapshot
+  file:
+    path: "{{ temp_snap }}"
+    state: absent
+
+- name: Find all Vault backups
+  find:
+    paths: "{{ backup_dir }}"
+    patterns: "vault-raft-*.snap.age"
+  register: backup_files
+
+- name: Sort backups by modification time
+  set_fact:
+    sorted_backups: "{{ backup_files.files | sort(attribute='mtime') | map(attribute='path') | list }}"
+
+- name: Delete old backups (keep last {{ backup_retention_count }})
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ sorted_backups[:-backup_retention_count] }}"
+  when: sorted_backups | length > backup_retention_count
+
+- name: Display backup info
+  debug:
+    msg: "Vault raft snapshot created: {{ backup_filename }}"

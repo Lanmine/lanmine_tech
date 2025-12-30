@@ -11,6 +11,18 @@
   roles:
     - proxmox_backup
 
+- name: Backup Vault Raft Snapshot
+  hosts: localhost
+  gather_facts: true
+  roles:
+    - vault_backup
+
+- name: Backup PostgreSQL Database
+  hosts: localhost
+  gather_facts: true
+  roles:
+    - postgres_backup
+
 - name: Commit backups to Git
   hosts: localhost
   gather_facts: true
@@ -31,9 +43,11 @@
     - name: Commit backup changes
       command: >
         git commit -m "chore: weekly infrastructure backup [skip ci]
-        
+
         - OPNsense config backup
         - Proxmox config backup
+        - Vault raft snapshot
+        - PostgreSQL database dump
         - Automated backup on {{ ansible_date_time.date }}"
       args:
         chdir: "{{ playbook_dir }}/.."

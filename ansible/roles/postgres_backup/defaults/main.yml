@@ -1,0 +1,3 @@
+---
+backup_dir: "{{ playbook_dir }}/../backups/postgres"
+backup_retention_count: 5

@@ -1,0 +1,4 @@
+---
+backup_dir: "{{ playbook_dir }}/../backups/vault"
+backup_retention_count: 5
+vault_addr: "https://vault-01.lionfish-caiman.ts.net:8200"

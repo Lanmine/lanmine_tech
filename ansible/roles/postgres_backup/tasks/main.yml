@@ -1,0 +1,69 @@
+---
+- name: Set timestamp for backup
+  set_fact:
+    backup_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+
+- name: Set backup filename
+  set_fact:
+    backup_filename: "postgres-{{ backup_timestamp }}.sql.gz.age"
+    backup_path: "{{ backup_dir }}/postgres-{{ backup_timestamp }}.sql.gz.age"
+    temp_dump: "/tmp/postgres-{{ backup_timestamp }}.sql.gz"
+
+- name: Ensure backup directory exists
+  file:
+    path: "{{ backup_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Get PostgreSQL credentials from Vault
+  set_fact:
+    pg_host: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=false).secret.host }}"
+    pg_port: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=false).secret.port }}"
+    pg_user: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=false).secret.username }}"
+    pg_pass: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=false).secret.password }}"
+    pg_db: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=false).secret.database }}"
+
+- name: Dump PostgreSQL database
+  shell: |
+    PGPASSWORD="{{ pg_pass }}" pg_dump -h {{ pg_host }} -p {{ pg_port }} -U {{ pg_user }} {{ pg_db }} | gzip > {{ temp_dump }}
+  args:
+    creates: "{{ temp_dump }}"
+  no_log: true
+
+- name: Get age public key from Vault
+  set_fact:
+    age_pub_key: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres-backup', validate_certs=false).secret.age_public_key }}"
+
+- name: Encrypt dump with age
+  command: >
+    age --encrypt
+    --recipient {{ age_pub_key }}
+    --armor
+    --output {{ backup_path }}
+    {{ temp_dump }}
+
+- name: Remove temporary unencrypted dump
+  file:
+    path: "{{ temp_dump }}"
+    state: absent
+
+- name: Find all PostgreSQL backups
+  find:
+    paths: "{{ backup_dir }}"
+    patterns: "postgres-*.sql.gz.age"
+  register: backup_files
+
+- name: Sort backups by modification time
+  set_fact:
+    sorted_backups: "{{ backup_files.files | sort(attribute='mtime') | map(attribute='path') | list }}"
+
+- name: Delete old backups (keep last {{ backup_retention_count }})
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ sorted_backups[:-backup_retention_count] }}"
+  when: sorted_backups | length > backup_retention_count
+
+- name: Display backup info
+  debug:
+    msg: "PostgreSQL backup created: {{ backup_filename }}"
