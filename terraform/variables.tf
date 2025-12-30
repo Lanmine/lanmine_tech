@@ -10,9 +10,9 @@ variable "proxmox_api_token" {
 }
 
 variable "proxmox_insecure" {
-  description = "Allow insecure TLS (self-signed certs)"
+  description = "Skip TLS verification (only for self-signed certs)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "ssh_public_key" {
