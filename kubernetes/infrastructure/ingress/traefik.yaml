@@ -59,6 +59,7 @@ spec:
     # Enable dashboard API (secured via Tailscale ingress)
     additionalArguments:
       - "--api.dashboard=true"
+      - "--api.insecure=true"
 
     # Disable built-in dashboard IngressRoute (using Tailscale ingress instead)
     ingressRoute:
