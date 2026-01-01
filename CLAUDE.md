@@ -58,7 +58,7 @@ Secrets loaded via `load_tf_secrets.sh`:
 |------|---------|
 | `opnsense_backup` | Backup OPNsense config, encrypt with age |
 | `proxmox_backup` | Backup Proxmox config, encrypt with age |
-| `vault_backup` | Vault raft snapshot, encrypt with age |
+| `vault_backup` | Vault file storage backup, encrypt with age |
 | `postgres_backup` | PostgreSQL pg_dump, encrypt with age |
 | `rsyslog_forward` | Configure rsyslog to forward logs to Loki |
 
@@ -91,7 +91,7 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 |------|-----|---------|
 | proxmox | 10.0.10.5 | Proxmox VE hypervisor |
 | opnsense | 10.0.10.1 | Firewall/gateway |
-| vault-01 | 10.0.10.21 | HashiCorp Vault |
+| vault-01 | 10.0.10.21 | HashiCorp Vault (file storage backend) |
 | runner-01 | 10.0.10.22 | GitHub Actions self-hosted runner |
 | postgres-01 | 10.0.10.23 | PostgreSQL (Terraform state backend) |
 | authentik-01 | 10.0.10.25 | Authentik SSO and Identity Provider |
