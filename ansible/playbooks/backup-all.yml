@@ -11,8 +11,8 @@
   roles:
     - proxmox_backup
 
-- name: Backup Vault Raft Snapshot
-  hosts: localhost
+- name: Backup Vault Data
+  hosts: vault
   gather_facts: true
   roles:
     - vault_backup
