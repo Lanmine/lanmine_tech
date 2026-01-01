@@ -1,0 +1,6 @@
+---
+- name: Configure rsyslog forwarding to Loki
+  hosts: linux_vms
+  gather_facts: true
+  roles:
+    - rsyslog_forward

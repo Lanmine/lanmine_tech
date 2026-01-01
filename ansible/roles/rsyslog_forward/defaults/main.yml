@@ -1,0 +1,5 @@
+---
+# Syslog forwarding configuration
+syslog_target_host: "10.0.10.50"
+syslog_target_port: 514
+syslog_protocol: "udp"  # udp or tcp

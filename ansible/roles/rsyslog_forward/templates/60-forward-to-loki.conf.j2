@@ -1,0 +1,9 @@
+# Forward all logs to central Loki via alloy-syslog (RFC3164 format)
+# Managed by Ansible - do not edit manually
+
+$template RFC3164fmt,"<%PRI%>%TIMESTAMP% %HOSTNAME% %syslogtag%%msg%"
+{% if syslog_protocol == "tcp" %}
+*.* @@{{ syslog_target_host }}:{{ syslog_target_port }};RFC3164fmt
+{% else %}
+*.* @{{ syslog_target_host }}:{{ syslog_target_port }};RFC3164fmt
+{% endif %}

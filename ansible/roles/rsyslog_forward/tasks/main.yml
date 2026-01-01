@@ -1,0 +1,23 @@
+---
+- name: Ensure rsyslog is installed
+  apt:
+    name: rsyslog
+    state: present
+  become: true
+
+- name: Deploy syslog forwarding configuration
+  template:
+    src: 60-forward-to-loki.conf.j2
+    dest: /etc/rsyslog.d/60-forward-to-loki.conf
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  notify: Restart rsyslog
+
+- name: Ensure rsyslog is enabled and running
+  systemd:
+    name: rsyslog
+    enabled: true
+    state: started
+  become: true
