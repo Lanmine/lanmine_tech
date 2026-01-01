@@ -53,9 +53,29 @@ Secrets loaded via `load_tf_secrets.sh`:
 
 ### Ansible (`ansible/`)
 
-- **Roles**: `opnsense_backup`, `proxmox_backup` - encrypt configs with age
-- **Backups**: Stored in `ansible/backups/`, encrypted `.age` files committed to git
-- **Secrets**: Vault integration via `group_vars/all/vault.yml`
+**Roles:**
+| Role | Purpose |
+|------|---------|
+| `opnsense_backup` | Backup OPNsense config, encrypt with age |
+| `proxmox_backup` | Backup Proxmox config, encrypt with age |
+| `vault_backup` | Vault raft snapshot, encrypt with age |
+| `postgres_backup` | PostgreSQL pg_dump, encrypt with age |
+| `rsyslog_forward` | Configure rsyslog to forward logs to Loki |
+
+**Playbooks:**
+| Playbook | Purpose |
+|----------|---------|
+| `backup-all.yml` | Run all backup roles, commit to git |
+| `configure-rsyslog.yml` | Configure syslog forwarding on linux_vms |
+
+**Host Groups:**
+- `infrastructure` - All infrastructure hosts
+- `linux_vms` - Linux VMs with rsyslog (vault, runner, authentik, postgres)
+
+**Secrets**:
+- Vault integration via `group_vars/all/vault.yml`
+- SSH usernames stored in Vault at `secret/infrastructure/ssh`
+- Backups stored in `ansible/backups/`, encrypted `.age` files committed to git
 
 ### GitHub Actions (`.github/workflows/`)
 
@@ -87,7 +107,7 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 - **Monitoring**: kube-prometheus-stack (Prometheus, Grafana, Alertmanager)
 - **Certificates**: cert-manager with internal CA (lanmine-ca-issuer)
 - **Load Balancer**: MetalLB (IP range: 10.0.10.40-10.0.10.49)
-- **Storage**: local-path-provisioner
+- **Storage**: Longhorn (distributed, replicated), local-path-provisioner (fallback)
 - **Remote Access**: Tailscale Operator with Let's Encrypt HTTPS
 
 ### Tailscale Services
