@@ -1,0 +1,95 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: blackbox-exporter
+  namespace: monitoring
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: prometheus-blackbox-exporter
+      version: "9.x"
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    config:
+      modules:
+        http_2xx:
+          prober: http
+          timeout: 5s
+          http:
+            valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+            valid_status_codes: [200, 204, 301, 302, 401, 403]
+            follow_redirects: true
+            tls_config:
+              insecure_skip_verify: true
+        tcp_connect:
+          prober: tcp
+          timeout: 5s
+        icmp:
+          prober: icmp
+          timeout: 5s
+
+    serviceMonitor:
+      enabled: true
+      defaults:
+        interval: 30s
+
+    prometheusRule:
+      enabled: true
+      rules:
+        - alert: BlackboxProbeFailed
+          expr: probe_success == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Probe failed for {{ $labels.instance }}"
+            description: "Blackbox probe failed for {{ $labels.instance }}"
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: infrastructure-http
+  namespace: monitoring
+spec:
+  interval: 30s
+  module: http_2xx
+  prober:
+    url: blackbox-exporter-prometheus-blackbox-exporter:9115
+  targets:
+    staticConfig:
+      labels:
+        type: infrastructure
+      static:
+        - https://10.0.10.1  # OPNsense
+        - https://10.0.10.5:8006  # Proxmox
+        - https://10.0.10.21:8200/v1/sys/health  # Vault
+        - http://10.0.10.25:9000/-/health/ready/  # Authentik
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: infrastructure-tcp
+  namespace: monitoring
+spec:
+  interval: 30s
+  module: tcp_connect
+  prober:
+    url: blackbox-exporter-prometheus-blackbox-exporter:9115
+  targets:
+    staticConfig:
+      labels:
+        type: infrastructure
+      static:
+        - 10.0.10.23:5432  # PostgreSQL
