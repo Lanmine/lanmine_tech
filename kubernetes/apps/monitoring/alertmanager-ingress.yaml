@@ -1,0 +1,18 @@
+# Tailscale access with automatic HTTPS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alertmanager-tailscale
+  namespace: monitoring
+  annotations:
+    tailscale.com/funnel: "false"
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: kube-prometheus-stack-alertmanager
+      port:
+        number: 9093
+  tls:
+    - hosts:
+        - alertmanager

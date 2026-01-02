@@ -126,6 +126,7 @@ spec:
     # Alertmanager configuration
     alertmanager:
       alertmanagerSpec:
+        externalUrl: https://alertmanager.lionfish-caiman.ts.net
         secrets:
           - alertmanager-smtp
       config:
