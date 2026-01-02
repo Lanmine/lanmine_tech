@@ -1,0 +1,60 @@
+---
+- name: Install required packages
+  apt:
+    name:
+      - docker.io
+      - docker-compose
+      - python3-docker
+    state: present
+    update_cache: true
+  become: true
+
+- name: Ensure docker service is running
+  systemd:
+    name: docker
+    enabled: true
+    state: started
+  become: true
+
+- name: Add user to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+  become: true
+
+- name: Create Akvorado directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ akvorado_install_dir }}"
+    - "{{ clickhouse_data_dir }}"
+  become: true
+
+- name: Deploy Akvorado configuration
+  template:
+    src: akvorado.yaml.j2
+    dest: "{{ akvorado_install_dir }}/akvorado.yaml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart akvorado
+
+- name: Deploy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ akvorado_install_dir }}/docker-compose.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart akvorado
+
+- name: Start Akvorado containers
+  community.docker.docker_compose_v2:
+    project_src: "{{ akvorado_install_dir }}"
+    state: present
+  become: true

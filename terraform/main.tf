@@ -96,6 +96,18 @@ locals {
       agent       = true
       description = "Authentik SSO and Identity Provider"
     }
+
+    akvorado = {
+      name        = "akvorado-01"
+      vm_id       = 9130
+      cpu         = 4
+      memory      = 16384
+      disk_size   = 100
+      ip          = "10.0.10.26/24"
+      tags        = ["infrastructure", "monitoring"]
+      agent       = true
+      description = "Akvorado network flow collector"
+    }
   }
 }
 
@@ -128,7 +140,7 @@ resource "proxmox_virtual_environment_vm" "vm" {
 
   disk {
     datastore_id = "local-lvm"
-    size         = 50
+    size         = lookup(each.value, "disk_size", 50)
     interface    = "scsi0"
   }
 

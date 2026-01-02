@@ -1,0 +1,7 @@
+---
+- name: Deploy Akvorado
+  hosts: akvorado
+  gather_facts: true
+  roles:
+    - akvorado_install
+    - rsyslog_forward

@@ -1,0 +1,41 @@
+# Akvorado Configuration
+# Managed by Ansible - do not edit manually
+
+http:
+  listen: 0.0.0.0:8080
+
+kafka:
+  brokers:
+    - kafka:9092
+  topic: flows
+
+clickhouse:
+  servers:
+    - clickhouse:9000
+  orchestrator-url: http://akvorado:8080
+
+inlet:
+  flow:
+    inputs:
+      - type: netflow
+        listen: 0.0.0.0:2055
+        workers: 2
+      - type: sflow
+        listen: 0.0.0.0:6343
+        workers: 2
+
+  core:
+    exporter-classifiers:
+{% for exporter in akvorado_exporters %}
+      - {{ exporter.ip }}: {{ exporter.name }}
+{% endfor %}
+
+orchestrator:
+  clickhouse:
+    kafka:
+      brokers:
+        - kafka:9092
+      topic: flows
+
+    # Data retention
+    max-partitions: {{ akvorado_retention_days }}

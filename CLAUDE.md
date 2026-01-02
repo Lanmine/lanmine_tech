@@ -61,12 +61,14 @@ Secrets loaded via `load_tf_secrets.sh`:
 | `vault_backup` | Vault file storage backup, encrypt with age |
 | `postgres_backup` | PostgreSQL pg_dump, encrypt with age |
 | `rsyslog_forward` | Configure rsyslog to forward logs to Loki |
+| `akvorado_install` | Install Akvorado flow collector via Docker |
 
 **Playbooks:**
 | Playbook | Purpose |
 |----------|---------|
 | `backup-all.yml` | Run all backup roles, commit to git |
 | `configure-rsyslog.yml` | Configure syslog forwarding on linux_vms |
+| `deploy-akvorado.yml` | Install and configure Akvorado |
 
 **Host Groups:**
 - `infrastructure` - All infrastructure hosts
@@ -95,6 +97,7 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 | runner-01 | 10.0.10.22 | GitHub Actions self-hosted runner |
 | postgres-01 | 10.0.10.23 | PostgreSQL (Terraform state backend) |
 | authentik-01 | 10.0.10.25 | Authentik SSO and Identity Provider |
+| akvorado-01 | 10.0.10.26 | Akvorado network flow collector |
 | talos-cp-01 | 10.0.10.30 | Talos Kubernetes control plane |
 | talos-worker-01 | 10.0.10.31 | Talos Kubernetes worker |
 | talos-worker-02 | 10.0.10.32 | Talos Kubernetes worker |
@@ -117,6 +120,7 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 | Glance | https://glance.lionfish-caiman.ts.net |
 | Grafana | https://grafana.lionfish-caiman.ts.net |
 | Alertmanager | https://alertmanager.lionfish-caiman.ts.net |
+| Akvorado | https://akvorado.lionfish-caiman.ts.net |
 | Traefik | https://traefik.lionfish-caiman.ts.net/dashboard/ |
 
 ### Grafana Authentication

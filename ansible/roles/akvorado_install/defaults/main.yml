@@ -1,0 +1,28 @@
+---
+# Akvorado installation defaults
+
+# Docker image version
+akvorado_version: "latest"
+
+# Installation directory
+akvorado_install_dir: /opt/akvorado
+
+# Flow collection ports
+akvorado_netflow_port: 2055
+akvorado_sflow_port: 6343
+akvorado_ipfix_port: 4739
+
+# Web UI port
+akvorado_web_port: 8080
+
+# ClickHouse settings
+clickhouse_data_dir: /opt/akvorado/clickhouse-data
+
+# Data retention (days)
+akvorado_retention_days: 30
+
+# Network settings for flow sources
+# Add your router/switch IPs here
+akvorado_exporters:
+  - name: opnsense
+    ip: 10.0.10.1
