@@ -116,6 +116,7 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 |---------|-----|
 | Glance | https://glance.lionfish-caiman.ts.net |
 | Grafana | https://grafana.lionfish-caiman.ts.net |
+| Alertmanager | https://alertmanager.lionfish-caiman.ts.net |
 | Traefik | https://traefik.lionfish-caiman.ts.net/dashboard/ |
 
 ### Grafana Authentication
