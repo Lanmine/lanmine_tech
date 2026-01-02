@@ -122,3 +122,39 @@ spec:
     # Disable node-exporter - requires privileged access that violates Talos PodSecurity
     nodeExporter:
       enabled: false
+
+    # Alertmanager configuration
+    alertmanager:
+      alertmanagerSpec:
+        secrets:
+          - alertmanager-smtp
+      config:
+        global:
+          smtp_smarthost: 'smtp.domeneshop.no:587'
+          smtp_from: 'tech@lanmine.no'
+          smtp_auth_username: 'lanmine5'
+          smtp_auth_password_file: /etc/alertmanager/secrets/alertmanager-smtp/smtp_password
+          smtp_require_tls: true
+        route:
+          group_by: ['alertname', 'severity']
+          group_wait: 30s
+          group_interval: 5m
+          repeat_interval: 4h
+          receiver: 'email'
+          routes:
+            - receiver: 'email'
+              matchers:
+                - severity=~"critical|warning"
+        receivers:
+          - name: 'email'
+            email_configs:
+              - to: 'tech@lanmine.no'
+                send_resolved: true
+                headers:
+                  Subject: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'
+        inhibit_rules:
+          - source_matchers:
+              - severity="critical"
+            target_matchers:
+              - severity="warning"
+            equal: ['alertname']

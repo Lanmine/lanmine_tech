@@ -16,3 +16,4 @@ resources:
   - infrastructure-logs-dashboard.yaml
   - overview-dashboard.yaml
   - blackbox-exporter.yaml
+  - infrastructure-alerts.yaml

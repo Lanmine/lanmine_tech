@@ -1,0 +1,141 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: infrastructure-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: infrastructure-services
+      rules:
+        - alert: InfrastructureServiceDown
+          expr: probe_success == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Infrastructure service down: {{ $labels.instance }}"
+            description: "{{ $labels.instance }} has been unreachable for more than 2 minutes."
+
+        - alert: InfrastructureServiceSlow
+          expr: probe_duration_seconds > 5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Infrastructure service slow: {{ $labels.instance }}"
+            description: "{{ $labels.instance }} is responding slowly ({{ $value }}s)."
+
+    - name: kubernetes-nodes
+      rules:
+        - alert: KubernetesNodeNotReady
+          expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Kubernetes node not ready: {{ $labels.node }}"
+            description: "Node {{ $labels.node }} has been in NotReady state for more than 5 minutes."
+
+        - alert: KubernetesNodeMemoryPressure
+          expr: kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Kubernetes node memory pressure: {{ $labels.node }}"
+            description: "Node {{ $labels.node }} is under memory pressure."
+
+        - alert: KubernetesNodeDiskPressure
+          expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Kubernetes node disk pressure: {{ $labels.node }}"
+            description: "Node {{ $labels.node }} is under disk pressure."
+
+    - name: kubernetes-pods
+      rules:
+        - alert: KubernetesPodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total[1h]) > 5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod crash looping: {{ $labels.namespace }}/{{ $labels.pod }}"
+            description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping ({{ $value }} restarts in the last hour)."
+
+        - alert: KubernetesPodNotReady
+          expr: sum by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Unknown"}) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod not ready: {{ $labels.namespace }}/{{ $labels.pod }}"
+            description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has been in {{ $labels.phase }} state for more than 15 minutes."
+
+        - alert: KubernetesContainerOOMKilled
+          expr: kube_pod_container_status_last_terminated_reason{reason="OOMKilled"} == 1
+          for: 0m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Container OOM killed: {{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }}"
+            description: "Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} was OOM killed."
+
+    - name: kubernetes-resources
+      rules:
+        - alert: KubernetesHighCPUUsage
+          expr: |
+            100 * sum(rate(container_cpu_usage_seconds_total{container!="",container!="POD"}[5m])) by (node)
+            / on(node) group_left() sum(kube_node_status_allocatable{resource="cpu"}) by (node) > 85
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU usage on node: {{ $labels.node }}"
+            description: "Node {{ $labels.node }} CPU usage is above 85% ({{ $value | printf \"%.1f\" }}%)."
+
+        - alert: KubernetesHighMemoryUsage
+          expr: |
+            100 * sum(container_memory_working_set_bytes{container!="",container!="POD"}) by (node)
+            / on(node) group_left() sum(kube_node_status_allocatable{resource="memory"}) by (node) > 85
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High memory usage on node: {{ $labels.node }}"
+            description: "Node {{ $labels.node }} memory usage is above 85% ({{ $value | printf \"%.1f\" }}%)."
+
+    - name: flux-gitops
+      rules:
+        - alert: FluxReconciliationFailing
+          expr: gotk_reconcile_condition{status="False",type=~"Ready|Healthy"} == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Flux reconciliation failing: {{ $labels.kind }}/{{ $labels.name }}"
+            description: "{{ $labels.kind }} {{ $labels.name }} in {{ $labels.namespace }} has been failing reconciliation for more than 10 minutes."
+
+        - alert: FluxSuspended
+          expr: gotk_suspend_status == 1
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Flux resource suspended: {{ $labels.kind }}/{{ $labels.name }}"
+            description: "{{ $labels.kind }} {{ $labels.name }} in {{ $labels.namespace }} has been suspended for more than 1 hour."
+
+    - name: alertmanager
+      rules:
+        - alert: AlertmanagerFailedToSendAlerts
+          expr: rate(alertmanager_notifications_failed_total[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Alertmanager failed to send alerts"
+            description: "Alertmanager is failing to send notifications via {{ $labels.integration }}."
