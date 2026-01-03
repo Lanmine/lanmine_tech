@@ -1,41 +1,63 @@
-# Akvorado Configuration
+# Akvorado Orchestrator Configuration
 # Managed by Ansible - do not edit manually
 
-http:
-  listen: 0.0.0.0:8080
-
 kafka:
+  topic: flows
   brokers:
     - kafka:9092
-  topic: flows
+  topic-configuration:
+    num-partitions: 4
+    replication-factor: 1
+    config-entries:
+      segment.bytes: 1073741824
+      retention.ms: 86400000
+      cleanup.policy: delete
+      compression.type: producer
 
-clickhouse:
+clickhousedb:
   servers:
     - clickhouse:9000
-  orchestrator-url: http://akvorado:8080
+
+clickhouse:
+  orchestrator-url: http://akvorado-orchestrator:8080
+  asns:
+    64512: Lanmine
+  networks:
+    10.0.10.0/24:
+      name: management
+      role: infrastructure
+
+geoip:
+  optional: true
 
 inlet:
   flow:
     inputs:
-      - type: netflow
-        listen: 0.0.0.0:2055
+      - type: udp
+        decoder: netflow
+        listen: :2055
         workers: 2
-      - type: sflow
-        listen: 0.0.0.0:6343
+        receive-buffer: 212992
+      - type: udp
+        decoder: netflow
+        listen: :4739
         workers: 2
+        receive-buffer: 212992
+      - type: udp
+        decoder: sflow
+        listen: :6343
+        workers: 2
+        receive-buffer: 212992
 
+outlet:
   core:
     exporter-classifiers:
 {% for exporter in akvorado_exporters %}
-      - {{ exporter.ip }}: {{ exporter.name }}
+      - Exporter.IP == "{{ exporter.ip }}" && ClassifySite("{{ exporter.name }}")
 {% endfor %}
+    interface-classifiers:
+      - ClassifyInternal()
 
-orchestrator:
-  clickhouse:
-    kafka:
-      brokers:
-        - kafka:9092
-      topic: flows
-
-    # Data retention
-    max-partitions: {{ akvorado_retention_days }}
+console:
+  http:
+    listen: 0.0.0.0:8080

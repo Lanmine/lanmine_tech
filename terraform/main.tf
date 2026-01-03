@@ -99,7 +99,7 @@ locals {
 
     akvorado = {
       name        = "akvorado-01"
-      vm_id       = 9130
+      vm_id       = 9140
       cpu         = 4
       memory      = 16384
       disk_size   = 100

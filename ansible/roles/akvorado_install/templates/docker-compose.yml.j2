@@ -10,17 +10,18 @@ services:
       - zookeeper-datalog:/datalog
 
   kafka:
-    image: bitnami/kafka:3.6
+    image: confluentinc/cp-kafka:7.6.0
     restart: unless-stopped
     depends_on:
       - zookeeper
     environment:
-      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
-      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      ALLOW_PLAINTEXT_LISTENER: "yes"
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     volumes:
-      - kafka-data:/bitnami/kafka
+      - kafka-data:/var/lib/kafka/data
 
   clickhouse:
     image: clickhouse/clickhouse-server:24
@@ -32,15 +33,13 @@ services:
     volumes:
       - {{ clickhouse_data_dir }}:/var/lib/clickhouse
 
-  akvorado:
+  akvorado-orchestrator:
     image: ghcr.io/akvorado/akvorado:{{ akvorado_version }}
     restart: unless-stopped
     depends_on:
       - kafka
       - clickhouse
-    command: orchestrator
-    ports:
-      - "{{ akvorado_web_port }}:8080"
+    command: ["orchestrator", "/etc/akvorado/akvorado.yaml"]
     volumes:
       - ./akvorado.yaml:/etc/akvorado/akvorado.yaml:ro
 
@@ -48,14 +47,31 @@ services:
     image: ghcr.io/akvorado/akvorado:{{ akvorado_version }}
     restart: unless-stopped
     depends_on:
-      - akvorado
-    command: inlet
+      akvorado-orchestrator:
+        condition: service_healthy
+    command: ["inlet", "http://akvorado-orchestrator:8080"]
     ports:
       - "{{ akvorado_netflow_port }}:2055/udp"
       - "{{ akvorado_sflow_port }}:6343/udp"
       - "{{ akvorado_ipfix_port }}:4739/udp"
-    volumes:
-      - ./akvorado.yaml:/etc/akvorado/akvorado.yaml:ro
+
+  akvorado-outlet:
+    image: ghcr.io/akvorado/akvorado:{{ akvorado_version }}
+    restart: unless-stopped
+    depends_on:
+      akvorado-orchestrator:
+        condition: service_healthy
+    command: ["outlet", "http://akvorado-orchestrator:8080"]
+
+  akvorado-console:
+    image: ghcr.io/akvorado/akvorado:{{ akvorado_version }}
+    restart: unless-stopped
+    depends_on:
+      akvorado-orchestrator:
+        condition: service_healthy
+    command: ["console", "http://akvorado-orchestrator:8080"]
+    ports:
+      - "{{ akvorado_web_port }}:8080"
 
 volumes:
   zookeeper-data:
