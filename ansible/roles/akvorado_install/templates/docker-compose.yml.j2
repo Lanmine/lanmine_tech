@@ -20,6 +20,12 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     volumes:
       - kafka-data:/var/lib/kafka/data
 
@@ -37,8 +43,10 @@ services:
     image: ghcr.io/akvorado/akvorado:{{ akvorado_version }}
     restart: unless-stopped
     depends_on:
-      - kafka
-      - clickhouse
+      kafka:
+        condition: service_healthy
+      clickhouse:
+        condition: service_started
     command: ["orchestrator", "/etc/akvorado/akvorado.yaml"]
     volumes:
       - ./akvorado.yaml:/etc/akvorado/akvorado.yaml:ro
