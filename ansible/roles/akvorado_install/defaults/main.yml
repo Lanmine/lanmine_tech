@@ -26,3 +26,27 @@ akvorado_retention_days: 30
 akvorado_exporters:
   - name: opnsense
     ip: 10.0.10.1
+    interfaces:
+      # OPNsense interface indexes (FreeBSD assigns these sequentially)
+      # Use 'ifconfig -a' on OPNsense to verify actual index numbers
+      1:
+        name: igb0
+        description: LAN
+        boundary: internal
+      2:
+        name: igb1
+        description: WAN
+        boundary: external
+      3:
+        name: igb2
+        description: Trunk
+        boundary: internal
+      4:
+        name: lo0
+        description: Loopback
+        boundary: internal
+      # Default entry for any other interfaces (vlans, etc)
+      0:
+        name: unknown
+        description: Unknown Interface
+        boundary: internal

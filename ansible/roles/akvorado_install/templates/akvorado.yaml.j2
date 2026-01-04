@@ -56,10 +56,26 @@ outlet:
       - Exporter.IP == "{{ exporter.ip }}" && ClassifySite("{{ exporter.name }}")
 {% endfor %}
     interface-classifiers:
+      - ClassifyConnectivity("transit") && ClassifyExternal()
       - ClassifyInternal()
     default-sampling-rate: 1
   metadata:
-    providers: []
+    providers:
+      - type: static
+        exporters:
+{% for exporter in akvorado_exporters %}
+          {{ exporter.ip }}:
+            name: {{ exporter.name }}
+{% if exporter.interfaces is defined %}
+            ifindexes:
+{% for ifindex, iface in exporter.interfaces.items() %}
+              {{ ifindex }}:
+                name: {{ iface.name }}
+                description: {{ iface.description }}
+                boundary: {{ iface.boundary | default('undefined') }}
+{% endfor %}
+{% endif %}
+{% endfor %}
 
 console:
   http:
