@@ -1,5 +1,6 @@
 ---
 # Syslog forwarding configuration
-syslog_target_host: "10.0.10.50"
-syslog_target_port: 514
-syslog_protocol: "udp"  # udp or tcp
+# Target: Alloy syslog receiver in Kubernetes (LoadBalancer IP)
+syslog_target_host: "10.0.10.40"
+syslog_target_port: 1514
+syslog_protocol: "tcp"  # udp or tcp
