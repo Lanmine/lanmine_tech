@@ -100,6 +100,22 @@ data:
                       - 401
                       - 403
 
+                  - title: Alertmanager
+                    url: https://alertmanager.lionfish-caiman.ts.net
+                    check-url: http://alertmanager-operated.monitoring.svc.cluster.local:9093
+                    icon: di:prometheus
+                    alt-status-codes:
+                      - 401
+                      - 403
+
+                  - title: Akvorado
+                    url: https://akvorado.lionfish-caiman.ts.net
+                    check-url: http://10.0.10.26:8080
+                    icon: si:cilium
+                    alt-status-codes:
+                      - 401
+                      - 403
+
               # =========================
               # Repo Awareness
               # =========================
