@@ -2,7 +2,7 @@
 # Akvorado installation defaults
 
 # Docker image version
-akvorado_version: "v1.10.0"
+akvorado_version: "2.0.4"
 
 # Installation directory
 akvorado_install_dir: /opt/akvorado
