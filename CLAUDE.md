@@ -130,6 +130,32 @@ Grafana uses Authentik OAuth for SSO. Configuration:
 - Kubernetes secret `grafana-oauth` in monitoring namespace
 - Browser redirects go to Tailscale URL, server-side calls use LAN IP (10.0.10.25:9000)
 
+## Akvorado (Network Flow Collector)
+
+Akvorado runs on a dedicated VM (`akvorado-01`, 10.0.10.26) outside the Kubernetes cluster, collecting NetFlow data from OPNsense.
+
+**Architecture:**
+- **Inlet**: Receives NetFlow/IPFIX/sFlow UDP packets, sends raw flows to Kafka
+- **Outlet**: Decodes flows, enriches with metadata, writes to ClickHouse
+- **Console**: Web UI for visualization
+- **ClickHouse**: Time-series database for flow storage
+- **Kafka + Zookeeper**: Message queue between inlet and outlet
+
+**Flow Collection Ports:**
+| Port | Protocol |
+|------|----------|
+| 2055/udp | NetFlow v5/v9 |
+| 4739/udp | IPFIX |
+| 6343/udp | sFlow |
+
+**Configuration:**
+- Ansible role: `ansible/roles/akvorado_install/`
+- Docker Compose stack at `/opt/akvorado/` on the VM
+- Interface mappings defined in `defaults/main.yml` (required for metadata enrichment)
+- OPNsense exports NetFlow v9 to 10.0.10.26:2055
+
+**Tailscale Access:** https://akvorado.lionfish-caiman.ts.net
+
 ## MCP Servers
 
 Claude Code has access to these MCP servers for this repository:
