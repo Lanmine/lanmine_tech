@@ -1,0 +1,271 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: snmp-exporter
+---
+# SNMP Exporter configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: snmp-exporter-config
+  namespace: snmp-exporter
+data:
+  snmp.yml: |
+    auths:
+      lanmine:
+        community: lanmine-monitor
+        security_level: noAuthNoPriv
+        auth_protocol: MD5
+        priv_protocol: DES
+        version: 2
+
+    modules:
+      # Default module for interface statistics
+      if_mib:
+        walk:
+          - 1.3.6.1.2.1.1        # system
+          - 1.3.6.1.2.1.2        # interfaces
+          - 1.3.6.1.2.1.31.1.1   # ifXTable
+        metrics:
+          - name: sysUpTime
+            oid: 1.3.6.1.2.1.1.3
+            type: gauge
+            help: The time since the network management portion was last re-initialized.
+          - name: sysName
+            oid: 1.3.6.1.2.1.1.5
+            type: DisplayString
+            help: An administratively-assigned name for this managed node.
+          - name: ifNumber
+            oid: 1.3.6.1.2.1.2.1
+            type: gauge
+            help: The number of network interfaces present on this system.
+          - name: ifDescr
+            oid: 1.3.6.1.2.1.2.2.1.2
+            type: DisplayString
+            help: A textual string containing information about the interface.
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+            lookups:
+              - labels: [ifIndex]
+                labelname: ifDescr
+                oid: 1.3.6.1.2.1.2.2.1.2
+                type: DisplayString
+          - name: ifType
+            oid: 1.3.6.1.2.1.2.2.1.3
+            type: gauge
+            help: The type of interface.
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifMtu
+            oid: 1.3.6.1.2.1.2.2.1.4
+            type: gauge
+            help: The size of the largest packet which can be sent/received.
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifSpeed
+            oid: 1.3.6.1.2.1.2.2.1.5
+            type: gauge
+            help: An estimate of the current bandwidth in bits per second.
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifPhysAddress
+            oid: 1.3.6.1.2.1.2.2.1.6
+            type: PhysAddress48
+            help: The MAC address of the interface.
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifAdminStatus
+            oid: 1.3.6.1.2.1.2.2.1.7
+            type: gauge
+            help: The desired state of the interface (1=up, 2=down, 3=testing).
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifOperStatus
+            oid: 1.3.6.1.2.1.2.2.1.8
+            type: gauge
+            help: The current operational state of the interface (1=up, 2=down).
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifInOctets
+            oid: 1.3.6.1.2.1.2.2.1.10
+            type: counter
+            help: The total number of octets received on the interface.
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifInUcastPkts
+            oid: 1.3.6.1.2.1.2.2.1.11
+            type: counter
+            help: The number of unicast packets received.
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifInErrors
+            oid: 1.3.6.1.2.1.2.2.1.14
+            type: counter
+            help: The number of inbound packets with errors.
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifOutOctets
+            oid: 1.3.6.1.2.1.2.2.1.16
+            type: counter
+            help: The total number of octets transmitted out of the interface.
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifOutUcastPkts
+            oid: 1.3.6.1.2.1.2.2.1.17
+            type: counter
+            help: The number of unicast packets transmitted.
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifOutErrors
+            oid: 1.3.6.1.2.1.2.2.1.20
+            type: counter
+            help: The number of outbound packets with errors.
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          # 64-bit counters from ifXTable
+          - name: ifHCInOctets
+            oid: 1.3.6.1.2.1.31.1.1.1.6
+            type: counter
+            help: The total number of octets received (64-bit counter).
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifHCOutOctets
+            oid: 1.3.6.1.2.1.31.1.1.1.10
+            type: counter
+            help: The total number of octets transmitted (64-bit counter).
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifHighSpeed
+            oid: 1.3.6.1.2.1.31.1.1.1.15
+            type: gauge
+            help: An estimate of the current bandwidth in Mbps.
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifName
+            oid: 1.3.6.1.2.1.31.1.1.1.1
+            type: DisplayString
+            help: The textual name of the interface.
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+            lookups:
+              - labels: [ifIndex]
+                labelname: ifName
+                oid: 1.3.6.1.2.1.31.1.1.1.1
+                type: DisplayString
+        auth:
+          community: lanmine-monitor
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: snmp-exporter
+  namespace: snmp-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: snmp-exporter
+  template:
+    metadata:
+      labels:
+        app: snmp-exporter
+    spec:
+      containers:
+        - name: snmp-exporter
+          image: prom/snmp-exporter:v0.26.0
+          args:
+            - --config.file=/etc/snmp_exporter/snmp.yml
+          ports:
+            - containerPort: 9116
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/snmp_exporter
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: config
+          configMap:
+            name: snmp-exporter-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: snmp-exporter
+  namespace: snmp-exporter
+  labels:
+    app: snmp-exporter
+spec:
+  ports:
+    - port: 9116
+      targetPort: 9116
+      name: http
+  selector:
+    app: snmp-exporter
+---
+# ServiceMonitor for SNMP targets
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: snmp-exporter
+  namespace: monitoring
+  labels:
+    app: snmp-exporter
+    release: kube-prometheus-stack
+spec:
+  endpoints:
+    - port: http
+      interval: 60s
+      scrapeTimeout: 30s
+      path: /snmp
+      params:
+        module: [if_mib]
+        auth: [lanmine]
+        target: [10.0.10.1]  # OPNsense
+      relabelings:
+        - sourceLabels: [__param_target]
+          targetLabel: instance
+        - targetLabel: device
+          replacement: opnsense
+    - port: http
+      interval: 60s
+      scrapeTimeout: 30s
+      path: /snmp
+      params:
+        module: [if_mib]
+        auth: [lanmine]
+        target: [10.0.10.101]  # Cisco switch
+      relabelings:
+        - sourceLabels: [__param_target]
+          targetLabel: instance
+        - targetLabel: device
+          replacement: cisco-switch
+  namespaceSelector:
+    matchNames:
+      - snmp-exporter
+  selector:
+    matchLabels:
+      app: snmp-exporter

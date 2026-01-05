@@ -1,0 +1,53 @@
+---
+# External Endpoints for Akvorado (running on VM, not in K8s)
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: akvorado-metrics
+  namespace: monitoring
+  labels:
+    app: akvorado
+subsets:
+  - addresses:
+      - ip: 10.0.10.26
+    ports:
+      - name: metrics
+        port: 8080
+        protocol: TCP
+---
+# Headless service to reference the endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: akvorado-metrics
+  namespace: monitoring
+  labels:
+    app: akvorado
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: 8080
+---
+# ServiceMonitor to scrape Akvorado metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: akvorado
+  namespace: monitoring
+  labels:
+    app: akvorado
+    release: kube-prometheus-stack
+spec:
+  endpoints:
+    - port: metrics
+      path: /api/v0/metrics
+      interval: 30s
+  namespaceSelector:
+    matchNames:
+      - monitoring
+  selector:
+    matchLabels:
+      app: akvorado

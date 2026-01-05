@@ -10,3 +10,4 @@ resources:
   - monitoring
   - crowdsec
   - network-policies
+  - snmp-exporter
