@@ -44,7 +44,17 @@
     mode: '0600'
   become: true
   notify: Apply netplan
-  register: netplan_changed
+
+- name: Flush handlers to apply netplan before starting containers
+  meta: flush_handlers
+
+- name: Wait for new IP to be available
+  wait_for:
+    host: "{{ lancache_ip }}"
+    port: 22
+    delay: 2
+    timeout: 30
+  delegate_to: localhost
 
 - name: Deploy docker-compose file
   template:
