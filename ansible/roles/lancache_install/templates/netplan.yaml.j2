@@ -1,0 +1,12 @@
+network:
+  version: 2
+  ethernets:
+    {{ lancache_interface }}:
+      addresses:
+        - {{ lancache_ip }}/{{ lancache_netmask }}
+      routes:
+        - to: default
+          via: {{ lancache_gateway }}
+      nameservers:
+        addresses:
+          - {{ lancache_upstream_dns }}

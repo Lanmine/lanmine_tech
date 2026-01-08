@@ -1,0 +1,10 @@
+---
+- name: Apply netplan
+  command: netplan apply
+  become: true
+
+- name: Restart lancache
+  community.docker.docker_compose_v2:
+    project_src: "{{ lancache_install_dir }}"
+    state: restarted
+  become: true

@@ -72,6 +72,7 @@ Secrets loaded via `load_tf_secrets.sh`:
 | `postgres_backup` | PostgreSQL pg_dump, encrypt with age |
 | `rsyslog_forward` | Configure rsyslog to forward logs to Loki |
 | `akvorado_install` | Install Akvorado flow collector via Docker |
+| `lancache_install` | Install LANcache game download cache via Docker |
 
 **Playbooks:**
 | Playbook | Purpose |
@@ -79,10 +80,12 @@ Secrets loaded via `load_tf_secrets.sh`:
 | `backup-all.yml` | Run all backup roles, commit to git |
 | `configure-rsyslog.yml` | Configure syslog forwarding on linux_vms |
 | `deploy-akvorado.yml` | Install and configure Akvorado |
+| `deploy-lancache.yml` | Install and configure LANcache |
 
 **Host Groups:**
 - `infrastructure` - All infrastructure hosts
 - `linux_vms` - Linux VMs with rsyslog (vault, runner, authentik, postgres)
+- `lancache_servers` - LANcache servers (ubuntu-mgmt02)
 
 **Secrets**:
 - Vault integration via `group_vars/all/vault.yml`
@@ -111,6 +114,7 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 | talos-cp-01 | 10.0.10.30 | Talos Kubernetes control plane |
 | talos-worker-01 | 10.0.10.31 | Talos Kubernetes worker |
 | talos-worker-02 | 10.0.10.32 | Talos Kubernetes worker |
+| ubuntu-mgmt02 | 10.0.20.2 | LANcache server (Dell R630, VLAN 20) |
 
 ## Kubernetes Cluster
 
@@ -165,6 +169,36 @@ Akvorado runs on a dedicated VM (`akvorado-01`, 10.0.10.26) outside the Kubernet
 - OPNsense exports NetFlow v9 to 10.0.10.26:2055
 
 **Tailscale Access:** https://akvorado.lionfish-caiman.ts.net
+
+## LANcache (Game Download Cache)
+
+LANcache runs on a physical server (`ubuntu-mgmt02`, 10.0.20.2) on VLAN 20 with LAN contestants, caching game downloads from Steam, Origin, Epic, etc.
+
+**Architecture:**
+- **lancache-dns**: Intercepts CDN domain queries, returns LANcache IP
+- **lancache-monolithic**: Caches HTTP game downloads, proxies HTTPS
+
+**Ports:**
+| Port | Protocol |
+|------|----------|
+| 53/udp | DNS (lancache-dns) |
+| 80/tcp | HTTP cache |
+| 443/tcp | HTTPS passthrough (SNI proxy) |
+
+**Configuration:**
+- Ansible role: `ansible/roles/lancache_install/`
+- Docker Compose stack at `/opt/lancache/` on the server
+- Cache storage at `/cache/`
+- Vault secrets at `secret/infrastructure/lancache`
+
+**DHCP Integration:**
+- VLAN 20 DHCP must advertise 10.0.20.2 as the DNS server
+- Contestants automatically use LANcache for game downloads
+
+**Deployment:**
+```bash
+cd ansible && ansible-playbook playbooks/deploy-lancache.yml
+```
 
 ## MCP Servers
 

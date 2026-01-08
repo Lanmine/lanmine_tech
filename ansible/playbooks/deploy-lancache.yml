@@ -1,0 +1,6 @@
+---
+- name: Deploy LANcache server
+  hosts: lancache_servers
+  become: false
+  roles:
+    - lancache_install
