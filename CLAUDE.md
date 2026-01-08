@@ -6,6 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is infrastructure-as-code for Lanmine.no, managing Proxmox VE virtual machines via Terraform, with Ansible for configuration backups. Secrets are managed through HashiCorp Vault.
 
+## Token Conservation
+
+Be conservative with token usage:
+- Keep responses concise and to the point
+- Avoid verbose explanations unless asked
+- Use tables and bullet points over paragraphs
+- Don't repeat information already shown in tool output
+- Skip unnecessary confirmations and preamble
+- Prefer targeted file reads over reading entire files when possible
+
 ## Key Commands
 
 ### Terraform
