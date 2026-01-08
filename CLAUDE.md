@@ -191,14 +191,26 @@ LANcache runs on a physical server (`ubuntu-mgmt02`, 10.0.20.2) on VLAN 20 with 
 - Cache storage at `/cache/`
 - Vault secrets at `secret/infrastructure/lancache`
 
-**DHCP Integration:**
-- VLAN 20 DHCP must advertise 10.0.20.2 as the DNS server
-- Contestants automatically use LANcache for game downloads
-
 **Deployment:**
 ```bash
 cd ansible && ansible-playbook playbooks/deploy-lancache.yml
 ```
+
+## DHCP (Kea)
+
+OPNsense runs Kea DHCP for all networks (dnsmasq DHCP disabled).
+
+**Subnets:**
+| Network | Subnet | Pool | DNS | Description |
+|---------|--------|------|-----|-------------|
+| LAN | 10.0.1.0/24 | 10.0.1.3-254 | 10.0.1.1 (OPNsense) | Management LAN |
+| VLAN 10 | 10.0.10.0/24 | 10.0.10.100-110 | 10.0.10.1 (OPNsense) | Infrastructure |
+| VLAN 20 | 10.0.20.0/23 | 10.0.20.5-21.254 | 10.0.20.2 (LANcache) | Contestants |
+
+**Notes:**
+- VLAN 20 uses LANcache DNS for game CDN interception
+- LAN/VLAN 10 use OPNsense Unbound for DNS
+- Kea API: `https://10.0.10.1/api/kea/dhcpv4/`
 
 ## MCP Servers
 
