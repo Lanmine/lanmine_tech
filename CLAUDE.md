@@ -196,20 +196,44 @@ LANcache runs on a physical server (`ubuntu-mgmt02`, 10.0.20.2) on VLAN 20 with 
 cd ansible && ansible-playbook playbooks/deploy-lancache.yml
 ```
 
+## Network Architecture
+
+**VLANs:**
+| VLAN | Subnet | Purpose | Gateway |
+|------|--------|---------|---------|
+| LAN | 10.0.1.0/24 | Management LAN | 10.0.1.1 |
+| 10 | 10.0.10.0/24 | Infrastructure | 10.0.10.1 |
+| 20 | 10.0.20.0/23 | Contestants | 10.0.20.1 |
+| 30 | 10.0.30.0/24 | OOB/iDRAC | 10.0.30.1 |
+
+**Core Network (planned):**
+- 2 × Nexus switches in vPC domain
+- LANcache: 2 × 10G LACP bond (20 Gbps aggregate)
+- HSRP for gateway redundancy
+- Edge switches: 10G uplinks, 1G to clients
+
+**LANcache Bonding (802.3ad LACP):**
+```yaml
+# /etc/netplan/01-lancache.yaml - bond config
+bonds:
+  bond0:
+    interfaces: [eno49, eno50]
+    parameters:
+      mode: 802.3ad
+      lacp-rate: fast
+      transmit-hash-policy: layer3+4
+```
+
 ## DHCP (Kea)
 
-OPNsense runs Kea DHCP for all networks (dnsmasq DHCP disabled).
+OPNsense runs Kea DHCP for all networks (dnsmasq disabled).
 
-**Subnets:**
-| Network | Subnet | Pool | DNS | Description |
-|---------|--------|------|-----|-------------|
-| LAN | 10.0.1.0/24 | 10.0.1.3-254 | 10.0.1.1 (OPNsense) | Management LAN |
-| VLAN 10 | 10.0.10.0/24 | 10.0.10.100-110 | 10.0.10.1 (OPNsense) | Infrastructure |
-| VLAN 20 | 10.0.20.0/23 | 10.0.20.5-21.254 | 10.0.20.2 (LANcache) | Contestants |
+| Network | Pool | DNS | Description |
+|---------|------|-----|-------------|
+| LAN | 10.0.1.3-254 | 10.0.1.1 | Management |
+| VLAN 10 | 10.0.10.100-110 | 10.0.10.1 | Infrastructure |
+| VLAN 20 | 10.0.20.5-21.254 | 10.0.20.2 (LANcache) | Contestants |
 
-**Notes:**
-- VLAN 20 uses LANcache DNS for game CDN interception
-- LAN/VLAN 10 use OPNsense Unbound for DNS
 - Kea API: `https://10.0.10.1/api/kea/dhcpv4/`
 
 ## MCP Servers
