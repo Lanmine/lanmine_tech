@@ -1,0 +1,53 @@
+---
+# External Endpoints for LANcache (running on physical server, not in K8s)
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: lancache-metrics
+  namespace: monitoring
+  labels:
+    app: lancache
+subsets:
+  - addresses:
+      - ip: 10.0.20.2
+    ports:
+      - name: metrics
+        port: 9113
+        protocol: TCP
+---
+# Headless service to reference the endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: lancache-metrics
+  namespace: monitoring
+  labels:
+    app: lancache
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: 9113
+      targetPort: 9113
+---
+# ServiceMonitor to scrape LANcache nginx metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: lancache
+  namespace: monitoring
+  labels:
+    app: lancache
+    release: kube-prometheus-stack
+spec:
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+  namespaceSelector:
+    matchNames:
+      - monitoring
+  selector:
+    matchLabels:
+      app: lancache

@@ -28,3 +28,14 @@ services:
       - {{ lancache_cache_root }}/logs:/data/logs
     depends_on:
       - lancache-dns
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: lancache-exporter
+    restart: unless-stopped
+    command:
+      - --nginx.scrape-uri=http://lancache:8080/nginx_status
+    ports:
+      - "{{ lancache_ip }}:9113:9113"
+    depends_on:
+      - lancache
