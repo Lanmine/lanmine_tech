@@ -17,8 +17,8 @@ n8n_webhook_url: "https://n8n.lionfish-caiman.ts.net"
 n8n_timezone: "Europe/Oslo"
 
 # Vault secrets (loaded at runtime)
-n8n_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/n8n', validate_certs=false).secret }}"
-authentik_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/authentik', validate_certs=false).secret }}"
+n8n_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/n8n', validate_certs=true).secret }}"
+authentik_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/authentik', validate_certs=true).secret }}"
 
 # Database settings (internal PostgreSQL)
 n8n_db_name: n8n

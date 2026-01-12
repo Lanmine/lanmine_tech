@@ -1,10 +1,11 @@
 ---
 # HashiCorp Vault configuration
-vault_addr: "https://10.0.10.21:8200"
-vault_validate_certs: false
+# Using Tailscale hostname for valid Let's Encrypt TLS certificate
+vault_addr: "https://vault-01.lionfish-caiman.ts.net:8200"
+vault_validate_certs: true
 
 # Vault authentication will use environment variables:
-# - VAULT_ADDR (set above)
+# - VAULT_ADDR (uses Tailscale hostname above)
 # - VAULT_TOKEN (provided at runtime or via GitHub Actions)
 
 # Backup retention

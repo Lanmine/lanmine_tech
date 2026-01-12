@@ -35,7 +35,7 @@
 
 - name: Get age public key from Vault
   set_fact:
-    age_pub_key: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/proxmox-backup', validate_certs=false).secret.age_public_key }}"
+    age_pub_key: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/proxmox-backup', validate_certs=true).secret.age_public_key }}"
   delegate_to: localhost
 
 - name: Encrypt config archive with age

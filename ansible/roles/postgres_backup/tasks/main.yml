@@ -17,11 +17,11 @@
 
 - name: Get PostgreSQL credentials from Vault
   set_fact:
-    pg_host: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=false).secret.host }}"
-    pg_port: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=false).secret.port }}"
-    pg_user: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=false).secret.username }}"
-    pg_pass: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=false).secret.password }}"
-    pg_db: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=false).secret.database }}"
+    pg_host: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=true).secret.host }}"
+    pg_port: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=true).secret.port }}"
+    pg_user: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=true).secret.username }}"
+    pg_pass: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=true).secret.password }}"
+    pg_db: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres', validate_certs=true).secret.database }}"
 
 - name: Dump PostgreSQL database
   shell: |
@@ -32,7 +32,7 @@
 
 - name: Get age public key from Vault
   set_fact:
-    age_pub_key: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres-backup', validate_certs=false).secret.age_public_key }}"
+    age_pub_key: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/postgres-backup', validate_certs=true).secret.age_public_key }}"
 
 - name: Encrypt dump with age
   command: >

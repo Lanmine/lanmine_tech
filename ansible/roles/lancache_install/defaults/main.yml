@@ -2,16 +2,16 @@
 # LANcache installation defaults
 
 # Static IP configuration
-lancache_ip: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/lancache', validate_certs=false).secret.ip }}"
+lancache_ip: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/lancache', validate_certs=true).secret.ip }}"
 lancache_netmask: "23"
 lancache_gateway: "10.0.20.1"
 
 # DNS configuration
-lancache_upstream_dns: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/lancache', validate_certs=false).secret.upstream_dns }}"
+lancache_upstream_dns: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/lancache', validate_certs=true).secret.upstream_dns }}"
 
 # Cache configuration
 lancache_cache_root: "/cache"
-lancache_cache_disk_size: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/lancache', validate_certs=false).secret.cache_disk_size }}"
+lancache_cache_disk_size: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/lancache', validate_certs=true).secret.cache_disk_size }}"
 
 # Installation directory
 lancache_install_dir: "/opt/lancache"

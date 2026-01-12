@@ -12,7 +12,7 @@
     n8n_host: "10.0.10.27"
     n8n_port: 5678
     n8n_api_url: "http://{{ n8n_host }}:{{ n8n_port }}/api/v1"
-    n8n_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/n8n', validate_certs=false).secret }}"
+    n8n_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/n8n', validate_certs=true).secret }}"
     workflows_dir: "{{ playbook_dir }}/../files/n8n-workflows"
 
   tasks:
