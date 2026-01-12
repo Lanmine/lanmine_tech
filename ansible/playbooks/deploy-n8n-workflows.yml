@@ -1,0 +1,81 @@
+---
+# Deploy n8n workflows from JSON files
+# Usage: ansible-playbook playbooks/deploy-n8n-workflows.yml
+#
+# Workflows are stored in: ansible/files/n8n-workflows/*.json
+# Each JSON file should be a valid n8n workflow export
+
+- name: Deploy n8n workflows
+  hosts: localhost
+  gather_facts: false
+  vars:
+    n8n_host: "10.0.10.27"
+    n8n_port: 5678
+    n8n_api_url: "http://{{ n8n_host }}:{{ n8n_port }}/api/v1"
+    n8n_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/n8n', validate_certs=false).secret }}"
+    workflows_dir: "{{ playbook_dir }}/../files/n8n-workflows"
+
+  tasks:
+    - name: Find workflow JSON files
+      find:
+        paths: "{{ workflows_dir }}"
+        patterns: "*.json"
+      register: workflow_files
+
+    - name: Display found workflows
+      debug:
+        msg: "Found {{ workflow_files.files | length }} workflow(s) to deploy"
+
+    - name: Read workflow content
+      set_fact:
+        workflows: "{{ workflows | default([]) + [{'name': item.path | basename | splitext | first, 'content': lookup('file', item.path) | from_json}] }}"
+      loop: "{{ workflow_files.files }}"
+
+    - name: Get existing workflows from n8n
+      uri:
+        url: "{{ n8n_api_url }}/workflows"
+        method: GET
+        headers:
+          X-N8N-API-KEY: "{{ n8n_secrets.api_key }}"
+        status_code: [200]
+      register: existing_workflows
+
+    - name: Create or update workflows
+      uri:
+        url: "{{ n8n_api_url }}/workflows{{ (existing_id != '') | ternary('/' + existing_id, '') }}"
+        method: "{{ (existing_id != '') | ternary('PATCH', 'POST') }}"
+        headers:
+          X-N8N-API-KEY: "{{ n8n_secrets.api_key }}"
+          Content-Type: application/json
+        body_format: json
+        body: "{{ item.content }}"
+        status_code: [200, 201]
+      vars:
+        existing_id: "{{ (existing_workflows.json.data | selectattr('name', 'equalto', item.content.name) | list | first | default({})).id | default('') }}"
+      loop: "{{ workflows | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: deployed_workflows
+      when: workflows is defined and workflows | length > 0
+
+    - name: Activate deployed workflows
+      uri:
+        url: "{{ n8n_api_url }}/workflows/{{ item.json.id }}/activate"
+        method: POST
+        headers:
+          X-N8N-API-KEY: "{{ n8n_secrets.api_key }}"
+        status_code: [200]
+      loop: "{{ deployed_workflows.results | default([]) }}"
+      loop_control:
+        label: "{{ item.json.name | default('unknown') }}"
+      when:
+        - deployed_workflows.results is defined
+        - item.json is defined
+        - item.json.id is defined
+
+    - name: Summary
+      debug:
+        msg: |
+          Deployment complete!
+          - Workflows processed: {{ workflow_files.files | length }}
+          - n8n URL: https://n8n.lionfish-caiman.ts.net

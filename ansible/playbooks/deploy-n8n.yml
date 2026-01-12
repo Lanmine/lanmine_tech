@@ -1,0 +1,7 @@
+---
+- name: Deploy n8n
+  hosts: n8n_servers
+  gather_facts: true
+  roles:
+    - n8n_install
+    - rsyslog_forward

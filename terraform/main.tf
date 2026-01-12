@@ -108,6 +108,18 @@ locals {
       agent       = true
       description = "Akvorado network flow collector"
     }
+
+    n8n = {
+      name        = "n8n-01"
+      vm_id       = 9150
+      cpu         = 4
+      memory      = 8192
+      ip          = "10.0.10.27/24"
+      tags        = ["infrastructure", "automation"]
+      agent       = true
+      template_id = 9000 # ubuntu-24.04-template
+      description = "n8n workflow automation with Azure OpenAI"
+    }
   }
 }
 
@@ -123,6 +135,13 @@ resource "proxmox_virtual_environment_vm" "vm" {
   node_name   = "proxmox01"
   tags        = each.value.tags
   description = each.value.description
+
+  dynamic "clone" {
+    for_each = lookup(each.value, "template_id", null) != null ? [1] : []
+    content {
+      vm_id = each.value.template_id
+    }
+  }
 
   agent {
     enabled = each.value.agent

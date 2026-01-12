@@ -1,0 +1,30 @@
+---
+# n8n installation defaults
+
+# Docker image version
+n8n_version: "1.71.3"
+
+# Installation directory
+n8n_install_dir: /opt/n8n
+
+# Web UI port
+n8n_web_port: 5678
+
+# Webhook URL (external URL for webhooks)
+n8n_webhook_url: "https://n8n.lionfish-caiman.ts.net"
+
+# Timezone
+n8n_timezone: "Europe/Oslo"
+
+# Vault secrets (loaded at runtime)
+n8n_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/n8n', validate_certs=false).secret }}"
+authentik_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/authentik', validate_certs=false).secret }}"
+
+# Database settings (internal PostgreSQL)
+n8n_db_name: n8n
+n8n_db_user: n8n
+
+# Execution settings
+n8n_executions_data_save_on_error: "all"
+n8n_executions_data_save_on_success: "all"
+n8n_executions_data_max_age: 168  # hours (7 days)

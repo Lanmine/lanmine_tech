@@ -1,0 +1,164 @@
+{
+  "name": "Alertmanager Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "alertmanager",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "webhook-1",
+      "name": "Alertmanager Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "alertmanager"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "messages": {
+          "values": [
+            {
+              "content": "You are an infrastructure operations assistant. Analyze the following Alertmanager alert and provide:\n1. A brief summary of the issue\n2. Severity assessment (critical/warning/info)\n3. Recommended action (auto-remediate/escalate/monitor)\n4. If auto-remediate, specify the action (restart_vm, clear_cache, etc.)\n\nRespond in JSON format:\n{\"summary\": \"...\", \"severity\": \"...\", \"action\": \"...\", \"remediation\": \"...\"}"
+            },
+            {
+              "content": "={{ JSON.stringify($json.alerts) }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "openai-1",
+      "name": "Analyze Alert",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "azure-openai",
+          "name": "Azure OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "value2": "auto-remediate"
+            }
+          ]
+        }
+      },
+      "id": "if-1",
+      "name": "Should Auto-Remediate?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#infrastructure-alerts",
+        "text": "={{ $('Analyze Alert').item.json.summary }}\n\nSeverity: {{ $('Analyze Alert').item.json.severity }}\nAction: {{ $('Analyze Alert').item.json.action }}",
+        "otherOptions": {}
+      },
+      "id": "slack-1",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [850, 400],
+      "credentials": {
+        "slackApi": {
+          "id": "slack",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://10.0.10.5:8006/api2/json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "http-1",
+      "name": "Execute Remediation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 200],
+      "disabled": true,
+      "notesInFlow": true,
+      "notes": "TODO: Implement Proxmox API call based on remediation type"
+    }
+  ],
+  "connections": {
+    "Alertmanager Webhook": {
+      "main": [
+        [
+          {
+            "node": "Analyze Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Alert": {
+      "main": [
+        [
+          {
+            "node": "Should Auto-Remediate?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Auto-Remediate?": {
+      "main": [
+        [
+          {
+            "node": "Execute Remediation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Remediation": {
+      "main": [
+        [
+          {
+            "node": "Notify Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "infrastructure"
+    },
+    {
+      "name": "alerts"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+---
+- name: Restart n8n
+  community.docker.docker_compose_v2:
+    project_src: "{{ n8n_install_dir }}"
+    state: restarted
+  become: true

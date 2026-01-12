@@ -73,6 +73,7 @@ Secrets loaded via `load_tf_secrets.sh`:
 | `rsyslog_forward` | Configure rsyslog to forward logs to Loki |
 | `akvorado_install` | Install Akvorado flow collector via Docker |
 | `lancache_install` | Install LANcache game download cache via Docker |
+| `n8n_install` | Install n8n workflow automation via Docker |
 
 **Playbooks:**
 | Playbook | Purpose |
@@ -81,10 +82,13 @@ Secrets loaded via `load_tf_secrets.sh`:
 | `configure-rsyslog.yml` | Configure syslog forwarding on linux_vms |
 | `deploy-akvorado.yml` | Install and configure Akvorado |
 | `deploy-lancache.yml` | Install and configure LANcache |
+| `deploy-n8n.yml` | Install and configure n8n |
+| `deploy-n8n-workflows.yml` | Deploy n8n workflows from JSON files |
 
 **Host Groups:**
 - `infrastructure` - All infrastructure hosts
-- `linux_vms` - Linux VMs with rsyslog (vault, runner, authentik, postgres)
+- `linux_vms` - Linux VMs with rsyslog (vault, runner, authentik, postgres, akvorado, n8n)
+- `n8n_servers` - n8n workflow automation servers
 - `lancache_servers` - LANcache servers (ubuntu-mgmt02)
 
 **Secrets**:
@@ -111,6 +115,7 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 | postgres-01 | 10.0.10.23 | PostgreSQL (Terraform state backend) |
 | authentik-01 | 10.0.10.25 | Authentik SSO and Identity Provider |
 | akvorado-01 | 10.0.10.26 | Akvorado network flow collector |
+| n8n-01 | 10.0.10.27 | n8n workflow automation |
 | talos-cp-01 | 10.0.10.30 | Talos Kubernetes control plane |
 | talos-worker-01 | 10.0.10.31 | Talos Kubernetes worker |
 | talos-worker-02 | 10.0.10.32 | Talos Kubernetes worker |
@@ -135,6 +140,7 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 | Grafana | https://grafana.lionfish-caiman.ts.net |
 | Alertmanager | https://alertmanager.lionfish-caiman.ts.net |
 | Akvorado | https://akvorado.lionfish-caiman.ts.net |
+| n8n | https://n8n.lionfish-caiman.ts.net |
 | Traefik | https://traefik.lionfish-caiman.ts.net/dashboard/ |
 
 ### Grafana Authentication
@@ -195,6 +201,41 @@ LANcache runs on a physical server (`ubuntu-mgmt02`, 10.0.20.2) on VLAN 20 with 
 ```bash
 cd ansible && ansible-playbook playbooks/deploy-lancache.yml
 ```
+
+## n8n (Workflow Automation)
+
+n8n runs on a dedicated VM (`n8n-01`, 10.0.10.27) providing AI-powered workflow automation with Azure OpenAI integration.
+
+**Architecture:**
+- **n8n**: Workflow engine with queue mode
+- **PostgreSQL**: Workflow and execution storage
+- **Redis**: Job queue for worker scaling
+
+**Ports:**
+| Port | Protocol |
+|------|----------|
+| 5678/tcp | Web UI and API |
+
+**Configuration:**
+- Ansible role: `ansible/roles/n8n_install/`
+- Docker Compose stack at `/opt/n8n/` on the VM
+- Vault secrets at `secret/infrastructure/n8n`
+
+**Code-First Workflow Management:**
+- Workflows stored as JSON in `ansible/files/n8n-workflows/`
+- Claude generates workflow JSON from natural language descriptions
+- Deploy via: `ansible-playbook playbooks/deploy-n8n-workflows.yml`
+
+**Deployment:**
+```bash
+# Deploy n8n service
+cd ansible && ansible-playbook playbooks/deploy-n8n.yml
+
+# Deploy workflows from JSON files
+ansible-playbook playbooks/deploy-n8n-workflows.yml
+```
+
+**Tailscale Access:** https://n8n.lionfish-caiman.ts.net
 
 ## Network Architecture
 
