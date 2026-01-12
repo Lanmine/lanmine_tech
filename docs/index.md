@@ -33,6 +33,4 @@ Uptime    Uptime Kuma
 
 Storage   Longhorn
 Backup    age-encrypted → Git
-
-██████████████████████████████
 ```
