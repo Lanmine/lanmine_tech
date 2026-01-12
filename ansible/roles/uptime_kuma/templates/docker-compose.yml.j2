@@ -1,0 +1,42 @@
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:{{ uptime_kuma_version }}
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "{{ uptime_kuma_port }}:3001"
+    volumes:
+      - {{ uptime_kuma_data_dir }}:/app/data
+    environment:
+      - TZ={{ uptime_kuma_timezone }}
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/status-page/heartbeat', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ============================================
+# Monitors to configure in Web UI:
+# ============================================
+{% for monitor in uptime_kuma_monitors %}
+# {{ monitor.name }}:
+#   Type: {{ monitor.type }}
+{% if monitor.type == 'http' %}
+#   URL: {{ monitor.url }}
+#   Accepted Status: {{ monitor.accepted_statuscodes | join(', ') }}
+{% if monitor.ignoreTls | default(false) %}
+#   Ignore TLS: Yes
+{% endif %}
+{% elif monitor.type == 'ping' %}
+#   Hostname: {{ monitor.hostname }}
+{% endif %}
+#   Interval: {{ monitor.interval }}s
+#
+{% endfor %}
+# ============================================
+# Notifications to configure:
+# ============================================
+# Discord Webhook: {{ discord_webhook }}
+# SMTP: smtp.domeneshop.no:587 (TLS)
+# ============================================

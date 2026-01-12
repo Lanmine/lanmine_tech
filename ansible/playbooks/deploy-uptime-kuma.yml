@@ -1,0 +1,10 @@
+---
+# Deploy Uptime Kuma for real-time service monitoring
+# Usage: ansible-playbook playbooks/deploy-uptime-kuma.yml
+
+- name: Deploy Uptime Kuma
+  hosts: n8n
+  gather_facts: true
+
+  roles:
+    - role: uptime_kuma

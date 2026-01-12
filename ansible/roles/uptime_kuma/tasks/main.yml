@@ -1,0 +1,74 @@
+---
+- name: Ensure Docker is installed
+  apt:
+    name:
+      - docker.io
+      - docker-compose-v2
+    state: present
+  become: true
+
+- name: Ensure Docker service is running
+  systemd:
+    name: docker
+    state: started
+    enabled: true
+  become: true
+
+- name: Create Uptime Kuma directory
+  file:
+    path: "{{ uptime_kuma_install_dir }}"
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Create data directory
+  file:
+    path: "{{ uptime_kuma_data_dir }}"
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Deploy Docker Compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ uptime_kuma_install_dir }}/docker-compose.yml"
+    mode: '0644'
+  become: true
+  notify: Restart Uptime Kuma
+
+- name: Start Uptime Kuma
+  community.docker.docker_compose_v2:
+    project_src: "{{ uptime_kuma_install_dir }}"
+    state: present
+  become: true
+
+- name: Wait for Uptime Kuma to be ready
+  uri:
+    url: "http://127.0.0.1:{{ uptime_kuma_port }}"
+    status_code: [200, 302]
+  register: result
+  until: result.status in [200, 302]
+  retries: 30
+  delay: 2
+
+- name: Display setup instructions
+  debug:
+    msg: |
+      ============================================
+      Uptime Kuma deployed successfully!
+
+      Web UI: http://{{ ansible_host }}:{{ uptime_kuma_port }}
+      Tailscale: https://uptime.lionfish-caiman.ts.net (after ingress setup)
+
+      Initial Setup Required:
+      1. Open the web UI and create an admin account
+      2. Add Discord notification:
+         - Settings > Notifications > Add
+         - Type: Discord
+         - Webhook URL: (stored in Vault at secret/infrastructure/discord)
+      3. Add Email notification:
+         - Type: SMTP
+         - Host: smtp.domeneshop.no, Port: 587, TLS: Yes
+         - From: tech@lanmine.no
+      4. Monitors are pre-configured in the compose file comments
+      ============================================

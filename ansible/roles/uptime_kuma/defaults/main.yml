@@ -1,0 +1,85 @@
+---
+# Uptime Kuma installation defaults
+
+# Docker image version
+uptime_kuma_version: "1.23.15"
+
+# Installation directory
+uptime_kuma_install_dir: /opt/uptime-kuma
+
+# Web UI port
+uptime_kuma_port: 3001
+
+# Data directory (persistent storage)
+uptime_kuma_data_dir: "{{ uptime_kuma_install_dir }}/data"
+
+# Timezone
+uptime_kuma_timezone: "Europe/Oslo"
+
+# Vault secrets
+discord_webhook: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/discord', validate_certs=true).secret.webhook_url }}"
+smtp_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/smtp', validate_certs=true).secret }}"
+
+# Services to monitor (ICMP/HTTP checks)
+uptime_kuma_monitors:
+  - name: "OPNsense"
+    type: "http"
+    url: "https://10.0.10.1"
+    interval: 30
+    accepted_statuscodes: ["200-299", "401", "403"]
+    ignoreTls: true
+
+  - name: "Proxmox"
+    type: "http"
+    url: "https://10.0.10.5:8006"
+    interval: 30
+    accepted_statuscodes: ["200-299", "301", "302", "307"]
+    ignoreTls: true
+
+  - name: "Vault"
+    type: "http"
+    url: "https://10.0.10.21:8200/v1/sys/health"
+    interval: 30
+    accepted_statuscodes: ["200-299"]
+    ignoreTls: true
+
+  - name: "Authentik"
+    type: "http"
+    url: "https://10.0.10.25:9443"
+    interval: 30
+    accepted_statuscodes: ["200-299", "301", "302", "307"]
+    ignoreTls: true
+
+  - name: "Akvorado"
+    type: "http"
+    url: "http://10.0.10.26:8080"
+    interval: 30
+    accepted_statuscodes: ["200-299"]
+
+  - name: "PostgreSQL"
+    type: "ping"
+    hostname: "10.0.10.23"
+    interval: 30
+
+  - name: "n8n"
+    type: "http"
+    url: "http://10.0.10.27:5678/healthz"
+    interval: 30
+    accepted_statuscodes: ["200-299"]
+
+  - name: "Traefik (K8s)"
+    type: "http"
+    url: "http://10.0.10.40:80"
+    interval: 30
+    accepted_statuscodes: ["200-299", "404"]
+
+  - name: "Grafana"
+    type: "http"
+    url: "http://10.0.10.40/grafana/api/health"
+    interval: 30
+    accepted_statuscodes: ["200-299", "302", "404"]
+
+  - name: "LANcache"
+    type: "ping"
+    hostname: "10.0.20.2"
+    interval: 30
