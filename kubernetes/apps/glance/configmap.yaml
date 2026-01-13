@@ -116,6 +116,22 @@ data:
                       - 401
                       - 403
 
+                  - title: n8n
+                    url: https://n8n.lionfish-caiman.ts.net
+                    check-url: http://10.0.10.27:5678
+                    icon: si:n8n
+                    alt-status-codes:
+                      - 401
+                      - 403
+
+                  - title: Prometheus
+                    url: https://prometheus.lionfish-caiman.ts.net
+                    check-url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+                    icon: di:prometheus
+                    alt-status-codes:
+                      - 401
+                      - 403
+
               # =========================
               # Repo Awareness
               # =========================
