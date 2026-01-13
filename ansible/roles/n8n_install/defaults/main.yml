@@ -2,7 +2,7 @@
 # n8n installation defaults
 
 # Docker image version
-n8n_version: "1.71.3"
+n8n_version: "1.123.12"
 
 # Installation directory
 n8n_install_dir: /opt/n8n

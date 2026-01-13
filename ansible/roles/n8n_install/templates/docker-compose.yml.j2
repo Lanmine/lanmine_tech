@@ -54,6 +54,12 @@ services:
       # Security
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       N8N_API_DISABLED: "false"
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
+      N8N_GIT_NODE_DISABLE_BARE_REPOS: "true"
+      # Task runners (scaling)
+      N8N_RUNNERS_ENABLED: "true"
+      OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS: "true"
       # Webhook URL (for external access)
       WEBHOOK_URL: ${N8N_WEBHOOK_URL}
       N8N_HOST: ${N8N_HOST}
@@ -88,6 +94,10 @@ services:
       QUEUE_BULL_REDIS_HOST: redis
       QUEUE_BULL_REDIS_PORT: 6379
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
+      N8N_RUNNERS_ENABLED: "true"
+      OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS: "true"
       GENERIC_TIMEZONE: ${N8N_TIMEZONE}
       TZ: ${N8N_TIMEZONE}
       NODE_ENV: production
