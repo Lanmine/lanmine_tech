@@ -28,6 +28,12 @@ spec:
     lapi:
       replicas: 1
 
+      # Enable SQLite WAL mode for better performance
+      extraConfig:
+        config.yaml.local: |
+          db_config:
+            use_wal: true
+
       # Anti-affinity for HA readiness
       affinity:
         podAntiAffinity:
