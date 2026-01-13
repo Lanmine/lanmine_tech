@@ -43,6 +43,8 @@ spec:
       autoSalvage: true
       # Node drain policy
       nodeDrainPolicy: block-if-contains-last-replica
+      # Tolerate control-plane taint for system components (engine-images, instance-managers)
+      taintToleration: "node-role.kubernetes.io/control-plane:NoSchedule"
 
     # Resource limits for Longhorn components
     longhornManager:
