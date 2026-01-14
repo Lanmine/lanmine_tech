@@ -50,13 +50,16 @@ conversations: dict[int, ConversationState] = {}
 
 async def transcribe_audio(audio_data: bytes) -> str:
     """Send audio to Whisper for transcription"""
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         files = {"file": ("audio.webm", audio_data, "audio/webm")}
         response = await client.post(
             f"{WHISPER_URL}/v1/audio/transcriptions",
             files=files,
-            data={"model": "whisper-small"}
+            data={"model": "small"}
         )
+        if response.status_code != 200:
+            print(f"Whisper error: {response.status_code} - {response.text}")
+            return ""
         result = response.json()
         return result.get("text", "")
 
