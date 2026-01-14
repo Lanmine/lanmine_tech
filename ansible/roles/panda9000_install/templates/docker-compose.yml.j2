@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  panda9000:
+    build: ./panda9000
+    container_name: panda9000
+    restart: unless-stopped
+    ports:
+      - "{{ panda9000_web_port }}:8080"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - WHISPER_URL=http://whisper:8000
+      - KOKORO_URL=http://kokoro:8000
+      - PROXMOX_API_URL=https://10.0.10.5:8006
+      - PROXMOX_TOKEN_ID=${PROXMOX_TOKEN_ID}
+      - PROXMOX_TOKEN_SECRET=${PROXMOX_TOKEN_SECRET}
+    depends_on:
+      whisper:
+        condition: service_started
+      kokoro:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  whisper:
+    image: fedirz/faster-whisper-server:latest-cpu
+    container_name: panda9000-whisper
+    restart: unless-stopped
+    environment:
+      - WHISPER__MODEL=Systran/faster-whisper-small
+    volumes:
+      - {{ panda9000_install_dir }}/models/whisper:/root/.cache/huggingface
+
+  kokoro:
+    image: ghcr.io/remsky/kokoro-fastapi:v0.2.2-cpu
+    container_name: panda9000-kokoro
+    restart: unless-stopped
+    volumes:
+      - {{ panda9000_install_dir }}/models/kokoro:/app/models

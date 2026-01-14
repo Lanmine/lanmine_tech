@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PANDA9000</title>
+    <link rel="stylesheet" href="/static/panda.css">
+</head>
+<body>
+    <div class="container">
+        <!-- PANDA Eye -->
+        <div class="eye-container">
+            <div class="eye" id="eye">
+                <div class="eye-inner"></div>
+                <div class="eye-glow"></div>
+            </div>
+        </div>
+
+        <!-- Status -->
+        <div class="status" id="status">IDLE</div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button class="btn btn-talk" id="talkBtn">
+                <span class="btn-icon">&#127908;</span>
+                Talk
+            </button>
+            <button class="btn btn-session" id="sessionBtn">
+                <span class="btn-icon">&#128172;</span>
+                Live Session
+            </button>
+        </div>
+
+        <!-- Transcript -->
+        <div class="transcript-container">
+            <div class="transcript" id="transcript"></div>
+        </div>
+
+        <!-- Fullscreen button -->
+        <button class="btn-fullscreen" id="fullscreenBtn" title="Fullscreen">&#9974;</button>
+    </div>
+
+    <script src="/static/panda.js"></script>
+</body>
+</html>

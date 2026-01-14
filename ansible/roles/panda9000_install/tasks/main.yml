@@ -1,0 +1,72 @@
+---
+- name: Install required packages
+  apt:
+    name:
+      - docker.io
+      - docker-compose-v2
+      - python3-docker
+    state: present
+    update_cache: true
+  become: true
+
+- name: Ensure docker service is running
+  systemd:
+    name: docker
+    enabled: true
+    state: started
+  become: true
+
+- name: Add user to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+  become: true
+
+- name: Create panda9000 directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ panda9000_install_dir }}"
+    - "{{ panda9000_install_dir }}/panda9000"
+    - "{{ panda9000_install_dir }}/panda9000/static"
+    - "{{ panda9000_install_dir }}/models"
+  become: true
+
+- name: Deploy panda9000 application files
+  copy:
+    src: "panda9000/"
+    dest: "{{ panda9000_install_dir }}/panda9000/"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart panda9000
+
+- name: Deploy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ panda9000_install_dir }}/docker-compose.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart panda9000
+
+- name: Deploy environment file
+  template:
+    src: panda.env.j2
+    dest: "{{ panda9000_install_dir }}/.env"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600'
+  notify: Restart panda9000
+
+- name: Start panda9000 containers
+  community.docker.docker_compose_v2:
+    project_src: "{{ panda9000_install_dir }}"
+    state: present
+    pull: always
+  become: true

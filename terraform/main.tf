@@ -120,6 +120,18 @@ locals {
       template_id = 9000 # ubuntu-24.04-template
       description = "n8n workflow automation with Azure OpenAI"
     }
+
+    panda9000 = {
+      name        = "panda9000-01"
+      vm_id       = 9160
+      cpu         = 4
+      memory      = 8192
+      ip          = "10.0.10.28/24"
+      tags        = ["infrastructure", "assistant"]
+      agent       = true
+      template_id = 9000 # ubuntu-24.04-template
+      description = "PANDA9000 voice interface"
+    }
   }
 }
 

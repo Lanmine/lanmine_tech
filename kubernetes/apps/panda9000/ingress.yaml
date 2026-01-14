@@ -1,0 +1,44 @@
+---
+# External service pointing to PANDA9000 VM
+apiVersion: v1
+kind: Service
+metadata:
+  name: panda9000-external
+  namespace: default
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+---
+# Endpoints for the external service
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: panda9000-external
+  namespace: default
+subsets:
+  - addresses:
+      - ip: 10.0.10.28
+    ports:
+      - port: 8080
+        protocol: TCP
+---
+# Tailscale ingress for HTTPS access
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: panda9000-tailscale
+  namespace: default
+  annotations:
+    tailscale.com/funnel: "false"
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: panda9000-external
+      port:
+        number: 8080
+  tls:
+    - hosts:
+        - panda

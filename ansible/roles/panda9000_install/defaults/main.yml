@@ -1,0 +1,17 @@
+---
+# PANDA9000 installation defaults
+
+# Installation directory
+panda9000_install_dir: /opt/panda9000
+
+# Web UI port
+panda9000_web_port: 8080
+
+# Whisper STT port (internal)
+panda9000_whisper_port: 8001
+
+# Kokoro TTS port (internal)
+panda9000_kokoro_port: 8002
+
+# Vault secrets
+panda9000_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/panda9000', validate_certs=true).secret }}"

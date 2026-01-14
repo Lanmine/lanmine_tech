@@ -1,0 +1,8 @@
+---
+# Deploy PANDA9000 voice interface
+- name: Deploy PANDA9000
+  hosts: panda9000_servers
+  gather_facts: true
+  roles:
+    - panda9000_install
+    - rsyslog_forward
