@@ -32,6 +32,8 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:24
     restart: unless-stopped
+    ports:
+      - "{{ clickhouse_http_port }}:8123"  # HTTP interface for Grafana
     ulimits:
       nofile:
         soft: 262144

@@ -17,6 +17,7 @@ akvorado_web_port: 8080
 
 # ClickHouse settings
 clickhouse_data_dir: /opt/akvorado/clickhouse-data
+clickhouse_http_port: 8123
 
 # Data retention (days)
 akvorado_retention_days: 30

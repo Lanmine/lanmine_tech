@@ -95,6 +95,18 @@ spec:
               enabled: true
             serviceMap:
               datasourceUid: prometheus
+        - name: ClickHouse
+          type: grafana-clickhouse-datasource
+          uid: clickhouse
+          url: http://10.0.10.26:8123
+          access: proxy
+          isDefault: false
+          jsonData:
+            defaultDatabase: default
+
+      # Install ClickHouse plugin
+      plugins:
+        - grafana-clickhouse-datasource
 
     # Prometheus config
     prometheus:
