@@ -84,6 +84,8 @@ async def synthesize_speech(text: str) -> bytes:
 
 async def chat_with_azure_openai(messages: list, system: str = SYSTEM_PROMPT) -> str:
     """Send messages to Azure OpenAI"""
+    import asyncio
+
     # Format messages with system prompt
     api_messages = [{"role": "system", "content": system}]
     api_messages.extend(messages)
@@ -91,8 +93,8 @@ async def chat_with_azure_openai(messages: list, system: str = SYSTEM_PROMPT) ->
     # Azure OpenAI API URL format
     url = f"{AZURE_OPENAI_ENDPOINT}openai/deployments/{AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2024-02-15-preview"
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
+    def sync_request():
+        response = httpx.post(
             url,
             headers={
                 "api-key": AZURE_OPENAI_KEY,
@@ -102,16 +104,23 @@ async def chat_with_azure_openai(messages: list, system: str = SYSTEM_PROMPT) ->
                 "messages": api_messages,
                 "max_tokens": 300,
                 "temperature": 0.7
-            }
+            },
+            timeout=30.0
         )
-        if response.status_code != 200:
-            print(f"Azure OpenAI error: {response.status_code} - {response.text}")
-            return "I encountered an error processing your request."
+        return response
 
-        result = response.json()
-        if "choices" in result and len(result["choices"]) > 0:
-            return result["choices"][0]["message"]["content"]
-        return "I couldn't process that request."
+    # Run sync request in thread pool to not block
+    loop = asyncio.get_event_loop()
+    response = await loop.run_in_executor(None, sync_request)
+
+    if response.status_code != 200:
+        print(f"Azure OpenAI error: {response.status_code} - {response.text}")
+        return "I encountered an error processing your request."
+
+    result = response.json()
+    if "choices" in result and len(result["choices"]) > 0:
+        return result["choices"][0]["message"]["content"]
+    return "I couldn't process that request."
 
 
 @app.get("/health")
