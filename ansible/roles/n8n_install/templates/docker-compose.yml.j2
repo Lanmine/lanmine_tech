@@ -1,22 +1,8 @@
 # n8n Docker Compose
 # Managed by Ansible - do not edit manually
+# Database: External PostgreSQL on postgres-01 (10.0.10.23)
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${N8N_DB_NAME}
-      POSTGRES_USER: ${N8N_DB_USER}
-      POSTGRES_PASSWORD: ${N8N_DB_PASSWORD}
-    volumes:
-      - {{ n8n_install_dir }}/postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${N8N_DB_USER} -d ${N8N_DB_NAME}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -33,17 +19,15 @@ services:
     image: n8nio/n8n:{{ n8n_version }}
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     ports:
       - "{{ n8n_web_port }}:5678"
     environment:
-      # Database
+      # Database (external PostgreSQL)
       DB_TYPE: postgresdb
-      DB_POSTGRESDB_HOST: postgres
-      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_HOST: ${N8N_DB_HOST}
+      DB_POSTGRESDB_PORT: ${N8N_DB_PORT}
       DB_POSTGRESDB_DATABASE: ${N8N_DB_NAME}
       DB_POSTGRESDB_USER: ${N8N_DB_USER}
       DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD}
@@ -85,8 +69,8 @@ services:
     command: worker
     environment:
       DB_TYPE: postgresdb
-      DB_POSTGRESDB_HOST: postgres
-      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_HOST: ${N8N_DB_HOST}
+      DB_POSTGRESDB_PORT: ${N8N_DB_PORT}
       DB_POSTGRESDB_DATABASE: ${N8N_DB_NAME}
       DB_POSTGRESDB_USER: ${N8N_DB_USER}
       DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD}

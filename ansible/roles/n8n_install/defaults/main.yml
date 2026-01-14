@@ -20,7 +20,9 @@ n8n_timezone: "Europe/Oslo"
 n8n_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/n8n', validate_certs=true).secret }}"
 authentik_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/authentik', validate_certs=true).secret }}"
 
-# Database settings (internal PostgreSQL)
+# Database settings (external PostgreSQL on postgres-01)
+n8n_db_host: 10.0.10.23
+n8n_db_port: 5432
 n8n_db_name: n8n
 n8n_db_user: n8n
 
