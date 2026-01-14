@@ -98,10 +98,12 @@ spec:
         - name: ClickHouse
           type: grafana-clickhouse-datasource
           uid: clickhouse
-          url: http://10.0.10.26:8123
           access: proxy
           isDefault: false
           jsonData:
+            host: 10.0.10.26
+            port: 8123
+            protocol: http
             defaultDatabase: default
 
       # Install ClickHouse plugin
