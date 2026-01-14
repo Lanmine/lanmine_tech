@@ -7,7 +7,9 @@ class PANDA9000 {
         this.audioChunks = [];
         this.isRecording = false;
         this.isSessionActive = false;
-        this.audioContext = null;
+        this.audioElement = null;
+        this.audioQueue = [];
+        this.isPlayingAudio = false;
 
         // DOM elements
         this.eye = document.getElementById('eye');
@@ -23,7 +25,26 @@ class PANDA9000 {
     init() {
         this.connectWebSocket();
         this.setupEventListeners();
-        this.initAudioContext();
+        this.initAudio();
+    }
+
+    initAudio() {
+        // Create persistent audio element for iOS compatibility
+        this.audioElement = new Audio();
+        this.audioElement.playsInline = true;
+
+        // Unlock audio on first user interaction (required for iOS)
+        const unlockAudio = () => {
+            this.audioElement.play().then(() => {
+                this.audioElement.pause();
+                this.audioElement.currentTime = 0;
+                console.log('Audio unlocked');
+            }).catch(() => {});
+            document.removeEventListener('touchstart', unlockAudio);
+            document.removeEventListener('click', unlockAudio);
+        };
+        document.addEventListener('touchstart', unlockAudio, { once: true });
+        document.addEventListener('click', unlockAudio, { once: true });
     }
 
     connectWebSocket() {
@@ -85,10 +106,6 @@ class PANDA9000 {
                 this.stopRecording();
             }
         });
-    }
-
-    initAudioContext() {
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
 
     async startRecording() {
@@ -222,25 +239,27 @@ class PANDA9000 {
 
     async playAudio(base64Audio) {
         try {
-            // Use Audio element for more reliable playback
-            const audio = new Audio(`data:audio/mp3;base64,${base64Audio}`);
+            // Use persistent audio element for iOS compatibility
+            this.audioElement.src = `data:audio/mp3;base64,${base64Audio}`;
 
-            audio.onended = () => {
+            this.audioElement.onended = () => {
                 if (!this.isSessionActive) {
                     this.setStatus('IDLE');
                     this.setEyeState('idle');
                 }
             };
 
-            audio.onerror = (e) => {
+            this.audioElement.onerror = (e) => {
                 console.error('Audio playback error:', e);
                 this.setStatus('IDLE');
                 this.setEyeState('idle');
             };
 
-            await audio.play();
+            await this.audioElement.play();
         } catch (error) {
             console.error('Error playing audio:', error);
+            // Show message to user on iOS if audio blocked
+            this.addToTranscript('system', 'Tap screen to enable audio');
             this.setStatus('IDLE');
             this.setEyeState('idle');
         }
