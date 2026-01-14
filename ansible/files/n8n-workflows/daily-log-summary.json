@@ -1,0 +1,162 @@
+{
+  "name": "Daily Log Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "cronExpression", "expression": "0 8 * * *"}]
+        }
+      },
+      "id": "schedule-1",
+      "name": "Daily 8am Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "daily-summary",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 400],
+      "webhookId": "daily-summary"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://10.0.10.49:3100/loki/api/v1/query_range",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "{job=~\".+\"} |~ \"(?i)(error|warn|critical|fail)\""},
+            {"name": "start", "value": "={{ Math.floor((Date.now() - 86400000) * 1000000) }}"},
+            {"name": "end", "value": "={{ Math.floor(Date.now() * 1000000) }}"},
+            {"name": "limit", "value": "1000"}
+          ]
+        },
+        "options": {}
+      },
+      "id": "loki-1",
+      "name": "Query Loki Errors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst results = data.data?.result || [];\n\nconst logs = [];\nfor (const stream of results) {\n  const labels = stream.stream || {};\n  const source = labels.namespace || labels.host || labels.job || \"unknown\";\n  \n  for (const [timestamp, line] of (stream.values || [])) {\n    logs.push({\n      source,\n      namespace: labels.namespace || \"-\",\n      pod: labels.pod || labels.host || \"-\",\n      message: line.substring(0, 500)\n    });\n  }\n}\n\nconst summary = {};\nfor (const log of logs) {\n  const key = log.source;\n  if (!summary[key]) summary[key] = { count: 0, samples: [] };\n  summary[key].count++;\n  if (summary[key].samples.length < 5) {\n    summary[key].samples.push(log.message);\n  }\n}\n\nconst formattedLogs = Object.entries(summary)\n  .sort((a, b) => b[1].count - a[1].count)\n  .slice(0, 20)\n  .map(([source, data]) => \n    `## ${source} (${data.count} entries)\\n${data.samples.join(\"\\n---\\n\")}`\n  ).join(\"\\n\\n\");\n\nreturn [{json: {\n  totalLogs: logs.length,\n  formattedLogs: formattedLogs || \"No error/warning logs found in the past 24 hours.\",\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "code-format-1",
+      "name": "Format Logs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\n// Known acceptable errors/warnings (greenlit)\nconst GREENLIT_ERRORS = `\n## GREENLIT ITEMS (Do NOT report as issues):\n- Longhorn TLS warning \"Failed to add TLS key pair from /tls-files/\" - Expected when TLS not configured, falls back to no-auth mode\n- ETCD connection errors \"dial tcp [::1]:2379\" in kube-apiserver - Normal Talos Linux operation\n- Tailscale UDP buffer warnings - Non-blocking performance advisory\n- v1 Endpoints deprecation warnings - Acknowledged, migration planned\n- Longhorn \"Failed to get filesystem device type\" - Normal on Talos nodes\n- DNS occasional timeouts to 8.8.8.8 or 1.1.1.1 - Transient, acceptable if infrequent\n- unattended-upgrade DeprecationWarning about fork() - Python warning, does not affect functionality\n- Crowdsec \"sqlite without WAL\" warning - May appear briefly after restarts, WAL is enabled\n- CrowdSec update advisories - Informational, upgrades handled via GitOps\n- Longhorn \"Received signal interrupt to shutdown\" - Graceful shutdown during pod restarts, expected behavior\n- Longhorn engine/replica Stop/Start events - Normal volume lifecycle during pod restarts\n`;\n\nconst requestBody = {\n  messages: [\n    {\n      role: \"system\",\n      content: `You are an infrastructure SRE analyzing daily logs. Provide a concise summary including:\\n1. Overall health assessment (healthy/degraded/critical) - start with emoji\\n2. Top issues requiring attention (with severity) - EXCLUDE greenlit items\\n3. Recurring patterns or anomalies\\n4. Recommended actions\\n\\n${GREENLIT_ERRORS}\\n\\nIMPORTANT: If ALL detected issues are greenlit, report status as HEALTHY.\\nOnly report issues NOT in the greenlit list above.\\nKeep response under 500 words. Use markdown formatting.`\n    },\n    {\n      role: \"user\",\n      content: `Daily Log Summary - ${input.timestamp}\\nTotal error/warning entries: ${input.totalLogs}\\n\\n${input.formattedLogs}`\n    }\n  ]\n};\nreturn [{json: {requestBody, totalLogs: input.totalLogs, timestamp: input.timestamp}}];"
+      },
+      "id": "code-prep-1",
+      "name": "Prepare GPT Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gpt-nettdrift-iaac-swe-1.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-02-15-preview",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.requestBody) }}",
+        "options": {}
+      },
+      "id": "azure-1",
+      "name": "Analyze with GPT-4.1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1100, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "QNt58AgKQ8XnSafP",
+          "name": "Azure OpenAI API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst analysis = response.choices?.[0]?.message?.content || \"Analysis failed\";\nconst prev = $items(\"Prepare GPT Request\")[0].json;\n\nreturn [{json: {\n  title: \"Daily Infrastructure Log Summary\",\n  date: prev.timestamp,\n  totalEntries: prev.totalLogs,\n  analysis\n}}];"
+      },
+      "id": "code-output-1",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "tech@lanmine.no",
+        "toEmail": "tech@lanmine.no",
+        "subject": "={{ \"[Lanmine] Daily Log Summary - \" + $json.date.split(\"T\")[0] }}",
+        "emailType": "text",
+        "text": "={{ $json.analysis }}",
+        "options": {}
+      },
+      "id": "email-1",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1500, 200],
+      "credentials": {
+        "smtp": {
+          "id": "j0cYa795FJitFBqt",
+          "name": "Lanmine SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst healthMatch = data.analysis.match(/(healthy|degraded|critical)/i);\nconst health = healthMatch ? healthMatch[1].toLowerCase() : \"unknown\";\nconst emoji = health === \"healthy\" ? \"✅\" : health === \"degraded\" ? \"⚠️\" : health === \"critical\" ? \"🚨\" : \"ℹ️\";\nconst color = health === \"healthy\" ? 5763719 : health === \"degraded\" ? 16776960 : health === \"critical\" ? 15158332 : 3447003;\n\nconst discordPayload = {\n  embeds: [{\n    title: `${emoji} Daily Infrastructure Summary`,\n    description: data.analysis.substring(0, 2000),\n    color: color,\n    fields: [\n      { name: \"Date\", value: data.date.split(\"T\")[0], inline: true },\n      { name: \"Log Entries\", value: String(data.totalEntries), inline: true }\n    ],\n    timestamp: new Date().toISOString(),\n    footer: { text: \"Lanmine Infrastructure\" }\n  }]\n};\n\nreturn [{json: discordPayload}];"
+      },
+      "id": "code-discord-1",
+      "name": "Format Discord",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "REDACTED",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "http-discord-1",
+      "name": "Send to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1700, 400]
+    }
+  ],
+  "connections": {
+    "Daily 8am Trigger": {"main": [[{"node": "Query Loki Errors", "type": "main", "index": 0}]]},
+    "Manual Trigger": {"main": [[{"node": "Query Loki Errors", "type": "main", "index": 0}]]},
+    "Query Loki Errors": {"main": [[{"node": "Format Logs", "type": "main", "index": 0}]]},
+    "Format Logs": {"main": [[{"node": "Prepare GPT Request", "type": "main", "index": 0}]]},
+    "Prepare GPT Request": {"main": [[{"node": "Analyze with GPT-4.1", "type": "main", "index": 0}]]},
+    "Analyze with GPT-4.1": {"main": [[{"node": "Format Output", "type": "main", "index": 0}]]},
+    "Format Output": {"main": [[{"node": "Send Email", "type": "main", "index": 0}, {"node": "Format Discord", "type": "main", "index": 0}]]},
+    "Format Discord": {"main": [[{"node": "Send to Discord", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"}
+}
