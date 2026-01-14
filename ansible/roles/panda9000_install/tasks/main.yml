@@ -35,7 +35,6 @@
     - "{{ panda9000_install_dir }}/panda9000"
     - "{{ panda9000_install_dir }}/panda9000/static"
     - "{{ panda9000_install_dir }}/models"
-    - "{{ panda9000_install_dir }}/models/ollama"
   become: true
 
 - name: Deploy panda9000 application files
@@ -71,19 +70,3 @@
     state: present
     pull: always
   become: true
-
-- name: Wait for Ollama container to be running
-  command: docker inspect --format '{{ "{{" }}.State.Running{{ "}}" }}' panda9000-ollama
-  register: ollama_container
-  until: ollama_container.stdout == "true"
-  retries: 12
-  delay: 5
-  become: true
-
-- name: Pull Ollama model (phi3:mini) - this may take a few minutes
-  command: docker exec panda9000-ollama ollama pull phi3:mini
-  register: ollama_pull
-  changed_when: "'pulling' in ollama_pull.stdout or 'downloading' in ollama_pull.stderr"
-  become: true
-  async: 600
-  poll: 30

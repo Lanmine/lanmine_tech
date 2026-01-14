@@ -13,5 +13,5 @@ panda9000_whisper_port: 8001
 # Kokoro TTS port (internal)
 panda9000_kokoro_port: 8002
 
-# Ollama model for local LLM
-panda9000_ollama_model: phi3:mini
+# n8n secrets (includes Azure OpenAI credentials)
+n8n_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/n8n', validate_certs=true).secret }}"

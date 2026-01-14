@@ -16,8 +16,11 @@ app = FastAPI(title="PANDA9000")
 # Configuration
 WHISPER_URL = os.getenv("WHISPER_URL", "http://whisper:8000")
 KOKORO_URL = os.getenv("KOKORO_URL", "http://kokoro:8880")
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi3:mini")
+
+# Azure OpenAI configuration
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_KEY", "")
+AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4.1")
 
 # System prompt for PANDA9000 persona
 SYSTEM_PROMPT = """You are PANDA9000, a calm and helpful infrastructure assistant.
@@ -79,25 +82,36 @@ async def synthesize_speech(text: str) -> bytes:
         return response.content
 
 
-async def chat_with_ollama(messages: list, system: str = SYSTEM_PROMPT) -> str:
-    """Send messages to Ollama (local LLM)"""
-    # Format messages for Ollama chat API
-    ollama_messages = [{"role": "system", "content": system}]
-    ollama_messages.extend(messages)
+async def chat_with_azure_openai(messages: list, system: str = SYSTEM_PROMPT) -> str:
+    """Send messages to Azure OpenAI"""
+    # Format messages with system prompt
+    api_messages = [{"role": "system", "content": system}]
+    api_messages.extend(messages)
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    # Azure OpenAI API URL format
+    url = f"{AZURE_OPENAI_ENDPOINT}openai/deployments/{AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2024-02-15-preview"
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
-            f"{OLLAMA_URL}/api/chat",
+            url,
+            headers={
+                "api-key": AZURE_OPENAI_KEY,
+                "Content-Type": "application/json"
+            },
             json={
-                "model": OLLAMA_MODEL,
-                "messages": ollama_messages,
-                "stream": False
+                "messages": api_messages,
+                "max_tokens": 300,
+                "temperature": 0.7
             }
         )
+        if response.status_code != 200:
+            print(f"Azure OpenAI error: {response.status_code} - {response.text}")
+            return "I encountered an error processing your request."
+
         result = response.json()
-        if "message" in result:
-            return result["message"].get("content", "I couldn't process that request.")
-        return "I encountered an error processing your request."
+        if "choices" in result and len(result["choices"]) > 0:
+            return result["choices"][0]["message"]["content"]
+        return "I couldn't process that request."
 
 
 @app.get("/health")
@@ -157,13 +171,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     await websocket.send_json({"type": "session_ended"})
                     continue
 
-                # Get Claude response
+                # Get LLM response
                 await websocket.send_json({"type": "status", "status": "thinking"})
 
                 conv = conversations[conn_id]
                 conv.add_user_message(transcript)
 
-                response_text = await chat_with_ollama(conv.messages)
+                response_text = await chat_with_azure_openai(conv.messages)
                 conv.add_assistant_message(response_text)
 
                 await websocket.send_json({"type": "response", "text": response_text})

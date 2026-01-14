@@ -222,28 +222,27 @@ class PANDA9000 {
 
     async playAudio(base64Audio) {
         try {
-            const audioData = atob(base64Audio);
-            const arrayBuffer = new ArrayBuffer(audioData.length);
-            const view = new Uint8Array(arrayBuffer);
-            for (let i = 0; i < audioData.length; i++) {
-                view[i] = audioData.charCodeAt(i);
-            }
+            // Use Audio element for more reliable playback
+            const audio = new Audio(`data:audio/mp3;base64,${base64Audio}`);
 
-            const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-            const source = this.audioContext.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(this.audioContext.destination);
-
-            source.onended = () => {
+            audio.onended = () => {
                 if (!this.isSessionActive) {
                     this.setStatus('IDLE');
                     this.setEyeState('idle');
                 }
             };
 
-            source.start(0);
+            audio.onerror = (e) => {
+                console.error('Audio playback error:', e);
+                this.setStatus('IDLE');
+                this.setEyeState('idle');
+            };
+
+            await audio.play();
         } catch (error) {
             console.error('Error playing audio:', error);
+            this.setStatus('IDLE');
+            this.setEyeState('idle');
         }
     }
 
