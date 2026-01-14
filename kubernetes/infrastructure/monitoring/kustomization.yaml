@@ -11,9 +11,6 @@ resources:
   - alloy.yaml
   - alloy-syslog.yaml
   - flux-monitoring.yaml
-  - flux-dashboard.yaml
-  - network-dashboard.yaml
-  - infrastructure-logs-dashboard.yaml
-  - overview-dashboard.yaml
+  - lanmine-dashboard.yaml
   - blackbox-exporter.yaml
   - infrastructure-alerts.yaml
