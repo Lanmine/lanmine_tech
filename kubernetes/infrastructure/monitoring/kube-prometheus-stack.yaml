@@ -108,6 +108,9 @@ spec:
       plugins:
         - grafana-clickhouse-datasource
 
+      # Disable default dashboards - using consolidated custom dashboard
+      defaultDashboardsEnabled: false
+
     # Prometheus config
     prometheus:
       prometheusSpec:
