@@ -1,0 +1,15 @@
+---
+- name: Gather IOS facts
+  cisco.ios.ios_facts:
+    gather_subset:
+      - min
+      - hardware
+  register: ios_facts
+
+- name: Display switch info
+  ansible.builtin.debug:
+    msg: |
+      Hostname: {{ ansible_net_hostname }}
+      Model: {{ ansible_net_model }}
+      IOS Version: {{ ansible_net_version }}
+      Serial: {{ ansible_net_serialnum }}

@@ -1,0 +1,44 @@
+---
+# Main entry point - include specific task files based on tags
+
+- name: Include backup tasks
+  ansible.builtin.include_tasks:
+    file: backup.yml
+    apply:
+      tags:
+        - backup
+  tags:
+    - backup
+    - never
+
+- name: Include VLAN tasks
+  ansible.builtin.include_tasks:
+    file: vlans.yml
+    apply:
+      tags:
+        - vlans
+  when: cisco_vlans | length > 0
+  tags:
+    - vlans
+    - never
+
+- name: Include port configuration tasks
+  ansible.builtin.include_tasks:
+    file: ports.yml
+    apply:
+      tags:
+        - ports
+  when: cisco_ports | length > 0
+  tags:
+    - ports
+    - never
+
+- name: Include facts gathering
+  ansible.builtin.include_tasks:
+    file: facts.yml
+    apply:
+      tags:
+        - facts
+  tags:
+    - facts
+    - always

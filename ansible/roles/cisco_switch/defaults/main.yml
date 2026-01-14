@@ -1,0 +1,31 @@
+---
+# Backup settings
+cisco_backup_dir: "{{ playbook_dir }}/backups/cisco"
+cisco_backup_encrypt: true
+
+# Age encryption (same as other backups)
+age_recipient: "age1t96vukz3swsm9vhatq3u79avndqus0j4m3y34czlvezzss0uxaeqhkduwq"
+
+# VLAN definitions (override in playbook or host_vars)
+cisco_vlans: []
+# Example:
+# cisco_vlans:
+#   - id: 10
+#     name: Infrastructure
+#   - id: 20
+#     name: Contestants
+#   - id: 30
+#     name: OOB
+
+# Port configurations (override in playbook or host_vars)
+cisco_ports: []
+# Example:
+# cisco_ports:
+#   - interface: GigabitEthernet1/0/1
+#     description: "Uplink to Core"
+#     mode: trunk
+#     allowed_vlans: "10,20,30"
+#   - interface: GigabitEthernet1/0/2
+#     description: "Server Port"
+#     mode: access
+#     vlan: 10

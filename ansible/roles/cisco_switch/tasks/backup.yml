@@ -1,0 +1,39 @@
+---
+- name: Get current date
+  ansible.builtin.set_fact:
+    backup_date: "{{ lookup('pipe', 'date +%Y-%m-%d') }}"
+
+- name: Create backup directory
+  ansible.builtin.file:
+    path: "{{ cisco_backup_dir }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+
+- name: Backup running configuration
+  cisco.ios.ios_config:
+    backup: true
+    backup_options:
+      filename: "{{ inventory_hostname }}_running_{{ backup_date }}.cfg"
+      dir_path: "{{ cisco_backup_dir }}"
+  register: backup_result
+
+- name: Encrypt backup with age
+  ansible.builtin.command:
+    cmd: >
+      age --encrypt --recipient {{ age_recipient }}
+      --output {{ backup_result.backup_path }}.age
+      {{ backup_result.backup_path }}
+  delegate_to: localhost
+  when: cisco_backup_encrypt | bool
+
+- name: Remove unencrypted backup
+  ansible.builtin.file:
+    path: "{{ backup_result.backup_path }}"
+    state: absent
+  delegate_to: localhost
+  when: cisco_backup_encrypt | bool
+
+- name: Display backup location
+  ansible.builtin.debug:
+    msg: "Backup saved to: {{ backup_result.backup_path }}{{ '.age' if cisco_backup_encrypt else '' }}"

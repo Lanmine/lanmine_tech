@@ -1,0 +1,11 @@
+---
+- name: Configure VLANs
+  cisco.ios.ios_vlans:
+    config: "{{ cisco_vlans }}"
+    state: merged
+  register: vlan_result
+
+- name: Display VLAN changes
+  ansible.builtin.debug:
+    var: vlan_result.commands
+  when: vlan_result.commands | length > 0

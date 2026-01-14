@@ -1,0 +1,25 @@
+{% if item.description is defined %}
+description {{ item.description }}
+{% endif %}
+{% if item.mode == 'trunk' %}
+switchport mode trunk
+{% if item.allowed_vlans is defined %}
+switchport trunk allowed vlan {{ item.allowed_vlans }}
+{% endif %}
+{% if item.native_vlan is defined %}
+switchport trunk native vlan {{ item.native_vlan }}
+{% endif %}
+{% elif item.mode == 'access' %}
+switchport mode access
+{% if item.vlan is defined %}
+switchport access vlan {{ item.vlan }}
+{% endif %}
+{% endif %}
+{% if item.portfast | default(false) %}
+spanning-tree portfast
+{% endif %}
+{% if item.shutdown | default(false) %}
+shutdown
+{% else %}
+no shutdown
+{% endif %}

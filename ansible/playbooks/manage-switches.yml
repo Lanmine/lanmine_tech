@@ -1,0 +1,35 @@
+---
+# Cisco Switch Management Playbook
+#
+# Usage:
+#   ansible-playbook playbooks/manage-switches.yml --tags facts     # Show switch info
+#   ansible-playbook playbooks/manage-switches.yml --tags backup    # Backup config
+#   ansible-playbook playbooks/manage-switches.yml --tags vlans     # Configure VLANs
+#   ansible-playbook playbooks/manage-switches.yml --tags ports     # Configure ports
+#   ansible-playbook playbooks/manage-switches.yml --tags all       # Run everything
+
+- name: Manage Cisco Switches
+  hosts: cisco_switches
+  gather_facts: false
+
+  vars:
+    # Define VLANs for the network
+    cisco_vlans:
+      - vlan_id: 1
+        name: default
+      - vlan_id: 10
+        name: Infrastructure
+      - vlan_id: 20
+        name: Contestants
+      - vlan_id: 30
+        name: OOB-iDRAC
+
+    # Port configurations (customize as needed)
+    # cisco_ports:
+    #   - interface: GigabitEthernet1/0/24
+    #     description: "Uplink to Router"
+    #     mode: trunk
+    #     allowed_vlans: "1,10,20,30"
+
+  roles:
+    - cisco_switch

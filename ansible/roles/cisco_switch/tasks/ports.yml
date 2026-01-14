@@ -1,0 +1,14 @@
+---
+- name: Configure switchport interfaces
+  cisco.ios.ios_config:
+    lines: "{{ item.config_lines | default(lookup('template', 'port_config.j2')) }}"
+    parents: "interface {{ item.interface }}"
+  loop: "{{ cisco_ports }}"
+  loop_control:
+    label: "{{ item.interface }}"
+  register: port_result
+  notify: save_config
+
+- name: Display port changes
+  ansible.builtin.debug:
+    msg: "Configured {{ cisco_ports | length }} ports"
