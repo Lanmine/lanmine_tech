@@ -13,5 +13,5 @@ panda9000_whisper_port: 8001
 # Kokoro TTS port (internal)
 panda9000_kokoro_port: 8002
 
-# Vault secrets
-panda9000_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/panda9000', validate_certs=true).secret }}"
+# Ollama model for local LLM
+panda9000_ollama_model: phi3:mini

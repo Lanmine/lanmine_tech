@@ -15,15 +15,16 @@ app = FastAPI(title="PANDA9000")
 
 # Configuration
 WHISPER_URL = os.getenv("WHISPER_URL", "http://whisper:8000")
-KOKORO_URL = os.getenv("KOKORO_URL", "http://kokoro:8000")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+KOKORO_URL = os.getenv("KOKORO_URL", "http://kokoro:8880")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi3:mini")
 
 # System prompt for PANDA9000 persona
 SYSTEM_PROMPT = """You are PANDA9000, a calm and helpful infrastructure assistant.
 You monitor Proxmox VMs, Kubernetes clusters, and network systems.
 Respond concisely and helpfully. Your visual form is a glowing red eye.
 When asked about infrastructure, provide accurate status information.
-Keep responses brief - they will be spoken aloud."""
+Keep responses brief - they will be spoken aloud. Limit responses to 2-3 sentences."""
 
 
 class ConversationState:
@@ -75,26 +76,24 @@ async def synthesize_speech(text: str) -> bytes:
         return response.content
 
 
-async def chat_with_claude(messages: list, system: str = SYSTEM_PROMPT) -> str:
-    """Send messages to Claude API"""
-    async with httpx.AsyncClient(timeout=60.0) as client:
+async def chat_with_ollama(messages: list, system: str = SYSTEM_PROMPT) -> str:
+    """Send messages to Ollama (local LLM)"""
+    # Format messages for Ollama chat API
+    ollama_messages = [{"role": "system", "content": system}]
+    ollama_messages.extend(messages)
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
         response = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json"
-            },
+            f"{OLLAMA_URL}/api/chat",
             json={
-                "model": "claude-sonnet-4-20250514",
-                "max_tokens": 500,
-                "system": system,
-                "messages": messages
+                "model": OLLAMA_MODEL,
+                "messages": ollama_messages,
+                "stream": False
             }
         )
         result = response.json()
-        if "content" in result and len(result["content"]) > 0:
-            return result["content"][0].get("text", "I couldn't process that request.")
+        if "message" in result:
+            return result["message"].get("content", "I couldn't process that request.")
         return "I encountered an error processing your request."
 
 
@@ -161,7 +160,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 conv = conversations[conn_id]
                 conv.add_user_message(transcript)
 
-                response_text = await chat_with_claude(conv.messages)
+                response_text = await chat_with_ollama(conv.messages)
                 conv.add_assistant_message(response_text)
 
                 await websocket.send_json({"type": "response", "text": response_text})
