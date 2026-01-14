@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   panda9000:
     build: ./panda9000
@@ -10,7 +8,7 @@ services:
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - WHISPER_URL=http://whisper:8000
-      - KOKORO_URL=http://kokoro:8000
+      - KOKORO_URL=http://kokoro:8880
       - PROXMOX_API_URL=https://10.0.10.5:8006
       - PROXMOX_TOKEN_ID=${PROXMOX_TOKEN_ID}
       - PROXMOX_TOKEN_SECRET=${PROXMOX_TOKEN_SECRET}
@@ -35,7 +33,7 @@ services:
       - {{ panda9000_install_dir }}/models/whisper:/root/.cache/huggingface
 
   kokoro:
-    image: ghcr.io/remsky/kokoro-fastapi:v0.2.2-cpu
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:v0.2.2
     container_name: panda9000-kokoro
     restart: unless-stopped
     volumes:
