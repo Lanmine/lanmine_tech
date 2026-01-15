@@ -135,7 +135,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "REDACTED",
+        "url": "={{ $env.DISCORD_WEBHOOK_URL }}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
