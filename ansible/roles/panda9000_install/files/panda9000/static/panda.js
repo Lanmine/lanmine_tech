@@ -15,7 +15,6 @@ class PANDA9000 {
         this.eye = document.getElementById('eye');
         this.status = document.getElementById('status');
         this.talkBtn = document.getElementById('talkBtn');
-        this.sessionBtn = document.getElementById('sessionBtn');
         this.transcript = document.getElementById('transcript');
         this.fullscreenBtn = document.getElementById('fullscreenBtn');
 
@@ -29,20 +28,50 @@ class PANDA9000 {
     }
 
     initAudio() {
-        // Create persistent audio element for iOS compatibility
+        // Create persistent audio element for reuse
         this.audioElement = new Audio();
         this.audioElement.playsInline = true;
+        this.audioUnlocked = false;
 
-        // Unlock audio on first user interaction (required for iOS)
-        const unlockAudio = () => {
-            this.audioElement.play().then(() => {
-                this.audioElement.pause();
-                this.audioElement.currentTime = 0;
-                console.log('Audio unlocked');
-            }).catch(() => {});
-            document.removeEventListener('touchstart', unlockAudio);
-            document.removeEventListener('click', unlockAudio);
+        // Check if iOS/Safari
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        const overlay = document.getElementById('audioOverlay');
+
+        if (isIOS || isSafari) {
+            if (overlay) {
+                overlay.style.display = 'flex';
+            }
+        }
+
+        // Unlock audio on tap - play silent sound to enable future playback
+        const unlockAudio = async () => {
+            if (this.audioUnlocked) {
+                if (overlay) overlay.style.display = 'none';
+                return;
+            }
+
+            try {
+                // Play a tiny silent mp3 to unlock
+                this.audioElement.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAAAAAANIAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+                await this.audioElement.play();
+                this.audioUnlocked = true;
+                console.log('Audio unlocked for iOS');
+            } catch (e) {
+                console.log('Audio unlock error:', e);
+            }
+
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
         };
+
+        if (overlay) {
+            overlay.addEventListener('click', unlockAudio);
+            overlay.addEventListener('touchend', unlockAudio);
+        }
+
+        // Also unlock on talk button press
         document.addEventListener('touchstart', unlockAudio, { once: true });
         document.addEventListener('click', unlockAudio, { once: true });
     }
@@ -86,9 +115,6 @@ class PANDA9000 {
             this.stopRecording();
         });
 
-        // Session button
-        this.sessionBtn.addEventListener('click', () => this.toggleSession());
-
         // Fullscreen button
         this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
 
@@ -106,6 +132,57 @@ class PANDA9000 {
                 this.stopRecording();
             }
         });
+
+        // Test audio button
+        const testBtn = document.getElementById('testAudioBtn');
+        if (testBtn) {
+            testBtn.addEventListener('click', () => this.testAudio());
+        }
+    }
+
+    async testAudio() {
+        this.addToTranscript('system', 'Testing audio...');
+
+        try {
+            // Request test audio from server
+            const response = await fetch('/test-audio');
+            if (!response.ok) {
+                throw new Error('Failed to get test audio: ' + response.status);
+            }
+
+            const data = await response.json();
+            this.addToTranscript('system', 'Got audio, size: ' + data.audio.length);
+
+            // Try to play it immediately (within user gesture)
+            const binaryString = atob(data.audio);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const blob = new Blob([bytes], { type: 'audio/mpeg' });
+            const blobUrl = URL.createObjectURL(blob);
+
+            // Create fresh audio element within gesture
+            const testAudio = new Audio();
+            testAudio.playsInline = true;
+            testAudio.src = blobUrl;
+
+            testAudio.onended = () => {
+                this.addToTranscript('system', 'Test audio finished');
+                URL.revokeObjectURL(blobUrl);
+            };
+
+            testAudio.onerror = (e) => {
+                this.addToTranscript('system', 'Test audio error: ' + (testAudio.error?.message || 'unknown'));
+            };
+
+            await testAudio.play();
+            this.addToTranscript('system', 'Test audio playing!');
+
+        } catch (error) {
+            this.addToTranscript('system', 'Test error: ' + error.message);
+            console.error('Test audio error:', error);
+        }
     }
 
     async startRecording() {
@@ -168,6 +245,10 @@ class PANDA9000 {
     handleMessage(data) {
         switch (data.type) {
             case 'status':
+                // Ignore server's "speaking" status - we set it when audio actually plays
+                if (data.status === 'speaking') {
+                    break;
+                }
                 this.setStatus(data.status.toUpperCase());
                 this.setEyeState(data.status);
                 if (data.status === 'listening' && this.isSessionActive) {
@@ -181,27 +262,26 @@ class PANDA9000 {
                 break;
 
             case 'response':
-                this.addToTranscript('assistant', data.text);
+                // Store response text, show after audio finishes
+                this.pendingResponse = data.text;
                 break;
 
             case 'audio':
-                this.playAudio(data.audio);
+                // Set speaking state when audio actually arrives
+                this.setStatus('SPEAKING');
+                this.setEyeState('speaking');
+                this.playAudio(data.audio, this.pendingResponse);
+                this.pendingResponse = null;
                 break;
 
             case 'session_started':
                 this.isSessionActive = true;
-                this.sessionBtn.classList.add('active');
-                this.sessionBtn.innerHTML = '<span class="btn-icon">&#128721;</span> End Session';
                 this.eye.classList.add('session-active');
-                this.addToTranscript('system', 'Live session started');
                 break;
 
             case 'session_ended':
                 this.isSessionActive = false;
-                this.sessionBtn.classList.remove('active');
-                this.sessionBtn.innerHTML = '<span class="btn-icon">&#128172;</span> Live Session';
                 this.eye.classList.remove('session-active');
-                this.addToTranscript('system', 'Session ended');
                 this.setStatus('IDLE');
                 this.setEyeState('idle');
                 break;
@@ -237,29 +317,54 @@ class PANDA9000 {
         this.transcript.scrollTop = this.transcript.scrollHeight;
     }
 
-    async playAudio(base64Audio) {
+    async playAudio(base64Audio, responseText) {
         try {
-            // Use persistent audio element for iOS compatibility
-            this.audioElement.src = `data:audio/mp3;base64,${base64Audio}`;
+            // Convert base64 to blob
+            const binaryString = atob(base64Audio);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const blob = new Blob([bytes], { type: 'audio/mpeg' });
+            const blobUrl = URL.createObjectURL(blob);
 
-            this.audioElement.onended = () => {
+            // Use the persistent unlocked audio element for iOS compatibility
+            const audio = this.audioElement;
+            audio.src = blobUrl;
+
+            // Store current blobUrl for cleanup
+            const currentBlobUrl = blobUrl;
+
+            audio.onended = () => {
+                URL.revokeObjectURL(currentBlobUrl);
+                // Show response text after audio finishes
+                if (responseText) {
+                    this.addToTranscript('assistant', responseText);
+                }
                 if (!this.isSessionActive) {
                     this.setStatus('IDLE');
                     this.setEyeState('idle');
                 }
             };
 
-            this.audioElement.onerror = (e) => {
-                console.error('Audio playback error:', e);
+            audio.onerror = (e) => {
+                console.error('Audio error:', audio.error?.message);
+                URL.revokeObjectURL(currentBlobUrl);
+                // Still show text on error
+                if (responseText) {
+                    this.addToTranscript('assistant', responseText);
+                }
                 this.setStatus('IDLE');
                 this.setEyeState('idle');
             };
 
-            await this.audioElement.play();
+            await audio.play();
         } catch (error) {
             console.error('Error playing audio:', error);
-            // Show message to user on iOS if audio blocked
-            this.addToTranscript('system', 'Tap screen to enable audio');
+            // Still show text on error
+            if (responseText) {
+                this.addToTranscript('assistant', responseText);
+            }
             this.setStatus('IDLE');
             this.setEyeState('idle');
         }

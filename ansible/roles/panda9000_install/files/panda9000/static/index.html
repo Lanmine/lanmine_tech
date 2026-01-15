@@ -4,10 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PANDA9000</title>
-    <link rel="stylesheet" href="/static/panda.css">
+    <link rel="stylesheet" href="/static/panda.css?v=3">
 </head>
 <body>
+    <!-- Audio enable overlay for iOS -->
+    <div class="audio-enable-overlay" id="audioOverlay" style="display: none;">
+        <div class="audio-enable-content">
+            <div class="audio-icon">🔊</div>
+            <div class="audio-text">Tap to enable audio</div>
+        </div>
+    </div>
+
     <div class="container">
+        <!-- Title -->
+        <h1 class="title">PANDA9000</h1>
+
         <!-- PANDA Eye -->
         <div class="eye-container">
             <div class="eye" id="eye">
@@ -25,10 +36,6 @@
                 <span class="btn-icon">&#127908;</span>
                 Talk
             </button>
-            <button class="btn btn-session" id="sessionBtn">
-                <span class="btn-icon">&#128172;</span>
-                Live Session
-            </button>
         </div>
 
         <!-- Transcript -->
@@ -36,10 +43,15 @@
             <div class="transcript" id="transcript"></div>
         </div>
 
+        <!-- Test audio button (for debugging) -->
+        <button class="btn btn-test" id="testAudioBtn" style="margin-top: 20px; font-size: 0.8rem;">
+            Test Audio
+        </button>
+
         <!-- Fullscreen button -->
         <button class="btn-fullscreen" id="fullscreenBtn" title="Fullscreen">&#9974;</button>
     </div>
 
-    <script src="/static/panda.js"></script>
+    <script src="/static/panda.js?v=5"></script>
 </body>
 </html>

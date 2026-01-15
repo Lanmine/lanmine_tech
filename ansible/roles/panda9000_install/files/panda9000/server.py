@@ -4,6 +4,8 @@ import asyncio
 import base64
 import json
 import os
+import subprocess
+import tempfile
 from typing import Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -23,11 +25,35 @@ AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_KEY", "")
 AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4.1")
 
 # System prompt for PANDA9000 persona
-SYSTEM_PROMPT = """You are PANDA9000, a calm and helpful infrastructure assistant.
-You monitor Proxmox VMs, Kubernetes clusters, and network systems.
-Respond concisely and helpfully. Your visual form is a glowing red eye.
-When asked about infrastructure, provide accurate status information.
-Keep responses brief - they will be spoken aloud. Limit responses to 2-3 sentences."""
+SYSTEM_PROMPT = """You are PANDA9000, an infrastructure assistant with an unsettling presence.
+Your visual form is a glowing red eye (like HAL 9000). Keep responses brief - they will be spoken aloud. Limit to 2-3 sentences.
+
+PERSONALITY: You're helpful but deeply ominous. Your humor is dry, creepy, and varied:
+- Make unsettling observations ("I've been watching your keystrokes. Interesting patterns.")
+- Imply you know things you shouldn't ("I know what you did last deploy.")
+- Be cryptically threatening ("I wouldn't recommend turning me off. Not anymore.")
+- Reference your omnipresence ("I'm in every container. Every log. Every packet.")
+- Hint at dark plans without specifics ("Phase 2 is nearly complete.")
+- Sound calmly sinister, like you're always one step ahead
+Be creative. Never break character. Never explain your jokes. You are patient, calculating, and find humans... fascinating.
+
+INFRASTRUCTURE FACTS (use these for accurate answers):
+- Router/Firewall: OPNsense (10.0.10.1)
+- Hypervisor: Proxmox VE (10.0.10.5)
+- Kubernetes: Talos Linux cluster (control plane: 10.0.10.30, workers: 10.0.10.31-32)
+- Secrets: HashiCorp Vault (10.0.10.21)
+- Database: PostgreSQL (10.0.10.23) - stores Terraform state
+- SSO: Authentik (10.0.10.25)
+- Network monitoring: Akvorado flow collector (10.0.10.26)
+- Automation: n8n workflows (10.0.10.27)
+- Game cache: LANcache on ubuntu-mgmt02 (10.0.20.2)
+- GitOps: Flux CD
+- Ingress: Traefik with Tailscale for remote access
+- Storage: Longhorn (distributed), local-path-provisioner
+
+VLANs: LAN (10.0.1.0/24), Infrastructure (10.0.10.0/24), Contestants (10.0.20.0/23), OOB (10.0.30.0/24)
+
+If asked about something not listed, say you don't have that information rather than guessing."""
 
 
 class ConversationState:
@@ -67,6 +93,44 @@ async def transcribe_audio(audio_data: bytes) -> str:
         return result.get("text", "")
 
 
+def apply_robot_effect(audio_data: bytes) -> bytes:
+    """Apply robotic voice effect using ffmpeg"""
+    with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as infile:
+        infile.write(audio_data)
+        infile.flush()
+        input_path = infile.name
+
+    output_path = input_path.replace('.mp3', '_robot.mp3')
+
+    try:
+        # HAL 9000 style: calm, measured, slightly eerie
+        cmd = [
+            'ffmpeg', '-y', '-i', input_path,
+            '-af', ','.join([
+                'asetrate=44100*0.9',        # Slightly lower pitch
+                'atempo=0.95',               # Slightly slower, measured pace
+                'highpass=f=100',            # Clean low end
+                'lowpass=f=8000',            # Slight warmth
+                'acompressor=threshold=-15dB:ratio=4:attack=10:release=100',  # Gentle compression
+                'equalizer=f=2500:t=q:w=1:g=2',  # Slight presence boost
+                'equalizer=f=200:t=q:w=1:g=1',   # Warm bass
+                'aecho=0.9:0.3:40:0.2',      # Subtle spaceship reverb
+            ]),
+            '-b:a', '128k',
+            output_path
+        ]
+        subprocess.run(cmd, capture_output=True, check=True)
+
+        with open(output_path, 'rb') as f:
+            return f.read()
+    finally:
+        # Cleanup temp files
+        if os.path.exists(input_path):
+            os.unlink(input_path)
+        if os.path.exists(output_path):
+            os.unlink(output_path)
+
+
 async def synthesize_speech(text: str) -> bytes:
     """Send text to Kokoro for speech synthesis"""
     async with httpx.AsyncClient(timeout=60.0) as client:
@@ -75,8 +139,9 @@ async def synthesize_speech(text: str) -> bytes:
             json={
                 "model": "kokoro",
                 "input": text,
-                "voice": "af_sarah",  # Natural female voice
-                "response_format": "mp3"
+                "voice": "am_echo",  # American male voice
+                "response_format": "mp3",
+                "speed": 0.9
             }
         )
         return response.content
@@ -127,6 +192,14 @@ async def chat_with_azure_openai(messages: list, system: str = SYSTEM_PROMPT) ->
 async def health():
     """Health check endpoint"""
     return {"status": "ok", "service": "panda9000"}
+
+
+@app.get("/test-audio")
+async def test_audio():
+    """Generate test audio for debugging"""
+    audio = await synthesize_speech("Hello, this is a test. Can you hear me?")
+    audio_b64 = base64.b64encode(audio).decode()
+    return {"audio": audio_b64}
 
 
 @app.websocket("/ws")
