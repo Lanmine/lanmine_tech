@@ -115,6 +115,7 @@ def apply_robot_effect(audio_data: bytes) -> bytes:
                 'equalizer=f=2500:t=q:w=1:g=2',  # Slight presence boost
                 'equalizer=f=200:t=q:w=1:g=1',   # Warm bass
                 'aecho=0.9:0.3:40:0.2',      # Subtle spaceship reverb
+                'volume=2.5',                # Volume boost
             ]),
             '-b:a', '128k',
             output_path
@@ -267,6 +268,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Synthesize speech
                 await websocket.send_json({"type": "status", "status": "speaking"})
                 audio = await synthesize_speech(response_text)
+                audio = apply_robot_effect(audio)
                 audio_b64 = base64.b64encode(audio).decode()
                 await websocket.send_json({"type": "audio", "audio": audio_b64})
 
