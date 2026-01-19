@@ -7,3 +7,4 @@ resources:
   - akvorado
   - lancache
   - n8n
+  - uptime-kuma
