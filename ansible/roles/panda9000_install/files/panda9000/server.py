@@ -268,7 +268,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Synthesize speech
                 await websocket.send_json({"type": "status", "status": "speaking"})
                 audio = await synthesize_speech(response_text)
-                audio = apply_robot_effect(audio)
                 audio_b64 = base64.b64encode(audio).decode()
                 await websocket.send_json({"type": "audio", "audio": audio_b64})
 

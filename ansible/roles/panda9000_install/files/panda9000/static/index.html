@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PANDA9000</title>
-    <link rel="stylesheet" href="/static/panda.css?v=3">
+    <link rel="stylesheet" href="/static/panda.css?v=4">
 </head>
 <body>
     <!-- Audio enable overlay for iOS -->
@@ -43,6 +43,13 @@
             <div class="transcript" id="transcript"></div>
         </div>
 
+        <!-- Volume slider -->
+        <div class="volume-control">
+            <span class="volume-icon">🔊</span>
+            <input type="range" id="volumeSlider" min="0" max="100" value="100" class="volume-slider">
+            <span class="volume-value" id="volumeValue">100%</span>
+        </div>
+
         <!-- Test audio button (for debugging) -->
         <button class="btn btn-test" id="testAudioBtn" style="margin-top: 20px; font-size: 0.8rem;">
             Test Audio
@@ -52,6 +59,6 @@
         <button class="btn-fullscreen" id="fullscreenBtn" title="Fullscreen">&#9974;</button>
     </div>
 
-    <script src="/static/panda.js?v=5"></script>
+    <script src="/static/panda.js?v=6"></script>
 </body>
 </html>

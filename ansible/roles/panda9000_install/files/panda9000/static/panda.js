@@ -17,6 +17,11 @@ class PANDA9000 {
         this.talkBtn = document.getElementById('talkBtn');
         this.transcript = document.getElementById('transcript');
         this.fullscreenBtn = document.getElementById('fullscreenBtn');
+        this.volumeSlider = document.getElementById('volumeSlider');
+        this.volumeValue = document.getElementById('volumeValue');
+
+        // Load saved volume or default to 100
+        this.volume = parseFloat(localStorage.getItem('panda9000-volume') || '1.0');
 
         this.init();
     }
@@ -25,6 +30,26 @@ class PANDA9000 {
         this.connectWebSocket();
         this.setupEventListeners();
         this.initAudio();
+        this.initVolumeControl();
+    }
+
+    initVolumeControl() {
+        // Set initial slider value from saved volume
+        if (this.volumeSlider) {
+            this.volumeSlider.value = this.volume * 100;
+            this.volumeValue.textContent = Math.round(this.volume * 100) + '%';
+
+            this.volumeSlider.addEventListener('input', (e) => {
+                this.volume = e.target.value / 100;
+                this.volumeValue.textContent = Math.round(this.volume * 100) + '%';
+                localStorage.setItem('panda9000-volume', this.volume.toString());
+
+                // Apply to current audio if playing
+                if (this.audioElement) {
+                    this.audioElement.volume = this.volume;
+                }
+            });
+        }
     }
 
     initAudio() {
@@ -331,6 +356,7 @@ class PANDA9000 {
             // Use the persistent unlocked audio element for iOS compatibility
             const audio = this.audioElement;
             audio.src = blobUrl;
+            audio.volume = this.volume;
 
             // Store current blobUrl for cleanup
             const currentBlobUrl = blobUrl;
