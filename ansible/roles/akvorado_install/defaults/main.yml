@@ -28,8 +28,7 @@ akvorado_exporters:
   - name: opnsense
     ip: 10.0.10.1
     interfaces:
-      # OPNsense interface indexes (FreeBSD assigns these sequentially)
-      # Use 'ifconfig -a' on OPNsense to verify actual index numbers
+      # OPNsense interface indexes (from /usr/local/sbin/ifinfo)
       1:
         name: igb0
         description: LAN
@@ -43,10 +42,22 @@ akvorado_exporters:
         description: Trunk
         boundary: internal
       4:
+        name: igb3
+        description: WAN2 (VLAN20)
+        boundary: external
+      5:
         name: lo0
         description: Loopback
         boundary: internal
-      # Default entry for any other interfaces (vlans, etc)
+      9:
+        name: vlan010
+        description: VLAN10 Infrastructure
+        boundary: internal
+      11:
+        name: vlan020
+        description: VLAN20 Contestants
+        boundary: internal
+      # Default entry for any other interfaces
       0:
         name: unknown
         description: Unknown Interface
