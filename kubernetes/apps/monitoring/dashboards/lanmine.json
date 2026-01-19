@@ -704,7 +704,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "nginx_http_requests_total{job=\"lancache\"}",
+          "expr": "nginx_http_requests_total{job=\"lancache-metrics\"}",
           "legendFormat": "Requests",
           "refId": "A"
         }
@@ -773,7 +773,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "nginx_connections_active{job=\"lancache\"}",
+          "expr": "nginx_connections_active{job=\"lancache-metrics\"}",
           "legendFormat": "Active",
           "refId": "A"
         }
@@ -1001,7 +1001,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "rate(nginx_http_requests_total{job=\"lancache\"}[5m])",
+          "expr": "rate(nginx_http_requests_total{job=\"lancache-metrics\"}[5m])",
           "legendFormat": "Requests/sec",
           "refId": "A"
         }
@@ -1229,7 +1229,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "nginx_connections_active{job=\"lancache\"}",
+          "expr": "nginx_connections_active{job=\"lancache-metrics\"}",
           "legendFormat": "Active",
           "refId": "A"
         },
@@ -1238,7 +1238,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "nginx_connections_reading{job=\"lancache\"}",
+          "expr": "nginx_connections_reading{job=\"lancache-metrics\"}",
           "legendFormat": "Reading",
           "refId": "B"
         },
@@ -1247,7 +1247,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "nginx_connections_writing{job=\"lancache\"}",
+          "expr": "nginx_connections_writing{job=\"lancache-metrics\"}",
           "legendFormat": "Writing",
           "refId": "C"
         },
@@ -1256,7 +1256,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "nginx_connections_waiting{job=\"lancache\"}",
+          "expr": "nginx_connections_waiting{job=\"lancache-metrics\"}",
           "legendFormat": "Waiting",
           "refId": "D"
         }
