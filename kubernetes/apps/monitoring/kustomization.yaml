@@ -4,3 +4,12 @@ resources:
   - grafana-ingress.yaml
   - alertmanager-ingress.yaml
   - prometheus-ingress.yaml
+configMapGenerator:
+  - name: lanmine-dashboard
+    namespace: monitoring
+    files:
+      - lanmine.json=dashboards/lanmine.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      disableNameSuffixHash: true
