@@ -28,6 +28,14 @@ spec:
         enabled: false
       hostRoot: /sys/fs/cgroup
 
+    # Talos-specific: provide empty sysctl.d directory (doesn't exist on Talos)
+    extraVolumes:
+      - name: etc-sysctl-d
+        emptyDir: {}
+    extraVolumeMounts:
+      - name: etc-sysctl-d
+        mountPath: /etc/sysctl.d
+
     # Kubernetes API server endpoint (control plane IP)
     k8sServiceHost: "10.0.10.30"
     k8sServicePort: "6443"
