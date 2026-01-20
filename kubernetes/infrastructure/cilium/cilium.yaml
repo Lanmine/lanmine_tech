@@ -1,0 +1,83 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cilium
+  namespace: cilium
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: cilium
+      version: "1.16.x"
+      sourceRef:
+        kind: HelmRepository
+        name: cilium
+        namespace: flux-system
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    # Talos-specific: use host cgroup mount
+    cgroup:
+      autoMount:
+        enabled: false
+      hostRoot: /sys/fs/cgroup
+
+    # Kubernetes API server endpoint (control plane IP)
+    k8sServiceHost: "10.0.10.30"
+    k8sServicePort: "6443"
+
+    # Replace kube-proxy with Cilium eBPF
+    kubeProxyReplacement: true
+
+    # Keep MetalLB for LoadBalancer services
+    loadBalancer:
+      mode: hybrid
+
+    # Enable Hubble observability
+    hubble:
+      enabled: true
+      relay:
+        enabled: true
+      ui:
+        enabled: true
+
+      # Hubble metrics for Prometheus
+      metrics:
+        enabled:
+          - dns
+          - drop
+          - tcp
+          - flow
+          - port-distribution
+          - icmp
+          - httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction
+        serviceMonitor:
+          enabled: true
+
+    # Prometheus ServiceMonitor for Cilium agent
+    prometheus:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+
+    # Operator settings
+    operator:
+      replicas: 1
+      prometheus:
+        enabled: true
+        serviceMonitor:
+          enabled: true
+
+    # IPAM configuration (use cluster-pool matching pod CIDR)
+    ipam:
+      mode: cluster-pool
+      operator:
+        clusterPoolIPv4PodCIDRList:
+          - 10.244.0.0/16
+        clusterPoolIPv4MaskSize: 24
