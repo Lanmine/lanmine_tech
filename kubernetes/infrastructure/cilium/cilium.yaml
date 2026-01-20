@@ -28,13 +28,13 @@ spec:
         enabled: false
       hostRoot: /sys/fs/cgroup
 
-    # Talos-specific: provide empty sysctl.d directory (doesn't exist on Talos)
-    extraVolumes:
-      - name: etc-sysctl-d
-        emptyDir: {}
-    extraVolumeMounts:
-      - name: etc-sysctl-d
-        mountPath: /etc/sysctl.d
+    # Talos-specific: disable sysctl fix (not needed, /etc/sysctl.d doesn't exist)
+    sysctlfix:
+      enabled: false
+
+    # Talos-specific: run privileged for capability requirements
+    securityContext:
+      privileged: true
 
     # Kubernetes API server endpoint (control plane IP)
     k8sServiceHost: "10.0.10.30"
@@ -43,9 +43,10 @@ spec:
     # Replace kube-proxy with Cilium eBPF
     kubeProxyReplacement: true
 
-    # Keep MetalLB for LoadBalancer services
-    loadBalancer:
-      mode: hybrid
+    # Use native routing (required for kube-proxy replacement)
+    routingMode: native
+    ipv4NativeRoutingCIDR: "10.244.0.0/16"
+    autoDirectNodeRoutes: true
 
     # Enable Hubble observability
     hubble:
@@ -64,7 +65,6 @@ spec:
           - flow
           - port-distribution
           - icmp
-          - httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction
         serviceMonitor:
           enabled: true
 
