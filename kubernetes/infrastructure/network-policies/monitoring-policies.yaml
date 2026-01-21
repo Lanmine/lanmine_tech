@@ -27,7 +27,9 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: tailscale
 ---
-# Allow internal monitoring communication
+# Allow internal monitoring communication and health checks from glance
+# Note: Using permissive ingress rule due to Cilium cross-node policy issues
+# with namespaceSelector (traffic from remote nodes wasn't matching selector)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -38,10 +40,7 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: monitoring
+    - {}
 ---
 # Allow Prometheus to receive metrics from all namespaces
 apiVersion: networking.k8s.io/v1

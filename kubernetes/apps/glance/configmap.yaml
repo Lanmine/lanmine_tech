@@ -102,7 +102,7 @@ data:
 
                   - title: Alertmanager
                     url: https://alertmanager.lionfish-caiman.ts.net
-                    check-url: http://alertmanager-operated.monitoring.svc.cluster.local:9093
+                    check-url: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093
                     icon: di:prometheus
                     alt-status-codes:
                       - 401
