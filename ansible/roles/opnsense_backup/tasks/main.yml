@@ -28,9 +28,9 @@
 
 - name: Encrypt config with age
   command: >
-    age --encrypt 
+    age --encrypt
     --recipient {{ age_pub_key }}
-    --armor 
+    --armor
     --output {{ backup_path }}
     /tmp/opnsense-config-{{ backup_timestamp }}.xml
   delegate_to: localhost

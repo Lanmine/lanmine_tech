@@ -40,9 +40,9 @@
 
 - name: Encrypt config archive with age
   command: >
-    age --encrypt 
+    age --encrypt
     --recipient {{ age_pub_key }}
-    --armor 
+    --armor
     --output {{ backup_path }}
     {{ temp_tar }}
   delegate_to: localhost

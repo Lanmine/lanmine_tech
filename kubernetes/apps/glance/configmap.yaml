@@ -156,6 +156,15 @@ data:
                       - 401
                       - 403
 
+                  - title: ArgoCD
+                    url: https://argocd.lionfish-caiman.ts.net
+                    check-url: http://argocd-server.argocd.svc.cluster.local:443
+                    icon: di:argocd
+                    allow-insecure: true
+                    alt-status-codes:
+                      - 401
+                      - 403
+
               # =========================
               # Repo Awareness
               # =========================
