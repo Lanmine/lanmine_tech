@@ -113,62 +113,6 @@
       font-size: 13px;
     }
 
-    /* Legend */
-    .legend {
-      display: flex;
-      justify-content: center;
-      gap: 40px;
-      margin-top: 30px;
-      flex-wrap: wrap;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: #666;
-      font-size: 0.9rem;
-    }
-
-    .legend-color {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
-
-    .legend-color.cyan { background: #0ff; box-shadow: 0 0 10px #0ff; }
-    .legend-color.magenta { background: #f0f; box-shadow: 0 0 10px #f0f; }
-    .legend-color.green { background: #0f8; box-shadow: 0 0 10px #0f8; }
-    .legend-color.orange { background: #f90; box-shadow: 0 0 10px #f90; }
-
-    /* Stats bar */
-    .stats {
-      display: flex;
-      justify-content: center;
-      gap: 60px;
-      margin-top: 40px;
-      flex-wrap: wrap;
-    }
-
-    .stat {
-      text-align: center;
-    }
-
-    .stat-value {
-      font-size: 2.5rem;
-      font-weight: 200;
-      color: #0ff;
-      text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-    }
-
-    .stat-label {
-      color: #555;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      margin-top: 5px;
-    }
-
     /* Footer */
     footer {
       text-align: center;
@@ -449,44 +393,6 @@
           <path d="M 970 670 L 970 630 M 970 670 L 930 670"/>
         </g>
       </svg>
-    </div>
-
-    <div class="legend">
-      <div class="legend-item">
-        <div class="legend-color cyan"></div>
-        <span>Core Infrastructure</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-color magenta"></div>
-        <span>Secrets Management</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-color green"></div>
-        <span>Identity & Auth</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-color orange"></div>
-        <span>Network Edge</span>
-      </div>
-    </div>
-
-    <div class="stats">
-      <div class="stat">
-        <div class="stat-value">3</div>
-        <div class="stat-label">K8s Nodes</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">12</div>
-        <div class="stat-label">Services</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">4</div>
-        <div class="stat-label">VLANs</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">99.9%</div>
-        <div class="stat-label">Uptime</div>
-      </div>
     </div>
 
     <footer>
