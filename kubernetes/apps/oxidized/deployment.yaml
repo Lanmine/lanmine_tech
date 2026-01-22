@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oxidized
+  namespace: oxidized
+  labels:
+    app: oxidized
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: oxidized
+  template:
+    metadata:
+      labels:
+        app: oxidized
+    spec:
+      initContainers:
+        - name: init-git-repo
+          image: alpine/git:latest
+          command:
+            - sh
+            - -c
+            - |
+              if [ ! -d /home/oxidized/.config/oxidized/configs.git ]; then
+                cd /home/oxidized/.config/oxidized
+                git config --global init.defaultBranch main
+                git init --bare configs.git
+                git config --global user.email "oxidized@lanmine.no"
+                git config --global user.name "Oxidized"
+              fi
+          volumeMounts:
+            - name: oxidized-data
+              mountPath: /home/oxidized/.config/oxidized
+      containers:
+        - name: oxidized
+          image: oxidized/oxidized:latest
+          ports:
+            - containerPort: 8888
+              name: http
+              protocol: TCP
+          env:
+            - name: NETBOX_URL
+              value: "https://netbox.lionfish-caiman.ts.net"
+            - name: NETBOX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: oxidized-secrets
+                  key: netbox_token
+            - name: OXIDIZED_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oxidized-secrets
+                  key: oxidized_password
+            - name: IOS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: oxidized-secrets
+                  key: ios_username
+            - name: IOS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oxidized-secrets
+                  key: ios_password
+            - name: IOS_ENABLE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oxidized-secrets
+                  key: ios_enable_password
+            - name: NXOS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: oxidized-secrets
+                  key: nxos_username
+            - name: NXOS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oxidized-secrets
+                  key: nxos_password
+          volumeMounts:
+            - name: oxidized-config
+              mountPath: /home/oxidized/.config/oxidized/config
+              subPath: config
+            - name: oxidized-data
+              mountPath: /home/oxidized/.config/oxidized
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8888
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8888
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: oxidized-config
+          configMap:
+            name: oxidized-config
+        - name: oxidized-data
+          persistentVolumeClaim:
+            claimName: oxidized-data
