@@ -1,0 +1,21 @@
+# atftpd configuration for switch ZTP
+# Root directory for TFTP files
+ATFTPD_ROOT="/srv/tftp"
+
+# Run as unprivileged user
+ATFTPD_USER="nobody"
+ATFTPD_GROUP="nogroup"
+
+# Bind to VLAN 99 address
+ATFTPD_BIND_ADDRESSES="10.0.99.20"
+
+# Options:
+# --daemon: run as daemon
+# --no-multicast: disable multicast
+# --no-fork: don't fork (systemd handles this)
+# --verbose=5: logging level
+ATFTPD_OPTIONS="--daemon --no-multicast --verbose=5"
+
+# Security: read-only, no file creation
+ATFTPD_USE_IPD=false
+ATFTPD_MAX_THREAD=100
