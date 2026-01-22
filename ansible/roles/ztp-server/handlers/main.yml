@@ -1,0 +1,15 @@
+---
+- name: restart atftpd
+  systemd:
+    name: atftpd
+    state: restarted
+
+- name: reload nginx
+  systemd:
+    name: nginx
+    state: reloaded
+
+- name: apply netplan
+  command: netplan apply
+  async: 45
+  poll: 0
