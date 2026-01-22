@@ -1,0 +1,38 @@
+---
+- name: Install atftpd package
+  apt:
+    name: atftpd
+    state: present
+    update_cache: yes
+
+- name: Create TFTP root directory
+  file:
+    path: /srv/tftp
+    state: directory
+    owner: nobody
+    group: nogroup
+    mode: '0755'
+
+- name: Configure atftpd
+  template:
+    src: atftpd.conf.j2
+    dest: /etc/default/atftpd
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart atftpd
+
+- name: Enable and start atftpd service
+  systemd:
+    name: atftpd
+    enabled: yes
+    state: started
+
+- name: Allow TFTP through firewall (if UFW enabled)
+  ufw:
+    rule: allow
+    port: '69'
+    proto: udp
+    from_ip: 10.0.99.0/24
+  when: ansible_facts.services['ufw'] is defined
+  ignore_errors: yes
