@@ -28,7 +28,6 @@ spec:
         - --registry=txt
         - --txt-prefix=_externaldns.
         - --log-level=debug
-        - --dry-run
         env:
         - name: CF_API_TOKEN
           valueFrom:
