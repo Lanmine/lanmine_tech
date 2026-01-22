@@ -196,6 +196,28 @@ Cilium provides networking, security, and observability with eBPF.
 - Service mesh capabilities
 - Hubble flow visualization at https://hubble.lionfish-caiman.ts.net
 
+### OPNsense Monitoring
+
+OPNsense firewall monitoring integrated with Prometheus and Grafana.
+
+**Components:**
+- **OS Node Exporter** (on OPNsense): System metrics at 10.0.10.1:9100
+- **OPNsense API Exporter** (Kubernetes): Firewall-specific metrics via API
+- **ServiceMonitors**: Two monitors for API and node exporter endpoints
+- **Grafana Dashboards**: Pre-built dashboards for overview and system metrics
+
+**Configuration:**
+- Application: `kubernetes/apps/opnsense-exporter/`
+- Secrets: Vault at `secret/infrastructure/opnsense`
+- Scrape interval: 30s for both exporters
+
+**Metrics Collected:**
+- System: CPU, memory, disk, network interfaces
+- Firewall: Gateway status, service health, Unbound DNS statistics
+- CARP: Failover status (if configured)
+
+**Access:** Dashboards in Grafana (https://grafana.lionfish-caiman.ts.net)
+
 ## Akvorado (Network Flow Collector)
 
 Akvorado runs on a dedicated VM (`akvorado-01`, 10.0.10.26) outside the Kubernetes cluster, collecting NetFlow data from OPNsense.
