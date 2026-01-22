@@ -85,15 +85,31 @@ Secrets loaded via `load_tf_secrets.sh`:
 | `deploy-n8n.yml` | Install and configure n8n |
 | `deploy-n8n-workflows.yml` | Deploy n8n workflows from JSON files |
 
+**Inventory Sources:**
+- `inventory/hosts.yml` - Static inventory for infrastructure VMs
+- `inventory/netbox.netbox.yml` - Dynamic inventory from NetBox (network devices)
+
+NetBox dynamic inventory automatically pulls switches and network devices with their metadata, creating groups by manufacturer, role, site, and device type. Requires `NETBOX_TOKEN` environment variable:
+```bash
+export VAULT_ADDR="https://vault-01.lionfish-caiman.ts.net:8200"
+export NETBOX_TOKEN=$(vault kv get -field=superuser_api_token secret/infrastructure/netbox)
+ansible-inventory --list  # Shows combined inventory
+```
+
 **Host Groups:**
-- `infrastructure` - All infrastructure hosts
+- `infrastructure` - All infrastructure hosts (static)
 - `linux_vms` - Linux VMs with rsyslog (vault, runner, authentik, postgres, akvorado, n8n)
 - `n8n_servers` - n8n workflow automation servers
 - `lancache_servers` - LANcache servers (ubuntu-mgmt02)
+- `cisco_switches` - All Cisco network switches (NetBox dynamic + connection vars)
+- `manufacturers_cisco` - Cisco devices from NetBox (auto-generated)
+- `device_roles_access` - Access switches from NetBox (auto-generated)
 
 **Secrets**:
 - Vault integration via `group_vars/all/vault.yml`
 - SSH usernames stored in Vault at `secret/infrastructure/ssh`
+- Switch credentials at `secret/infrastructure/switches/global`
+- NetBox API token at `secret/infrastructure/netbox`
 - Backups stored in `ansible/backups/`, encrypted `.age` files committed to git
 
 ### GitHub Actions (`.github/workflows/`)
@@ -165,9 +181,17 @@ NetBox is the source of truth for network infrastructure inventory, IPAM, and DC
 - Storage: emptyDir (media/static)
 
 **Integration:**
-- Ansible dynamic inventory: Switch data source
-- Oxidized: Device list via API
-- SNMP exporter: Target discovery
+
+**Ansible Dynamic Inventory** (active):
+- Configuration: `ansible/inventory/netbox.netbox.yml`
+- Auto-discovers switches with primary IPs
+- Creates groups: manufacturers_*, device_roles_*, device_types_*, sites_*
+- Keyed group `cisco_switches` for all Cisco devices
+- Connection vars from `ansible/inventory/hosts.yml` cisco_switches group
+
+**Planned Integrations:**
+- Oxidized: Device list via API for config backups
+- SNMP exporter: Target discovery for monitoring
 - ZTP: Switch registration post-provisioning
 
 **Registered Devices:**
