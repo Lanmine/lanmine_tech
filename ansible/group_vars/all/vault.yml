@@ -11,8 +11,8 @@ vault_validate_certs: true
 # Backup retention
 backup_retention_count: 3
 
-# Switch secrets from Vault
-switch_enable_secret: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/infrastructure/switches/global:enable_secret') }}"
-switch_ansible_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/infrastructure/switches/global:ansible_password') }}"
-switch_snmp_v3_auth: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/infrastructure/switches/global:snmp_v3_auth_pass') }}"
-switch_snmp_v3_priv: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/infrastructure/switches/global:snmp_v3_priv_pass') }}"
+# Switch secrets from Vault (KV v2)
+switch_enable_secret: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/data/infrastructure/switches/global:enable_secret') }}"
+switch_ansible_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/data/infrastructure/switches/global:ansible_password') }}"
+switch_snmp_v3_auth: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/data/infrastructure/switches/global:snmp_v3_auth_pass') }}"
+switch_snmp_v3_priv: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/data/infrastructure/switches/global:snmp_v3_priv_pass') }}"
