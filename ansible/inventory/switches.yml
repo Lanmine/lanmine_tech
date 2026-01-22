@@ -1,0 +1,22 @@
+---
+# Cisco Switch Inventory
+# Format:
+# - hostname: switch-name
+#   mac: aa:bb:cc:dd:ee:ff
+#   serial: SERIAL123456
+#   model: nexus-9336c | catalyst-2960x
+#   role: core | edge | access
+#   mgmt_ip: 10.0.99.X
+#   vlans: [list, of, vlans]
+
+switches: []
+
+# Example (uncomment when switches arrive):
+# switches:
+#   - hostname: core-sw-01
+#     mac: aa:bb:cc:dd:ee:01
+#     serial: FDO12340001
+#     model: nexus-9336c
+#     role: core
+#     mgmt_ip: 10.0.99.11
+#     vlans: [10, 20, 30, 99]
