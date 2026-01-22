@@ -1,0 +1,18 @@
+# ArgoCD v3.2.5 installation
+# Install with: kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.2.5/manifests/install.yaml
+#
+# This file documents the installation method.
+# The actual installation is managed imperatively via kubectl.
+# Tracked version: v3.2.5
+#
+# To upgrade:
+# kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v<VERSION>/manifests/install.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-installation-info
+  namespace: argocd
+data:
+  version: "v3.2.5"
+  installed-via: "kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.2.5/manifests/install.yaml"
+  installed-date: "2026-01-21"

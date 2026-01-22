@@ -124,8 +124,9 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 ## Kubernetes Cluster
 
 - **Distribution**: Talos Linux
+- **CNI**: Cilium with Hubble observability
 - **Ingress**: Traefik (LoadBalancer IP: 10.0.10.40)
-- **GitOps**: Flux CD
+- **GitOps**: ArgoCD v3.2.5
 - **Monitoring**: kube-prometheus-stack (Prometheus, Grafana, Alertmanager)
 - **Certificates**: cert-manager with internal CA (lanmine-ca-issuer)
 - **Load Balancer**: MetalLB (IP range: 10.0.10.40-10.0.10.49)
@@ -136,12 +137,16 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 
 | Service | URL |
 |---------|-----|
+| ArgoCD | https://argocd.lionfish-caiman.ts.net |
 | Glance | https://glance.lionfish-caiman.ts.net |
 | Grafana | https://grafana.lionfish-caiman.ts.net |
 | Alertmanager | https://alertmanager.lionfish-caiman.ts.net |
 | Akvorado | https://akvorado.lionfish-caiman.ts.net |
 | n8n | https://n8n.lionfish-caiman.ts.net |
 | Traefik | https://traefik.lionfish-caiman.ts.net/dashboard/ |
+| Hubble UI | https://hubble.lionfish-caiman.ts.net |
+| Uptime Kuma | https://uptime.lionfish-caiman.ts.net |
+| Panda9000 | https://panda.lionfish-caiman.ts.net |
 
 ### Grafana Authentication
 
@@ -149,6 +154,47 @@ Grafana uses Authentik OAuth for SSO. Configuration:
 - OAuth credentials stored in Vault at `secret/infrastructure/authentik`
 - Kubernetes secret `grafana-oauth` in monitoring namespace
 - Browser redirects go to Tailscale URL, server-side calls use LAN IP (10.0.10.25:9000)
+
+### ArgoCD (GitOps)
+
+ArgoCD manages application deployments with automated sync and self-healing.
+
+**Installation:**
+- Manifests: `kubernetes/infrastructure/argocd/`
+- Installed via: `kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.2.5/manifests/install.yaml`
+- Version: v3.2.5
+
+**Managed Applications:**
+- `glance` - Dashboard at kubernetes/apps/glance
+- `panda9000` - Panda cam viewer at kubernetes/apps/panda9000
+- `uptime-kuma` - Uptime monitoring at kubernetes/apps/uptime-kuma
+
+**Application Configuration:**
+- All apps use automated sync with prune and self-heal enabled
+- Source repo: https://github.com/Lanmine/lanmine_tech
+- Applications defined in: `kubernetes/infrastructure/argocd/applications/`
+
+**Access:** https://argocd.lionfish-caiman.ts.net
+
+### Cilium (CNI)
+
+Cilium provides networking, security, and observability with eBPF.
+
+**Configuration:**
+- HelmRelease: `kubernetes/infrastructure/cilium/cilium.yaml`
+- Helm chart: cilium/cilium v1.16.5
+- Native routing mode (no VXLAN tunnel)
+- Hubble UI enabled for flow observability
+
+**Talos Compatibility:**
+- Sysctlfix disabled (Talos immutable /etc)
+- Privileged init containers enabled
+- Empty sysctl.d volume mounted
+
+**Features:**
+- Network policy enforcement
+- Service mesh capabilities
+- Hubble flow visualization at https://hubble.lionfish-caiman.ts.net
 
 ## Akvorado (Network Flow Collector)
 
