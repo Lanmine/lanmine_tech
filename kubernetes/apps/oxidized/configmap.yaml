@@ -38,16 +38,14 @@ data:
         repo: "/home/oxidized/.config/oxidized/configs.git"
 
     source:
-      default: http
-      http:
-        url: ${NETBOX_URL}/api/dcim/devices/?status=active&has_primary_ip=true
-        scheme: http
+      default: csv
+      csv:
+        file: "/home/oxidized/.config/oxidized/router.db"
         delimiter: !ruby/regexp /:/
         map:
-          name: name
-          model: device_type.slug
-        headers:
-          Authorization: "Token ${NETBOX_TOKEN}"
+          name: 0
+          model: 1
+          ip: 2
 
     model_map:
       cisco: ios
