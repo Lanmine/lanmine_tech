@@ -448,6 +448,10 @@ bonds:
 2. Generate ZTP configs: `cd ansible && ansible-playbook playbooks/generate-ztp-configs.yml`
 3. Power on switch → ZTP (DHCP + TFTP) → bootstrap applied (~2 min)
 4. Ansible deploys full config: `ansible-playbook playbooks/provision-new-switch.yml`
+5. Post-provision tasks: `ansible-playbook playbooks/post-provision-switch.yml -e switch_hostname=<hostname>`
+   - Registers switch in NetBox (device, interface, IP address)
+   - Verifies switch appears in Ansible dynamic inventory
+   - Confirms NetBox integration
 
 **OPNsense DHCP (Kea):**
 - Pool: 10.0.99.100-200

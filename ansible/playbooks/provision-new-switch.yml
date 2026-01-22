@@ -58,3 +58,10 @@
     - name: Verify configuration applied
       debug:
         msg: "Configuration applied successfully to {{ inventory_hostname }}"
+
+    - name: Trigger NetBox registration
+      debug:
+        msg:
+          - "✓ Switch provisioned successfully"
+          - "Run post-provision tasks to register in NetBox:"
+          - "  ansible-playbook post-provision-switch.yml -e switch_hostname={{ inventory_hostname }}"
