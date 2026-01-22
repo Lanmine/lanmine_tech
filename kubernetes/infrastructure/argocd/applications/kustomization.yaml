@@ -5,3 +5,4 @@ resources:
   - panda9000.yaml
   - uptime-kuma.yaml
   - opnsense-exporter.yaml
+  - external-dns.yaml
