@@ -4,3 +4,4 @@ resources:
   - glance.yaml
   - panda9000.yaml
   - uptime-kuma.yaml
+  - opnsense-exporter.yaml
