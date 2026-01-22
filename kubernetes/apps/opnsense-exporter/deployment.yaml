@@ -18,6 +18,10 @@ spec:
       containers:
         - name: exporter
           image: ghcr.io/athennamind/opnsense-exporter:latest
+          args:
+            - --opnsense.protocol=http
+            - --opnsense.address=10.0.10.1
+            - --exporter.instance-label=opnsense
           ports:
             - containerPort: 9090
               name: metrics
