@@ -9,8 +9,8 @@ spec:
   selector:
     app: opnsense-exporter
   ports:
-    - port: 9090
-      targetPort: 9090
+    - port: 8080
+      targetPort: 8080
       name: metrics
       protocol: TCP
   type: ClusterIP

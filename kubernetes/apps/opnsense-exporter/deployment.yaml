@@ -22,16 +22,13 @@ spec:
             - --opnsense.protocol=http
             - --opnsense.address=10.0.10.1
             - --exporter.instance-label=opnsense
+            - --opnsense.api-key=$(OPNSENSE_API_KEY)
+            - --opnsense.api-secret=$(OPNSENSE_API_SECRET)
           ports:
-            - containerPort: 9090
+            - containerPort: 8080
               name: metrics
               protocol: TCP
           env:
-            - name: OPNSENSE_API_URL
-              valueFrom:
-                secretKeyRef:
-                  name: opnsense-exporter-credentials
-                  key: OPNSENSE_API_URL
             - name: OPNSENSE_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -52,12 +49,12 @@ spec:
           livenessProbe:
             httpGet:
               path: /metrics
-              port: 9090
+              port: 8080
             initialDelaySeconds: 30
             periodSeconds: 30
           readinessProbe:
             httpGet:
               path: /metrics
-              port: 9090
+              port: 8080
             initialDelaySeconds: 10
             periodSeconds: 10
