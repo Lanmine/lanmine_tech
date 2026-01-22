@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oxidized-tailscale
+  namespace: oxidized
+  annotations:
+    cert-manager.io/cluster-issuer: lanmine-ca-issuer
+spec:
+  ingressClassName: tailscale
+  tls:
+    - hosts:
+        - oxidized
+      secretName: oxidized-tls
+  rules:
+    - host: oxidized
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: oxidized
+                port:
+                  number: 8888

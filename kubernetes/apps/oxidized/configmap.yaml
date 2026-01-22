@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oxidized-config
+  namespace: oxidized
+data:
+  config: |
+    ---
+    username: admin
+    password: <%= ENV['OXIDIZED_PASSWORD'] %>
+    model: ios
+    resolve_dns: false
+    interval: 3600
+    use_syslog: false
+    debug: false
+    threads: 30
+    timeout: 20
+    retries: 3
+    prompt: !ruby/regexp /^([\w.@-]+[#>]\s?)$/
+    rest: 0.0.0.0:8888
+    next_adds_job: false
+    vars: {}
+    groups: {}
+
+    pid: "/home/oxidized/.config/oxidized/pid"
+
+    input:
+      default: ssh
+      debug: false
+      ssh:
+        secure: false
+
+    output:
+      default: git
+      git:
+        user: Oxidized
+        email: oxidized@lanmine.no
+        repo: "/home/oxidized/.config/oxidized/configs.git"
+
+    source:
+      default: http
+      http:
+        url: <%= ENV['NETBOX_URL'] %>/api/dcim/devices/?status=active&has_primary_ip=true
+        scheme: https
+        delimiter: !ruby/regexp /:/
+        map:
+          name: name
+          model: device_type.slug
+          username: custom_fields.oxidized_username
+          password: custom_fields.oxidized_password
+          group: device_role.slug
+        headers:
+          Authorization: Token <%= ENV['NETBOX_TOKEN'] %>
+
+    model_map:
+      cisco: ios
+      juniper: junos
+      arista: eos
+      dell: powerconnect
+      catalyst-2960x: ios
+      catalyst-9300: ios
+      nexus-9300: nxos
+      nexus-93180yc-ex: nxos
+
+    models:
+      ios:
+        username: <%= ENV['IOS_USERNAME'] %>
+        password: <%= ENV['IOS_PASSWORD'] %>
+        enable_password: <%= ENV['IOS_ENABLE_PASSWORD'] %>
+      nxos:
+        username: <%= ENV['NXOS_USERNAME'] %>
+        password: <%= ENV['NXOS_PASSWORD'] %>
