@@ -80,10 +80,20 @@ spec:
               if [ ! -d /oxidized-data/configs.git ]; then
                 cd /oxidized-data
                 git config --global init.defaultBranch main
-                git init --bare configs.git
                 git config --global user.email "oxidized@lanmine.no"
                 git config --global user.name "Oxidized"
-                echo "✓ Initialized Git repository"
+                git config --global --add safe.directory /oxidized-data/configs.git
+                git init --bare configs.git
+                # Create initial commit to establish main branch
+                git clone configs.git temp-clone
+                cd temp-clone
+                echo "# Oxidized Configuration Backups" > README.md
+                git add README.md
+                git commit -m "Initial commit"
+                git push origin main
+                cd ..
+                rm -rf temp-clone
+                echo "✓ Initialized Git repository with initial commit"
               else
                 echo "✓ Git repository already exists"
               fi
