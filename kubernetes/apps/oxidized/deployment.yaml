@@ -17,6 +17,8 @@ spec:
       labels:
         app: oxidized
     spec:
+      securityContext:
+        fsGroup: 30000
       initContainers:
         - name: render-config
           image: bhgedigital/envsubst:latest
@@ -91,6 +93,9 @@ spec:
               chmod 644 /oxidized-data/config
               echo "✓ Config file copied to data volume"
               cat /oxidized-data/config | grep -A 5 "source:"
+              # Create initial empty router.db
+              touch /oxidized-data/router.db
+              echo "✓ Created initial router.db"
           volumeMounts:
             - name: oxidized-data
               mountPath: /oxidized-data
@@ -106,6 +111,45 @@ spec:
           volumeMounts:
             - name: oxidized-data
               mountPath: /home/oxidized/.config/oxidized
+        - name: netbox-sync
+          image: alpine:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Install required tools
+              apk add --no-cache wget jq
+
+              echo "NetBox sync sidecar starting..."
+              while true; do
+                echo "$(date): Syncing devices from NetBox..."
+                if wget -q -O - --header="Authorization: Token ${NETBOX_TOKEN}" \
+                  "${NETBOX_URL}/api/dcim/devices/?status=active&has_primary_ip=true&limit=1000" | \
+                  jq -r '.results[] | "\(.name):\(.device_type.slug):\(.primary_ip4.address | split("/")[0])"' > /oxidized-data/router.db.tmp 2>/dev/null; then
+                  if [ -s /oxidized-data/router.db.tmp ]; then
+                    mv /oxidized-data/router.db.tmp /oxidized-data/router.db
+                    echo "$(date): ✓ Updated router.db with $(wc -l < /oxidized-data/router.db) devices"
+                    cat /oxidized-data/router.db
+                  else
+                    echo "$(date): ✗ No devices found"
+                    rm -f /oxidized-data/router.db.tmp
+                  fi
+                else
+                  echo "$(date): ✗ Failed to fetch from NetBox"
+                fi
+                sleep 300
+              done
+          env:
+            - name: NETBOX_URL
+              value: "http://netbox.netbox.svc.cluster.local:8080"
+            - name: NETBOX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: oxidized-secrets
+                  key: netbox_token
+          volumeMounts:
+            - name: oxidized-data
+              mountPath: /oxidized-data
           resources:
             requests:
               memory: "256Mi"

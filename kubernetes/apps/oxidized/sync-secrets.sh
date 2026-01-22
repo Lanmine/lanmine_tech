@@ -12,8 +12,8 @@ echo "Fetching secrets from Vault..."
 NETBOX_TOKEN=$(vault kv get -field=superuser_api_token secret/infrastructure/netbox)
 
 # Get switch credentials
-# Username is hardcoded as 'admin' (created during ZTP bootstrap)
-IOS_USERNAME="admin"
+# Username is 'ansible' (created during ZTP bootstrap)
+IOS_USERNAME="ansible"
 IOS_PASSWORD=$(vault kv get -field=ansible_password secret/infrastructure/switches/global)
 IOS_ENABLE_PASSWORD=$(vault kv get -field=enable_secret secret/infrastructure/switches/global)
 
