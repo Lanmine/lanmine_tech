@@ -471,6 +471,18 @@ bonds:
 - TACACS+ for centralized authentication (Authentik LDAP)
 - NetBox for inventory (https://netbox.hl0.dev)
 
+**Troubleshooting:**
+
+Test switch SSH credentials:
+```bash
+cd ansible && ./scripts/test-switch-credentials.sh <switch-ip-or-hostname>
+```
+
+Password recovery (requires console access):
+- See `docs/switch-password-recovery.md` for detailed procedures
+- Common causes: ZTP bootstrap not applied, provision playbook not run
+- Vault credentials: `vault kv get secret/infrastructure/switches/global`
+
 ## DHCP (Kea)
 
 OPNsense runs Kea DHCP for all networks (dnsmasq disabled).
