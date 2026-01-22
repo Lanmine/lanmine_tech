@@ -1,0 +1,7 @@
+# kubernetes/apps/netbox/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: netbox
+  labels:
+    name: netbox
