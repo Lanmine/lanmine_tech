@@ -4,10 +4,10 @@ metadata:
   name: oxidized-config
   namespace: oxidized
 data:
-  config: |
+  config.template: |
     ---
     username: admin
-    password: <%= ENV['OXIDIZED_PASSWORD'] %>
+    password: ${OXIDIZED_PASSWORD}
     model: ios
     resolve_dns: false
     interval: 3600
@@ -40,17 +40,14 @@ data:
     source:
       default: http
       http:
-        url: <%= ENV['NETBOX_URL'] %>/api/dcim/devices/?status=active&has_primary_ip=true
-        scheme: https
+        url: ${NETBOX_URL}/api/dcim/devices/?status=active&has_primary_ip=true
+        scheme: http
         delimiter: !ruby/regexp /:/
         map:
           name: name
           model: device_type.slug
-          username: custom_fields.oxidized_username
-          password: custom_fields.oxidized_password
-          group: device_role.slug
         headers:
-          Authorization: Token <%= ENV['NETBOX_TOKEN'] %>
+          Authorization: "Token ${NETBOX_TOKEN}"
 
     model_map:
       cisco: ios
@@ -64,9 +61,9 @@ data:
 
     models:
       ios:
-        username: <%= ENV['IOS_USERNAME'] %>
-        password: <%= ENV['IOS_PASSWORD'] %>
-        enable_password: <%= ENV['IOS_ENABLE_PASSWORD'] %>
+        username: ${IOS_USERNAME}
+        password: ${IOS_PASSWORD}
+        enable_password: ${IOS_ENABLE_PASSWORD}
       nxos:
-        username: <%= ENV['NXOS_USERNAME'] %>
-        password: <%= ENV['NXOS_PASSWORD'] %>
+        username: ${NXOS_USERNAME}
+        password: ${NXOS_PASSWORD}
