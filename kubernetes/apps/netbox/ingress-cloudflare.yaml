@@ -1,0 +1,26 @@
+# kubernetes/apps/netbox/ingress-cloudflare.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: netbox-cloudflare
+  namespace: netbox
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: netbox.hl0.dev
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - netbox.hl0.dev
+      secretName: netbox-hl0-tls
+  rules:
+    - host: netbox.hl0.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: netbox
+                port:
+                  number: 8080
