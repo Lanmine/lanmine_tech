@@ -18,32 +18,17 @@ spec:
         app: oxidized
     spec:
       initContainers:
-        - name: init-git-repo
-          image: alpine/git:latest
+        - name: render-config
+          image: bhgedigital/envsubst:latest
           command:
             - sh
             - -c
             - |
-              if [ ! -d /home/oxidized/.config/oxidized/configs.git ]; then
-                cd /home/oxidized/.config/oxidized
-                git config --global init.defaultBranch main
-                git init --bare configs.git
-                git config --global user.email "oxidized@lanmine.no"
-                git config --global user.name "Oxidized"
-              fi
-          volumeMounts:
-            - name: oxidized-data
-              mountPath: /home/oxidized/.config/oxidized
-      containers:
-        - name: oxidized
-          image: oxidized/oxidized:latest
-          ports:
-            - containerPort: 8888
-              name: http
-              protocol: TCP
+              envsubst < /config-template/config.template > /oxidized-config/config
+              cat /oxidized-config/config
           env:
             - name: NETBOX_URL
-              value: "https://netbox.lionfish-caiman.ts.net"
+              value: "http://netbox.netbox.svc.cluster.local:8080"
             - name: NETBOX_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -80,9 +65,45 @@ spec:
                   name: oxidized-secrets
                   key: nxos_password
           volumeMounts:
-            - name: oxidized-config
-              mountPath: /home/oxidized/.config/oxidized/config
-              subPath: config
+            - name: config-template
+              mountPath: /config-template
+            - name: rendered-config
+              mountPath: /oxidized-config
+        - name: init-git-repo
+          image: alpine/git:latest
+          command:
+            - sh
+            - -c
+            - |
+              if [ ! -d /oxidized-data/configs.git ]; then
+                cd /oxidized-data
+                git config --global init.defaultBranch main
+                git init --bare configs.git
+                git config --global user.email "oxidized@lanmine.no"
+                git config --global user.name "Oxidized"
+                echo "✓ Initialized Git repository"
+              else
+                echo "✓ Git repository already exists"
+              fi
+              # Copy rendered config to data volume root
+              # (mounted at /home/oxidized/.config/oxidized/)
+              cp /oxidized-config/config /oxidized-data/config
+              chmod 644 /oxidized-data/config
+              echo "✓ Config file copied to data volume"
+              cat /oxidized-data/config | grep -A 5 "source:"
+          volumeMounts:
+            - name: oxidized-data
+              mountPath: /oxidized-data
+            - name: rendered-config
+              mountPath: /oxidized-config
+      containers:
+        - name: oxidized
+          image: oxidized/oxidized:latest
+          ports:
+            - containerPort: 8888
+              name: http
+              protocol: TCP
+          volumeMounts:
             - name: oxidized-data
               mountPath: /home/oxidized/.config/oxidized
           resources:
@@ -105,9 +126,11 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
       volumes:
-        - name: oxidized-config
+        - name: config-template
           configMap:
             name: oxidized-config
+        - name: rendered-config
+          emptyDir: {}
         - name: oxidized-data
           persistentVolumeClaim:
             claimName: oxidized-data
