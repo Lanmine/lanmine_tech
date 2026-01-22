@@ -8,3 +8,13 @@ resources:
   - servicemonitor-api.yaml
   - node-exporter-endpoint.yaml
   - servicemonitor-node.yaml
+configMapGenerator:
+  - name: opnsense-dashboards
+    namespace: monitoring
+    files:
+      - opnsense-overview.json=dashboards/opnsense-overview.json
+      - opnsense-system.json=dashboards/opnsense-system.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      disableNameSuffixHash: true
