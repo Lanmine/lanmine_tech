@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: opnsense-exporter
+  namespace: opnsense-exporter
+  labels:
+    app: opnsense-exporter
+spec:
+  selector:
+    app: opnsense-exporter
+  ports:
+    - port: 9090
+      targetPort: 9090
+      name: metrics
+      protocol: TCP
+  type: ClusterIP
