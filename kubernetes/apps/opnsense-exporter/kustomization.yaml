@@ -7,3 +7,4 @@ resources:
   - service.yaml
   - servicemonitor-api.yaml
   - node-exporter-endpoint.yaml
+  - servicemonitor-node.yaml
