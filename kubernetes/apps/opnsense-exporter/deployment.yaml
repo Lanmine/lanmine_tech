@@ -24,6 +24,7 @@ spec:
             - --exporter.instance-label=opnsense
             - --opnsense.api-key=$(OPNSENSE_API_KEY)
             - --opnsense.api-secret=$(OPNSENSE_API_SECRET)
+            - --opnsense.insecure
           ports:
             - containerPort: 8080
               name: metrics
