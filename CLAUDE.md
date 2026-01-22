@@ -148,6 +148,31 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 | Uptime Kuma | https://uptime.lionfish-caiman.ts.net |
 | Panda9000 | https://panda.lionfish-caiman.ts.net |
 
+### NetBox (Network Inventory)
+
+NetBox is the source of truth for network infrastructure inventory, IPAM, and DCIM.
+
+**Access:**
+- Tailscale: https://netbox.lionfish-caiman.ts.net
+- Cloudflare: https://netbox.hl0.dev
+- API: https://netbox.hl0.dev/api/
+
+**Credentials:** Vault at `secret/infrastructure/netbox`
+
+**Components:**
+- Database: PostgreSQL on postgres-01 (10.0.10.23)
+- Cache: Redis in netbox namespace
+- Storage: emptyDir (media/static)
+
+**Integration:**
+- Ansible dynamic inventory: Switch data source
+- Oxidized: Device list via API
+- SNMP exporter: Target discovery
+- ZTP: Switch registration post-provisioning
+
+**Registered Devices:**
+- mgmt-sw-01 (10.0.99.101) - Catalyst 2960X access switch
+
 ### Grafana Authentication
 
 Grafana uses Authentik OAuth for SSO. Configuration:
