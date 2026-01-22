@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: opnsense-api-exporter
+  namespace: monitoring
+  labels:
+    app: opnsense-exporter
+    release: kube-prometheus-stack
+spec:
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+  namespaceSelector:
+    matchNames:
+      - opnsense-exporter
+  selector:
+    matchLabels:
+      app: opnsense-exporter
