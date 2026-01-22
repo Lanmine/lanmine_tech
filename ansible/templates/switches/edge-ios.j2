@@ -1,0 +1,95 @@
+{# Cisco IOS Edge Switch Configuration #}
+{# Variables: hostname, mgmt_ip, vlans, trunk_ports #}
+
+hostname {{ hostname }}
+
+enable secret {{ enable_secret }}
+
+{# VLANs #}
+{% for vlan in vlans %}
+vlan {{ vlan }}
+{% if vlan == 20 %}
+  name Contestants
+{% elif vlan == 99 %}
+  name Management
+{% endif %}
+{% endfor %}
+
+{# Management VLAN interface #}
+interface Vlan99
+  description Management Interface
+  ip address {{ mgmt_ip }} 255.255.255.0
+  no shutdown
+
+ip default-gateway 10.0.99.1
+ip domain-name hl0.dev
+ip name-server 10.0.99.1
+
+{# Trunk ports to core (adjust as needed) #}
+{% if trunk_ports is defined %}
+{% for port in trunk_ports %}
+interface {{ port }}
+  description Trunk to Core
+  switchport trunk encapsulation dot1q
+  switchport mode trunk
+  switchport trunk allowed vlan {{ vlans | join(',') }}
+  no shutdown
+{% endfor %}
+{% endif %}
+
+{# Access port defaults (apply to range later) #}
+interface range GigabitEthernet1/0/1-24
+  switchport mode access
+  switchport access vlan 20
+  switchport port-security
+  switchport port-security maximum 3
+  switchport port-security violation restrict
+  spanning-tree portfast
+  spanning-tree bpduguard enable
+  no shutdown
+
+{# Users #}
+username ansible privilege 15 secret {{ ansible_password }}
+username localadmin privilege 15 secret {{ ansible_password }}
+
+{# SSH #}
+crypto key generate rsa modulus 2048
+ip ssh version 2
+
+line vty 0 15
+  login local
+  transport input ssh
+
+{# SNMP v3 #}
+snmp-server user ansible network-admin v3 auth sha {{ snmp_v3_auth_pass }} priv aes 128 {{ snmp_v3_priv_pass }}
+
+{# Syslog #}
+logging host 10.0.99.20
+
+{# NTP #}
+ntp server 10.0.99.1
+
+{# DHCP Snooping Security #}
+ip dhcp snooping
+ip dhcp snooping vlan 20
+no ip dhcp snooping information option
+{% if trunk_ports is defined %}
+{% for port in trunk_ports %}
+interface {{ port }}
+  ip dhcp snooping trust
+{% endfor %}
+{% endif %}
+
+{# Storm Control #}
+interface range GigabitEthernet1/0/1-24
+  storm-control broadcast level 10.00
+  storm-control multicast level 10.00
+
+banner motd ^
+****************************************************
+* {{ hostname }} - Edge Access Switch             *
+* Managed by Ansible - Do Not Manually Configure *
+****************************************************
+^
+
+end
