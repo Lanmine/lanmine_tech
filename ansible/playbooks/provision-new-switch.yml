@@ -1,0 +1,60 @@
+---
+- name: Provision New Switch with Full Configuration
+  hosts: "{{ target_switch | default('all') }}"
+  gather_facts: no
+  connection: network_cli
+  vars:
+    ansible_network_os: "{{ 'nxos' if hostvars[inventory_hostname].model.startswith('nexus') else 'ios' }}"
+    ansible_user: ansible
+    ansible_password: "{{ switch_ansible_password }}"
+    ansible_become: yes
+    ansible_become_method: enable
+
+  tasks:
+    - name: Wait for switch to be SSH accessible
+      wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 22
+        timeout: 300
+      delegate_to: localhost
+
+    - name: Gather switch facts
+      ios_facts:
+      when: ansible_network_os == 'ios'
+
+    - name: Gather switch facts (Nexus)
+      nxos_facts:
+      when: ansible_network_os == 'nxos'
+
+    - name: Render full configuration from template
+      set_fact:
+        full_config: "{{ lookup('template', '../templates/switches/{% if model.startswith(\"nexus\") %}core-nexus.j2{% else %}edge-ios.j2{% endif %}') }}"
+      vars:
+        hostname: "{{ inventory_hostname }}"
+        mgmt_ip: "{{ hostvars[inventory_hostname].mgmt_ip }}"
+        vlans: "{{ hostvars[inventory_hostname].vlans }}"
+        enable_secret: "{{ switch_enable_secret }}"
+        ansible_password: "{{ switch_ansible_password }}"
+        snmp_v3_auth_pass: "{{ switch_snmp_v3_auth }}"
+        snmp_v3_priv_pass: "{{ switch_snmp_v3_priv }}"
+        # Nexus-specific
+        peer_ip: "{{ hostvars[inventory_hostname].peer_ip | default('') }}"
+        is_primary: "{{ hostvars[inventory_hostname].is_primary | default(false) }}"
+        # IOS-specific
+        trunk_ports: "{{ hostvars[inventory_hostname].trunk_ports | default([]) }}"
+
+    - name: Apply configuration to IOS switch
+      ios_config:
+        src: full_config
+        save_when: modified
+      when: ansible_network_os == 'ios'
+
+    - name: Apply configuration to Nexus switch
+      nxos_config:
+        src: full_config
+        save_when: modified
+      when: ansible_network_os == 'nxos'
+
+    - name: Verify configuration applied
+      debug:
+        msg: "Configuration applied successfully to {{ inventory_hostname }}"
