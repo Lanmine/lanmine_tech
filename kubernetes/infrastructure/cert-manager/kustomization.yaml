@@ -4,3 +4,5 @@ resources:
   - namespace.yaml
   - helmrepository.yaml
   - cert-manager.yaml
+  - cloudflare-secret.yaml
+  - letsencrypt-issuer.yaml
