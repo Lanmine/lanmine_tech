@@ -218,6 +218,59 @@ OPNsense firewall monitoring integrated with Prometheus and Grafana.
 
 **Access:** Dashboards in Grafana (https://grafana.lionfish-caiman.ts.net)
 
+### Cloudflare DNS (hl0.dev)
+
+DNS management and Let's Encrypt certificates for hl0.dev domain via Cloudflare.
+
+**Components:**
+- **external-dns**: Automatic DNS record creation in Cloudflare
+- **cert-manager**: Let's Encrypt certificates via DNS-01 challenge
+- **Domain**: hl0.dev (public DNS, private IPs)
+
+**Configuration:**
+- Cloudflare token: Vault at `secret/infrastructure/cloudflare`
+- Zone ID: 283c74f5bfbbb2a804dabdb938ccde8f
+- DNS records point to Traefik LoadBalancer (10.0.10.40)
+
+**Creating Cloudflare Ingresses:**
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: service-cloudflare
+  namespace: <namespace>
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: service.hl0.dev
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - service.hl0.dev
+    secretName: service-hl0-tls
+  rules:
+  - host: service.hl0.dev
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: <service-name>
+            port:
+              number: <port>
+```
+
+**Dual-Access Pattern:**
+- Services maintain both Tailscale AND Cloudflare ingresses
+- Tailscale: `*.lionfish-caiman.ts.net` (unchanged)
+- Cloudflare: `*.hl0.dev` (new, parallel)
+
+**Certificate Management:**
+- Automatic issuance via Let's Encrypt (90-day validity)
+- Auto-renewal at 60 days
+- ClusterIssuer: `letsencrypt-prod`
+
 ## Akvorado (Network Flow Collector)
 
 Akvorado runs on a dedicated VM (`akvorado-01`, 10.0.10.26) outside the Kubernetes cluster, collecting NetFlow data from OPNsense.

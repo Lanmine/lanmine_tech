@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-cloudflare
+  namespace: monitoring
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: grafana.hl0.dev
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - grafana.hl0.dev
+    secretName: grafana-hl0-tls
+  rules:
+  - host: grafana.hl0.dev
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kube-prometheus-stack-grafana
+            port:
+              number: 80
