@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opnsense-exporter
+  namespace: opnsense-exporter
+  labels:
+    app: opnsense-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opnsense-exporter
+  template:
+    metadata:
+      labels:
+        app: opnsense-exporter
+    spec:
+      containers:
+        - name: exporter
+          image: ghcr.io/athennamind/opnsense-exporter:latest
+          ports:
+            - containerPort: 9090
+              name: metrics
+              protocol: TCP
+          env:
+            - name: OPNSENSE_API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: opnsense-exporter-credentials
+                  key: OPNSENSE_API_URL
+            - name: OPNSENSE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: opnsense-exporter-credentials
+                  key: OPNSENSE_API_KEY
+            - name: OPNSENSE_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: opnsense-exporter-credentials
+                  key: OPNSENSE_API_SECRET
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9090
+            initialDelaySeconds: 10
+            periodSeconds: 10

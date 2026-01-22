@@ -4,3 +4,4 @@ namespace: opnsense-exporter
 resources:
   - namespace.yaml
   - externalsecret.yaml
+  - deployment.yaml
