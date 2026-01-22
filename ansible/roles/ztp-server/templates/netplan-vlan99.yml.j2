@@ -1,0 +1,18 @@
+network:
+  version: 2
+  ethernets:
+    {{ ansible_default_ipv4.interface }}:
+      dhcp4: true
+  vlans:
+    vlan99:
+      id: 99
+      link: {{ ansible_default_ipv4.interface }}
+      addresses:
+        - 10.0.99.20/24
+      routes:
+        - to: 10.0.99.0/24
+          via: 10.0.99.1
+      nameservers:
+        addresses:
+          - 10.0.99.1
+          - 1.1.1.1
