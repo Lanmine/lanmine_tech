@@ -12,10 +12,10 @@ echo "Fetching secrets from Vault..."
 NETBOX_TOKEN=$(vault kv get -field=superuser_api_token secret/infrastructure/netbox)
 
 # Get switch credentials
-# Username is 'ansible' (created during ZTP bootstrap)
-IOS_USERNAME="ansible"
-IOS_PASSWORD=$(vault kv get -field=ansible_password secret/infrastructure/switches/global)
-IOS_ENABLE_PASSWORD=$(vault kv get -field=enable_secret secret/infrastructure/switches/global)
+# Using credentials from original switch setup (secret/infrastructure/cisco-switch)
+IOS_USERNAME=$(vault kv get -field=user secret/infrastructure/cisco-switch)
+IOS_PASSWORD=$(vault kv get -field=password secret/infrastructure/cisco-switch)
+IOS_ENABLE_PASSWORD=$(vault kv get -field=password secret/infrastructure/cisco-switch)
 
 # NXOS uses same credentials as IOS for now
 NXOS_USERNAME="$IOS_USERNAME"
