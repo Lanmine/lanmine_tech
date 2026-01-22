@@ -14,6 +14,7 @@ configMapGenerator:
     files:
       - opnsense-overview.json=dashboards/opnsense-overview.json
       - opnsense-system.json=dashboards/opnsense-system.json
+      - opnsense-combined.json=dashboards/opnsense-combined.json
     options:
       labels:
         grafana_dashboard: "1"
