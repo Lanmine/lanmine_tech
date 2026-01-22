@@ -386,6 +386,38 @@ bonds:
       transmit-hash-policy: layer3+4
 ```
 
+## Switch Management (ZTP)
+
+**VLAN 99 (10.0.99.0/24)** - Dedicated management network for switches, isolated from VLAN 10 (Infrastructure).
+
+**ZTP Server:** ubuntu-mgmt01 (10.0.99.20)
+- TFTP: UDP 69 → /srv/tftp/ (bootstrap configs)
+- HTTP: TCP 80 → /srv/http/switches/ (IOS images)
+
+**Switch Provisioning:**
+1. Register switch in `ansible/inventory/switches.yml` (MAC, serial, model, role)
+2. Generate ZTP configs: `cd ansible && ansible-playbook playbooks/generate-ztp-configs.yml`
+3. Power on switch → ZTP (DHCP + TFTP) → bootstrap applied (~2 min)
+4. Ansible deploys full config: `ansible-playbook playbooks/provision-new-switch.yml`
+
+**OPNsense DHCP (Kea):**
+- Pool: 10.0.99.100-200
+- Option 150: 10.0.99.20 (TFTP server)
+- Static reservations by MAC
+
+**Secrets:** `secret/infrastructure/switches/` in Vault
+
+**Templates:**
+- `ansible/templates/switches/ztp-bootstrap.j2` - Minimal ZTP config
+- `ansible/templates/switches/core-nexus.j2` - Nexus 9100 cores
+- `ansible/templates/switches/edge-ios.j2` - Catalyst edge switches
+
+**Monitoring:**
+- SNMP exporter in Kubernetes (metrics to Prometheus)
+- Oxidized for config backups (Git repo)
+- TACACS+ for centralized authentication (Authentik LDAP)
+- NetBox for inventory (https://netbox.hl0.dev)
+
 ## DHCP (Kea)
 
 OPNsense runs Kea DHCP for all networks (dnsmasq disabled).
