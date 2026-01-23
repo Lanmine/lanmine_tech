@@ -255,12 +255,12 @@ spec:
       params:
         module: [if_mib]
         auth: [lanmine]
-        target: [10.0.10.101]  # Cisco switch
+        target: [10.0.99.101]  # Cisco switch (mgmt-sw-01)
       relabelings:
         - sourceLabels: [__param_target]
           targetLabel: instance
         - targetLabel: device
-          replacement: cisco-switch
+          replacement: mgmt-sw-01
   namespaceSelector:
     matchNames:
       - snmp-exporter
