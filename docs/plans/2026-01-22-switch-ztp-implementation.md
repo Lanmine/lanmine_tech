@@ -819,11 +819,11 @@ feature lldp
 vlan {{ vlan }}
 {% if vlan == 10 %}
   name Infrastructure
-{% elif vlan == 20 %}
+{% elsif vlan == 20 %}
   name Contestants
-{% elif vlan == 30 %}
+{% elsif vlan == 30 %}
   name OOB
-{% elif vlan == 99 %}
+{% elsif vlan == 99 %}
   name Management
 {% endif %}
 {% endfor %}
@@ -968,7 +968,7 @@ enable secret {{ enable_secret }}
 vlan {{ vlan }}
 {% if vlan == 20 %}
   name Contestants
-{% elif vlan == 99 %}
+{% elsif vlan == 99 %}
   name Management
 {% endif %}
 {% endfor %}
