@@ -1,0 +1,12 @@
+---
+- name: Setup VLAN 99 interface
+  include_tasks: vlan99.yml
+  tags: vlan99
+
+- name: Setup TFTP server
+  include_tasks: tftp.yml
+  tags: tftp
+
+- name: Setup nginx HTTP server
+  include_tasks: nginx.yml
+  tags: nginx

@@ -1,0 +1,95 @@
+{# Nexus 9100 Core Switch Configuration #}
+{# Variables: hostname, mgmt_ip, peer_ip, is_primary, vlans #}
+
+hostname {{ hostname }}
+
+feature vpc
+feature lacp
+feature interface-vlan
+feature ssh
+feature ntp
+feature lldp
+
+{# VLANs #}
+{% for vlan in vlans %}
+vlan {{ vlan }}
+{% if vlan == 10 %}
+  name Infrastructure
+{% elif vlan == 20 %}
+  name Contestants
+{% elif vlan == 30 %}
+  name OOB
+{% elif vlan == 99 %}
+  name Management
+{% endif %}
+{% endfor %}
+
+{# vPC Configuration #}
+vpc domain 1
+  peer-keepalive destination {{ peer_ip }} source {{ mgmt_ip }} vrf management
+{% if is_primary %}
+  role priority 1
+{% else %}
+  role priority 2
+{% endif %}
+  auto-recovery
+
+{# Management Interface #}
+interface mgmt0
+  vrf member management
+  ip address {{ mgmt_ip }}/24
+
+{# VLAN 99 SVI #}
+interface Vlan99
+  description Management SVI
+  no shutdown
+  ip address {{ mgmt_ip }}/24
+
+{# Peer-link (placeholder - adjust ports as needed) #}
+interface Ethernet1/47-48
+  description vPC Peer-Link
+  switchport mode trunk
+  switchport trunk allowed vlan {{ vlans | join(',') }}
+  channel-group 100 mode active
+  no shutdown
+
+interface port-channel100
+  description vPC Peer-Link
+  switchport mode trunk
+  switchport trunk allowed vlan {{ vlans | join(',') }}
+  vpc peer-link
+
+{# Default route #}
+ip route 0.0.0.0/0 10.0.99.1
+
+{# Users #}
+username ansible password {{ ansible_password }} role network-admin
+username localadmin password {{ ansible_password }} role network-admin
+
+enable secret {{ enable_secret }}
+
+{# SSH #}
+ssh key rsa 2048
+ip domain-name hl0.dev
+
+{# SNMP v3 #}
+snmp-server user ansible network-admin auth sha {{ snmp_v3_auth_pass }} priv aes-128 {{ snmp_v3_priv_pass }}
+
+{# Syslog #}
+logging server 10.0.99.20
+
+{# NTP #}
+ntp server 10.0.99.1
+
+{# LLDP #}
+lldp timer 30
+lldp holdtime 120
+
+banner motd ^
+****************************************************
+* {{ hostname }} - Nexus Core Switch              *
+* Managed by Ansible - Do Not Manually Configure *
+****************************************************
+^
+
+end

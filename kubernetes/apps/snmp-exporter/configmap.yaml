@@ -1,0 +1,183 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: snmp-exporter-config
+  namespace: snmp-exporter
+data:
+  snmp.yml: |
+    # SNMP Exporter Configuration
+    # Using SNMPv2c (switch has community string configured)
+    auths:
+      cisco_v2:
+        community: lanmine-monitor
+        security_level: noAuthNoPriv
+        version: 2
+    modules:
+      if_mib:
+        walk:
+          - 1.3.6.1.2.1.1        # system
+          - 1.3.6.1.2.1.2        # interfaces
+          - 1.3.6.1.2.1.31       # ifMIB
+        metrics:
+          - name: sysUpTime
+            oid: 1.3.6.1.2.1.1.3
+            type: gauge
+            help: Time since network management portion of system was last re-initialized
+          - name: ifNumber
+            oid: 1.3.6.1.2.1.2.1
+            type: gauge
+            help: Number of network interfaces
+          - name: ifIndex
+            oid: 1.3.6.1.2.1.2.2.1.1
+            type: gauge
+            help: Interface index
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifDescr
+            oid: 1.3.6.1.2.1.2.2.1.2
+            type: DisplayString
+            help: Interface description
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifType
+            oid: 1.3.6.1.2.1.2.2.1.3
+            type: gauge
+            help: Interface type
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifMtu
+            oid: 1.3.6.1.2.1.2.2.1.4
+            type: gauge
+            help: Interface MTU
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifSpeed
+            oid: 1.3.6.1.2.1.2.2.1.5
+            type: gauge
+            help: Interface speed in bits per second
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifPhysAddress
+            oid: 1.3.6.1.2.1.2.2.1.6
+            type: PhysAddress48
+            help: Interface physical address
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifAdminStatus
+            oid: 1.3.6.1.2.1.2.2.1.7
+            type: gauge
+            help: Interface admin status (1=up, 2=down, 3=testing)
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifOperStatus
+            oid: 1.3.6.1.2.1.2.2.1.8
+            type: gauge
+            help: Interface operational status (1=up, 2=down, 3=testing, 4=unknown, 5=dormant, 6=notPresent, 7=lowerLayerDown)
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifLastChange
+            oid: 1.3.6.1.2.1.2.2.1.9
+            type: gauge
+            help: Time of last operational status change
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifInOctets
+            oid: 1.3.6.1.2.1.2.2.1.10
+            type: counter
+            help: Total octets received
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifInUcastPkts
+            oid: 1.3.6.1.2.1.2.2.1.11
+            type: counter
+            help: Unicast packets received
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifInDiscards
+            oid: 1.3.6.1.2.1.2.2.1.13
+            type: counter
+            help: Inbound packets discarded
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifInErrors
+            oid: 1.3.6.1.2.1.2.2.1.14
+            type: counter
+            help: Inbound packets with errors
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifOutOctets
+            oid: 1.3.6.1.2.1.2.2.1.16
+            type: counter
+            help: Total octets transmitted
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifOutUcastPkts
+            oid: 1.3.6.1.2.1.2.2.1.17
+            type: counter
+            help: Unicast packets transmitted
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifOutDiscards
+            oid: 1.3.6.1.2.1.2.2.1.19
+            type: counter
+            help: Outbound packets discarded
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifOutErrors
+            oid: 1.3.6.1.2.1.2.2.1.20
+            type: counter
+            help: Outbound packets with errors
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifName
+            oid: 1.3.6.1.2.1.31.1.1.1.1
+            type: DisplayString
+            help: Interface name
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifHCInOctets
+            oid: 1.3.6.1.2.1.31.1.1.1.6
+            type: counter
+            help: Total octets received (64-bit counter)
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifHCOutOctets
+            oid: 1.3.6.1.2.1.31.1.1.1.10
+            type: counter
+            help: Total octets transmitted (64-bit counter)
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifHighSpeed
+            oid: 1.3.6.1.2.1.31.1.1.1.15
+            type: gauge
+            help: Interface speed in megabits per second
+            indexes:
+              - labelname: ifIndex
+                type: gauge
+          - name: ifAlias
+            oid: 1.3.6.1.2.1.31.1.1.1.18
+            type: DisplayString
+            help: Interface alias
+            indexes:
+              - labelname: ifIndex
+                type: gauge

@@ -7,4 +7,5 @@ resources:
   - akvorado
   - lancache
   - n8n
+  - netbox
   - uptime-kuma

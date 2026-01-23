@@ -1,0 +1,45 @@
+---
+- name: Install nginx
+  apt:
+    name: nginx
+    state: present
+    update_cache: yes
+
+- name: Create HTTP root directory
+  file:
+    path: /srv/http/switches
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Configure nginx site for switches
+  template:
+    src: nginx-switches.conf.j2
+    dest: /etc/nginx/sites-available/switches
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload nginx
+
+- name: Enable switches site
+  file:
+    src: /etc/nginx/sites-available/switches
+    dest: /etc/nginx/sites-enabled/switches
+    state: link
+  notify: reload nginx
+
+- name: Enable and start nginx
+  systemd:
+    name: nginx
+    enabled: yes
+    state: started
+
+- name: Allow HTTP through firewall (if UFW enabled)
+  ufw:
+    rule: allow
+    port: '80'
+    proto: tcp
+    from_ip: 10.0.99.0/24
+  when: ansible_facts.services['ufw'] is defined
+  ignore_errors: yes

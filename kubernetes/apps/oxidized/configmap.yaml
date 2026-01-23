@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oxidized-config
+  namespace: oxidized
+data:
+  config.template: |
+    ---
+    username: admin
+    password: ${OXIDIZED_PASSWORD}
+    model: ios
+    resolve_dns: false
+    interval: 3600
+    use_syslog: false
+    debug: false
+    threads: 30
+    timeout: 20
+    retries: 3
+    prompt: !ruby/regexp /^([\w.@-]+[#>]\s?)$/
+    rest: 0.0.0.0:8888
+    next_adds_job: false
+    vars: {}
+    groups: {}
+
+    pid: "/home/oxidized/.config/oxidized/pid"
+
+    input:
+      default: ssh
+      debug: false
+      ssh:
+        secure: false
+
+    output:
+      default: git
+      git:
+        user: Oxidized
+        email: oxidized@lanmine.no
+        repo: "/home/oxidized/.config/oxidized/configs.git"
+
+    source:
+      default: csv
+      csv:
+        file: "/home/oxidized/.config/oxidized/router.db"
+        delimiter: !ruby/regexp /:/
+        map:
+          name: 0
+          model: 1
+          ip: 2
+
+    model_map:
+      cisco: ios
+      juniper: junos
+      arista: eos
+      dell: powerconnect
+      catalyst-2960x: ios
+      catalyst-9300: ios
+      nexus-9300: nxos
+      nexus-93180yc-ex: nxos
+
+    models:
+      ios:
+        username: ${IOS_USERNAME}
+        password: ${IOS_PASSWORD}
+        enable_password: ${IOS_ENABLE_PASSWORD}
+      nxos:
+        username: ${NXOS_USERNAME}
+        password: ${NXOS_PASSWORD}

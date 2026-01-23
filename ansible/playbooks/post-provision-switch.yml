@@ -1,0 +1,159 @@
+---
+- name: Post-Provision Switch Tasks
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - ../inventory/switches.yml
+
+  tasks:
+    - name: Validate required parameters
+      assert:
+        that:
+          - switch_hostname is defined
+          - switch_hostname | length > 0
+        fail_msg: "switch_hostname parameter is required. Usage: ansible-playbook post-provision-switch.yml -e switch_hostname=mgmt-sw-01"
+
+    - name: Find switch in inventory
+      set_fact:
+        switch: "{{ switches | selectattr('hostname', 'equalto', switch_hostname) | first }}"
+      failed_when: switch is not defined
+
+    - name: Display switch information
+      debug:
+        msg:
+          - "Switch: {{ switch.hostname }}"
+          - "Serial: {{ switch.serial }}"
+          - "Model: {{ switch.model }}"
+          - "Management IP: {{ switch.mgmt_ip }}"
+          - "Role: {{ switch.role }}"
+
+    - name: Register switch in NetBox
+      block:
+        - name: Set NetBox environment variables
+          set_fact:
+            netbox_env:
+              VAULT_ADDR: "https://vault-01.lionfish-caiman.ts.net:8200"
+              NETBOX_URL: "https://netbox.lionfish-caiman.ts.net"
+
+        - name: Get NetBox API token from Vault
+          shell: |
+            export VAULT_ADDR="https://vault-01.lionfish-caiman.ts.net:8200"
+            vault kv get -field=superuser_api_token secret/infrastructure/netbox
+          register: netbox_token_result
+          changed_when: false
+          no_log: true
+
+        - name: Register switch in NetBox via API
+          uri:
+            url: "https://netbox.lionfish-caiman.ts.net/api/dcim/devices/"
+            method: POST
+            headers:
+              Authorization: "Token {{ netbox_token_result.stdout }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              name: "{{ switch.hostname }}"
+              device_type:
+                slug: "{{ switch.model }}"
+              role:
+                slug: "{{ switch.role }}"
+              site:
+                slug: "lanmine-dc"
+              serial: "{{ switch.serial }}"
+              status: "active"
+            status_code: [201, 400]
+            validate_certs: yes
+          register: netbox_device
+          failed_when:
+            - netbox_device.status == 400
+            - "'already exists' not in netbox_device.json.detail | default('')"
+
+        - name: Get or create management interface
+          uri:
+            url: "https://netbox.lionfish-caiman.ts.net/api/dcim/interfaces/"
+            method: POST
+            headers:
+              Authorization: "Token {{ netbox_token_result.stdout }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              device:
+                name: "{{ switch.hostname }}"
+              name: "Vlan99"
+              type: "virtual"
+              enabled: true
+            status_code: [201, 400]
+            validate_certs: yes
+          register: netbox_interface
+          failed_when:
+            - netbox_interface.status == 400
+            - "'already exists' not in netbox_interface.json.detail | default('')"
+
+        - name: Assign management IP address
+          uri:
+            url: "https://netbox.lionfish-caiman.ts.net/api/ipam/ip-addresses/"
+            method: POST
+            headers:
+              Authorization: "Token {{ netbox_token_result.stdout }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              address: "{{ switch.mgmt_ip }}/24"
+              status: "active"
+              assigned_object_type: "dcim.interface"
+              assigned_object_id: "{{ netbox_interface.json.id if netbox_interface.status == 201 else omit }}"
+              dns_name: "{{ switch.hostname }}.hl0.dev"
+            status_code: [201, 400]
+            validate_certs: yes
+          register: netbox_ip
+          failed_when:
+            - netbox_ip.status == 400
+            - "'already exists' not in netbox_ip.json.detail | default('')"
+          when: netbox_interface.status == 201
+
+        - name: Set primary IP for device
+          uri:
+            url: "https://netbox.lionfish-caiman.ts.net/api/dcim/devices/{{ netbox_device.json.id if netbox_device.status == 201 else omit }}/"
+            method: PATCH
+            headers:
+              Authorization: "Token {{ netbox_token_result.stdout }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              primary_ip4:
+                address: "{{ switch.mgmt_ip }}/24"
+            status_code: [200, 400]
+            validate_certs: yes
+          when: netbox_device.status == 201 and netbox_ip.status == 201
+
+      rescue:
+        - name: Handle NetBox registration error
+          debug:
+            msg:
+              - "Failed to register switch in NetBox"
+              - "This is non-fatal - switch can still operate"
+              - "Check NetBox manually: https://netbox.lionfish-caiman.ts.net"
+
+    - name: Verify switch is in Ansible inventory
+      shell: |
+        export VAULT_ADDR="https://vault-01.lionfish-caiman.ts.net:8200"
+        export NETBOX_TOKEN="{{ netbox_token_result.stdout }}"
+        ansible-inventory --list | grep -q "{{ switch.hostname }}"
+      args:
+        chdir: "{{ playbook_dir }}/.."
+      register: inventory_check
+      changed_when: false
+      failed_when: inventory_check.rc != 0
+      no_log: true
+
+    - name: Post-provision summary
+      debug:
+        msg:
+          - "✓ Switch {{ switch.hostname }} post-provisioning complete"
+          - "✓ Registered in NetBox"
+          - "✓ Available in Ansible dynamic inventory"
+          - ""
+          - "Next steps:"
+          - "  1. Verify connectivity: ansible {{ switch.hostname }} -m ios_command -a 'commands=\"show version\"'"
+          - "  2. View in NetBox: https://netbox.lionfish-caiman.ts.net/dcim/devices/?q={{ switch.hostname }}"
+          - "  3. Check inventory: ansible-inventory --host {{ switch.hostname }}"

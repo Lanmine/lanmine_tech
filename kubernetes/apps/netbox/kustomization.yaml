@@ -1,0 +1,14 @@
+# kubernetes/apps/netbox/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: netbox
+
+resources:
+  - namespace.yaml
+  - secrets.yaml
+  - redis.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress-tailscale.yaml
+  - ingress-cloudflare.yaml
