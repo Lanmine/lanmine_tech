@@ -1,0 +1,21 @@
+---
+- name: Check if VLAN 99 interface exists
+  command: ip addr show vlan99
+  register: vlan99_check
+  failed_when: false
+  changed_when: false
+
+- name: Create netplan config for VLAN 99
+  template:
+    src: netplan-vlan99.yml.j2
+    dest: /etc/netplan/99-vlan99.yaml
+    owner: root
+    group: root
+    mode: '0600'
+  when: vlan99_check.rc != 0
+  notify: apply netplan
+
+- name: Ensure VLAN 99 is up
+  command: ip link set vlan99 up
+  when: vlan99_check.rc == 0 and "'state DOWN' in vlan99_check.stdout"
+  changed_when: true

@@ -85,15 +85,31 @@ Secrets loaded via `load_tf_secrets.sh`:
 | `deploy-n8n.yml` | Install and configure n8n |
 | `deploy-n8n-workflows.yml` | Deploy n8n workflows from JSON files |
 
+**Inventory Sources:**
+- `inventory/hosts.yml` - Static inventory for infrastructure VMs
+- `inventory/netbox.netbox.yml` - Dynamic inventory from NetBox (network devices)
+
+NetBox dynamic inventory automatically pulls switches and network devices with their metadata, creating groups by manufacturer, role, site, and device type. Requires `NETBOX_TOKEN` environment variable:
+```bash
+export VAULT_ADDR="https://vault-01.lionfish-caiman.ts.net:8200"
+export NETBOX_TOKEN=$(vault kv get -field=superuser_api_token secret/infrastructure/netbox)
+ansible-inventory --list  # Shows combined inventory
+```
+
 **Host Groups:**
-- `infrastructure` - All infrastructure hosts
+- `infrastructure` - All infrastructure hosts (static)
 - `linux_vms` - Linux VMs with rsyslog (vault, runner, authentik, postgres, akvorado, n8n)
 - `n8n_servers` - n8n workflow automation servers
 - `lancache_servers` - LANcache servers (ubuntu-mgmt02)
+- `cisco_switches` - All Cisco network switches (NetBox dynamic + connection vars)
+- `manufacturers_cisco` - Cisco devices from NetBox (auto-generated)
+- `device_roles_access` - Access switches from NetBox (auto-generated)
 
 **Secrets**:
 - Vault integration via `group_vars/all/vault.yml`
 - SSH usernames stored in Vault at `secret/infrastructure/ssh`
+- Switch credentials at `secret/infrastructure/switches/global`
+- NetBox API token at `secret/infrastructure/netbox`
 - Backups stored in `ansible/backups/`, encrypted `.age` files committed to git
 
 ### GitHub Actions (`.github/workflows/`)
@@ -147,6 +163,39 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 | Hubble UI | https://hubble.lionfish-caiman.ts.net |
 | Uptime Kuma | https://uptime.lionfish-caiman.ts.net |
 | Panda9000 | https://panda.lionfish-caiman.ts.net |
+
+### NetBox (Network Inventory)
+
+NetBox is the source of truth for network infrastructure inventory, IPAM, and DCIM.
+
+**Access:**
+- Tailscale: https://netbox.lionfish-caiman.ts.net
+- Cloudflare: https://netbox.hl0.dev
+- API: https://netbox.hl0.dev/api/
+
+**Credentials:** Vault at `secret/infrastructure/netbox`
+
+**Components:**
+- Database: PostgreSQL on postgres-01 (10.0.10.23)
+- Cache: Redis in netbox namespace
+- Storage: emptyDir (media/static)
+
+**Integration:**
+
+**Ansible Dynamic Inventory** (active):
+- Configuration: `ansible/inventory/netbox.netbox.yml`
+- Auto-discovers switches with primary IPs
+- Creates groups: manufacturers_*, device_roles_*, device_types_*, sites_*
+- Keyed group `cisco_switches` for all Cisco devices
+- Connection vars from `ansible/inventory/hosts.yml` cisco_switches group
+
+**Planned Integrations:**
+- Oxidized: Device list via API for config backups
+- SNMP exporter: Target discovery for monitoring
+- ZTP: Switch registration post-provisioning
+
+**Registered Devices:**
+- mgmt-sw-01 (10.0.99.101) - Catalyst 2960X access switch
 
 ### Grafana Authentication
 
@@ -385,6 +434,54 @@ bonds:
       lacp-rate: fast
       transmit-hash-policy: layer3+4
 ```
+
+## Switch Management (ZTP)
+
+**VLAN 99 (10.0.99.0/24)** - Dedicated management network for switches, isolated from VLAN 10 (Infrastructure).
+
+**ZTP Server:** ubuntu-mgmt01 (10.0.99.20)
+- TFTP: UDP 69 → /srv/tftp/ (bootstrap configs)
+- HTTP: TCP 80 → /srv/http/switches/ (IOS images)
+
+**Switch Provisioning:**
+1. Register switch in `ansible/inventory/switches.yml` (MAC, serial, model, role)
+2. Generate ZTP configs: `cd ansible && ansible-playbook playbooks/generate-ztp-configs.yml`
+3. Power on switch → ZTP (DHCP + TFTP) → bootstrap applied (~2 min)
+4. Ansible deploys full config: `ansible-playbook playbooks/provision-new-switch.yml`
+5. Post-provision tasks: `ansible-playbook playbooks/post-provision-switch.yml -e switch_hostname=<hostname>`
+   - Registers switch in NetBox (device, interface, IP address)
+   - Verifies switch appears in Ansible dynamic inventory
+   - Confirms NetBox integration
+
+**OPNsense DHCP (Kea):**
+- Pool: 10.0.99.100-200
+- Option 150: 10.0.99.20 (TFTP server)
+- Static reservations by MAC
+
+**Secrets:** `secret/infrastructure/switches/` in Vault
+
+**Templates:**
+- `ansible/templates/switches/ztp-bootstrap.j2` - Minimal ZTP config
+- `ansible/templates/switches/core-nexus.j2` - Nexus 9100 cores
+- `ansible/templates/switches/edge-ios.j2` - Catalyst edge switches
+
+**Monitoring:**
+- SNMP exporter in Kubernetes (metrics to Prometheus)
+- Oxidized for config backups (Git repo)
+- TACACS+ for centralized authentication (Authentik LDAP)
+- NetBox for inventory (https://netbox.hl0.dev)
+
+**Troubleshooting:**
+
+Test switch SSH credentials:
+```bash
+cd ansible && ./scripts/test-switch-credentials.sh <switch-ip-or-hostname>
+```
+
+Password recovery (requires console access):
+- See `docs/switch-password-recovery.md` for detailed procedures
+- Common causes: ZTP bootstrap not applied, provision playbook not run
+- Vault credentials: `vault kv get secret/infrastructure/switches/global`
 
 ## DHCP (Kea)
 

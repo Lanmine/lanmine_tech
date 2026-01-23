@@ -1,0 +1,51 @@
+---
+- name: Generate ZTP Bootstrap Configurations
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - ../inventory/switches.yml
+    - ../group_vars/all/vault.yml
+
+  tasks:
+    - name: Ensure ZTP config directory exists
+      file:
+        path: ../files/switch-configs/ztp
+        state: directory
+        mode: '0755'
+
+    - name: Generate ZTP bootstrap configs for each switch
+      template:
+        src: ../templates/switches/ztp-bootstrap.j2
+        dest: "../files/switch-configs/ztp/{% if item.model.startswith('nexus') %}conf.{{ item.serial }}{% else %}network-confg{% endif %}"
+        mode: '0644'
+      loop: "{{ switches }}"
+      when: switches | length > 0
+      vars:
+        hostname: "{{ item.hostname }}"
+        mgmt_ip: "{{ item.mgmt_ip }}"
+        model: "{{ item.model }}"
+        enable_secret: "{{ switch_enable_secret }}"
+        ansible_password: "{{ switch_ansible_password }}"
+        snmp_v3_auth_pass: "{{ switch_snmp_v3_auth }}"
+        snmp_v3_priv_pass: "{{ switch_snmp_v3_priv }}"
+
+    - name: Copy ZTP configs to TFTP server
+      copy:
+        src: "../files/switch-configs/ztp/{{ item }}"
+        dest: "/srv/tftp/{{ item }}"
+        mode: '0644'
+        owner: nobody
+        group: nogroup
+      loop: "{{ lookup('fileglob', '../files/switch-configs/ztp/*', wantlist=True) | map('basename') | list }}"
+      become: yes
+      when: switches | length > 0
+
+    - name: Display generated configs
+      debug:
+        msg:
+          - "ZTP configs generated successfully"
+          - "Generated {{ switches | length }} configurations"
+          - "TFTP directory: /srv/tftp/"
+          - ""
+          - "Test TFTP download:"
+          - "  tftp 10.0.99.20 -c get network-confg"

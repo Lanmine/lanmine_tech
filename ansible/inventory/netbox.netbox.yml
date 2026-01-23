@@ -1,0 +1,76 @@
+---
+# NetBox Dynamic Inventory Configuration
+# This file enables Ansible to dynamically pull inventory from NetBox
+# Docs: https://docs.ansible.com/ansible/latest/collections/netbox/netbox/nb_inventory_inventory.html
+
+plugin: netbox.netbox.nb_inventory
+
+# NetBox API Configuration
+api_endpoint: https://netbox.lionfish-caiman.ts.net
+# Token is read from NETBOX_TOKEN environment variable
+# Set it before running: export NETBOX_TOKEN=$(vault kv get -field=superuser_api_token secret/infrastructure/netbox)
+token: "{{ lookup('env', 'NETBOX_TOKEN') }}"
+
+# Validation
+validate_certs: true
+
+# Query Configuration
+# Only pull devices (not virtual machines, cables, etc.)
+config_context: false
+
+# Device Query Filters
+# Only fetch active network devices
+device_query_filters:
+  - status: active
+  - has_primary_ip: true
+
+# Group Configuration
+# Create Ansible groups based on NetBox attributes
+group_by:
+  - device_roles
+  - sites
+  - manufacturers
+  - device_types
+  - tags
+
+# Keyed Groups
+# Create custom groups with specific naming patterns
+keyed_groups:
+  # Group all devices by manufacturer with "_switches" suffix
+  # Example: cisco_switches, juniper_switches, etc.
+  - key: device_type.manufacturer.slug | lower + '_switches'
+    separator: ""
+
+# Compose Variables
+# Map NetBox fields to Ansible host variables
+compose:
+  # Primary management IP
+  ansible_host: primary_ip4.address | ipaddr('address')
+
+  # Device metadata
+  netbox_device_id: id
+  netbox_device_name: name
+  netbox_serial: serial
+  netbox_asset_tag: asset_tag
+  netbox_site: site.name
+  netbox_location: location.name
+  netbox_rack: rack.name
+  netbox_position: position
+  netbox_manufacturer: device_type.manufacturer.name
+  netbox_device_type: device_type.model
+  netbox_role: role.name
+  netbox_platform: platform.name
+  netbox_status: status.value
+  netbox_tags: tags
+
+# Interface Variables (for switches)
+interfaces: true
+
+# Fetch Custom Fields
+fetch_all: false
+
+# Cache Configuration (optional, improves performance)
+# cache: true
+# cache_plugin: jsonfile
+# cache_timeout: 1800
+# cache_connection: /tmp/netbox-inventory-cache
