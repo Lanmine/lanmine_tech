@@ -35,7 +35,7 @@ locals {
       name        = "talos-cp-01"
       vm_id       = 9200
       cpu         = 2
-      memory      = 4096
+      memory      = 8192
       ip          = "10.0.10.30/24"
       role        = "controlplane"
       description = "Talos Kubernetes control plane"
