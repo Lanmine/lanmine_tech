@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: netbox-sync-script
+  namespace: oxidized
+data:
+  sync.py: |
+    #!/usr/bin/env python3
+    """
+    NetBox to Oxidized CSV Sync Script
+    Queries NetBox API for active devices and generates Oxidized router.db CSV file
+    """
+    import os
+    import sys
+    import time
+    import requests
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+    logger = logging.getLogger(__name__)
+
+    NETBOX_URL = os.environ.get('NETBOX_URL', 'http://netbox.netbox.svc.cluster.local:8080')
+    NETBOX_TOKEN = os.environ.get('NETBOX_TOKEN')
+    OUTPUT_FILE = '/oxidized-config/router.db'
+    SYNC_INTERVAL = int(os.environ.get('SYNC_INTERVAL', '300'))  # 5 minutes
+
+    def fetch_devices():
+        """Fetch active devices from NetBox"""
+        try:
+            headers = {'Authorization': f'Token {NETBOX_TOKEN}'}
+            params = {'status': 'active'}
+
+            response = requests.get(
+                f'{NETBOX_URL}/api/dcim/devices/',
+                headers=headers,
+                params=params,
+                timeout=10
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            return data.get('results', [])
+        except Exception as e:
+            logger.error(f'Failed to fetch devices from NetBox: {e}')
+            return None
+
+    def generate_router_db(devices):
+        """Generate Oxidized router.db CSV format"""
+        lines = []
+
+        for device in devices:
+            name = device.get('name')
+
+            # Get model from device_type.slug
+            device_type = device.get('device_type', {})
+            model = device_type.get('slug', 'ios')
+
+            # Get IP address (strip CIDR notation)
+            primary_ip4 = device.get('primary_ip4')
+            if not primary_ip4:
+                logger.warning(f'Device {name} has no primary IP, skipping')
+                continue
+
+            ip_address = primary_ip4.get('address', '')
+            ip = ip_address.split('/')[0]  # Strip /24, /32, etc.
+
+            if not ip:
+                logger.warning(f'Device {name} has invalid IP address, skipping')
+                continue
+
+            # CSV format: name:model:ip
+            lines.append(f'{name}:{model}:{ip}')
+            logger.info(f'Added device: {name} ({model}) at {ip}')
+
+        return '\n'.join(lines) + '\n' if lines else ''
+
+    def write_router_db(content):
+        """Write router.db file atomically"""
+        try:
+            # Write to temp file first
+            temp_file = f'{OUTPUT_FILE}.tmp'
+            with open(temp_file, 'w') as f:
+                f.write(content)
+
+            # Atomic rename
+            os.rename(temp_file, OUTPUT_FILE)
+            logger.info(f'Successfully wrote {OUTPUT_FILE}')
+            return True
+        except Exception as e:
+            logger.error(f'Failed to write router.db: {e}')
+            return False
+
+    def sync_once():
+        """Single sync iteration"""
+        logger.info('Starting NetBox sync...')
+
+        devices = fetch_devices()
+        if devices is None:
+            logger.error('Sync failed - could not fetch devices')
+            return False
+
+        if not devices:
+            logger.warning('No active devices found in NetBox')
+            # Don't write empty file - keep existing devices
+            return False
+
+        logger.info(f'Found {len(devices)} active devices in NetBox')
+
+        content = generate_router_db(devices)
+        if not content:
+            logger.error('No valid devices to sync')
+            return False
+
+        success = write_router_db(content)
+        if success:
+            logger.info(f'Sync complete - {len(devices)} devices synced')
+
+        return success
+
+    def main():
+        """Main sync loop"""
+        if not NETBOX_TOKEN:
+            logger.error('NETBOX_TOKEN environment variable not set')
+            sys.exit(1)
+
+        logger.info(f'NetBox Sync starting - syncing every {SYNC_INTERVAL} seconds')
+        logger.info(f'NetBox URL: {NETBOX_URL}')
+        logger.info(f'Output file: {OUTPUT_FILE}')
+
+        # Initial sync
+        sync_once()
+
+        # Continuous sync loop
+        while True:
+            time.sleep(SYNC_INTERVAL)
+            sync_once()
+
+    if __name__ == '__main__':
+        main()
