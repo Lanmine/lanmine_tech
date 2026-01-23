@@ -19,11 +19,13 @@
 
 Run:
 ```bash
+{% raw %}
 vault kv put secret/infrastructure/switches/global \
   enable_secret="$(openssl rand -base64 24)" \
   ansible_password="$(openssl rand -base64 24)" \
   snmp_v3_auth_pass="$(openssl rand -base64 24)" \
   snmp_v3_priv_pass="$(openssl rand -base64 24)"
+{% endraw %}
 ```
 
 Expected: Success (4 secrets created)
@@ -32,9 +34,11 @@ Expected: Success (4 secrets created)
 
 Run:
 ```bash
+{% raw %}
 vault kv put secret/infrastructure/switches/tacacs \
   shared_key="$(openssl rand -base64 32)" \
   ldap_bind_password="changeme_later"
+{% endraw %}
 ```
 
 Expected: Success (note: update ldap_bind_password when configuring Authentik)
@@ -43,11 +47,13 @@ Expected: Success (note: update ldap_bind_password when configuring Authentik)
 
 Run:
 ```bash
+{% raw %}
 ssh-keygen -t ed25519 -C "oxidized@lanmine.no" -f /tmp/oxidized_key -N ""
 vault kv put secret/infrastructure/switches/oxidized \
   ssh_key=@/tmp/oxidized_key \
   ssh_pub=@/tmp/oxidized_key.pub
 rm -f /tmp/oxidized_key /tmp/oxidized_key.pub
+{% endraw %}
 ```
 
 Expected: SSH keys stored in Vault
@@ -56,9 +62,11 @@ Expected: SSH keys stored in Vault
 
 Run:
 ```bash
+{% raw %}
 vault kv get secret/infrastructure/switches/global
 vault kv get secret/infrastructure/switches/tacacs
 vault kv get secret/infrastructure/switches/oxidized
+{% endraw %}
 ```
 
 Expected: All secrets visible
@@ -85,9 +93,11 @@ No Git changes yet - this is infrastructure setup.
 
 Run:
 ```bash
+{% raw %}
 mkdir -p ansible/roles/ztp-server/{tasks,templates,files}
 mkdir -p ansible/files/switch-configs/ztp
 mkdir -p ansible/templates/switches
+{% endraw %}
 ```
 
 **Step 2: Create main task file**
@@ -144,14 +154,17 @@ switches: []
 
 Run:
 ```bash
+{% raw %}
 touch ansible/files/switch-configs/ztp/.gitkeep
 touch ansible/templates/switches/.gitkeep
+{% endraw %}
 ```
 
 **Step 5: Commit directory structure**
 
 Run:
 ```bash
+{% raw %}
 git add ansible/roles/ztp-server ansible/inventory/switches.yml \
   ansible/files/switch-configs ansible/templates/switches
 git commit -m "feat(switches): add ZTP Ansible directory structure
@@ -159,6 +172,7 @@ git commit -m "feat(switches): add ZTP Ansible directory structure
 - Create ztp-server role skeleton
 - Add switches inventory file
 - Add directories for configs and templates"
+{% endraw %}
 ```
 
 Expected: Files committed successfully
@@ -230,10 +244,12 @@ File: `ansible/roles/ztp-server/tasks/vlan99.yml`
 
 Run:
 ```bash
+{% raw %}
 cd ansible
 ansible-playbook --syntax-check -i inventory/switches.yml \
   -e "ansible_default_ipv4={'interface': 'ens18'}" \
   roles/ztp-server/tasks/vlan99.yml
+{% endraw %}
 ```
 
 Expected: Syntax OK
@@ -242,6 +258,7 @@ Expected: Syntax OK
 
 Run:
 ```bash
+{% raw %}
 git add ansible/roles/ztp-server/tasks/vlan99.yml \
   ansible/roles/ztp-server/templates/netplan-vlan99.yml.j2
 git commit -m "feat(switches): add VLAN 99 interface configuration
@@ -249,6 +266,7 @@ git commit -m "feat(switches): add VLAN 99 interface configuration
 - Create netplan template for VLAN 99 (10.0.99.20/24)
 - Add Ansible task to configure interface
 - Route to management network via 10.0.99.1"
+{% endraw %}
 ```
 
 ---
@@ -263,6 +281,7 @@ git commit -m "feat(switches): add VLAN 99 interface configuration
 
 File: `ansible/roles/ztp-server/templates/atftpd.conf.j2`
 ```
+{% raw %}
 # atftpd configuration for switch ZTP
 # Root directory for TFTP files
 ATFTPD_ROOT="/srv/tftp"
@@ -284,6 +303,7 @@ ATFTPD_OPTIONS="--daemon --no-multicast --verbose=5"
 # Security: read-only, no file creation
 ATFTPD_USE_IPD=false
 ATFTPD_MAX_THREAD=100
+{% endraw %}
 ```
 
 **Step 2: Create TFTP installation task**
@@ -336,9 +356,11 @@ File: `ansible/roles/ztp-server/tasks/tftp.yml`
 
 Run:
 ```bash
+{% raw %}
 cd ansible
 ansible-playbook --syntax-check -i inventory/switches.yml \
   roles/ztp-server/tasks/tftp.yml
+{% endraw %}
 ```
 
 Expected: Syntax OK
@@ -347,6 +369,7 @@ Expected: Syntax OK
 
 Run:
 ```bash
+{% raw %}
 git add ansible/roles/ztp-server/tasks/tftp.yml \
   ansible/roles/ztp-server/templates/atftpd.conf.j2
 git commit -m "feat(switches): add TFTP server configuration
@@ -355,6 +378,7 @@ git commit -m "feat(switches): add TFTP server configuration
 - Bind to VLAN 99 (10.0.99.20)
 - Create /srv/tftp root directory
 - Enable read-only mode for security"
+{% endraw %}
 ```
 
 ---
@@ -369,6 +393,7 @@ git commit -m "feat(switches): add TFTP server configuration
 
 File: `ansible/roles/ztp-server/templates/nginx-switches.conf.j2`
 ```nginx
+{% raw %}
 server {
     listen 10.0.99.20:80;
     server_name ztp.hl0.dev 10.0.99.20;
@@ -393,6 +418,7 @@ server {
     access_log /var/log/nginx/switches-access.log;
     error_log /var/log/nginx/switches-error.log;
 }
+{% endraw %}
 ```
 
 **Step 2: Create nginx installation task**
@@ -452,9 +478,11 @@ File: `ansible/roles/ztp-server/tasks/nginx.yml`
 
 Run:
 ```bash
+{% raw %}
 cd ansible
 ansible-playbook --syntax-check -i inventory/switches.yml \
   roles/ztp-server/tasks/nginx.yml
+{% endraw %}
 ```
 
 Expected: Syntax OK
@@ -463,6 +491,7 @@ Expected: Syntax OK
 
 Run:
 ```bash
+{% raw %}
 git add ansible/roles/ztp-server/tasks/nginx.yml \
   ansible/roles/ztp-server/templates/nginx-switches.conf.j2
 git commit -m "feat(switches): add nginx HTTP server configuration
@@ -471,6 +500,7 @@ git commit -m "feat(switches): add nginx HTTP server configuration
 - Serve files from /srv/http/switches
 - Bind to VLAN 99 (10.0.99.20:80)
 - Enable directory listing for downloads"
+{% endraw %}
 ```
 
 ---
@@ -484,6 +514,7 @@ git commit -m "feat(switches): add nginx HTTP server configuration
 
 File: `ansible/templates/switches/ztp-bootstrap.j2`
 ```
+{% raw %}
 {# ZTP Bootstrap Configuration Template #}
 {# Works for both Cisco IOS and NX-OS #}
 {# Variables: hostname, mgmt_ip, enable_secret, ansible_password #}
@@ -572,12 +603,14 @@ banner motd ^
 ^
 
 end
+{% endraw %}
 ```
 
 **Step 2: Test template syntax**
 
 Run:
 ```bash
+{% raw %}
 cd ansible
 python3 << 'EOF'
 from jinja2 import Template
@@ -600,6 +633,7 @@ result = template.render(
 print("Template rendered successfully")
 print(f"Lines: {len(result.splitlines())}")
 EOF
+{% endraw %}
 ```
 
 Expected: Template rendered successfully
@@ -608,6 +642,7 @@ Expected: Template rendered successfully
 
 Run:
 ```bash
+{% raw %}
 git add ansible/templates/switches/ztp-bootstrap.j2
 git commit -m "feat(switches): add ZTP bootstrap configuration template
 
@@ -615,6 +650,7 @@ git commit -m "feat(switches): add ZTP bootstrap configuration template
 - Support both Cisco IOS and Nexus NX-OS
 - Configure management VLAN 99, SSH, SNMP, users
 - Secrets injected from Vault at generation time"
+{% endraw %}
 ```
 
 ---
@@ -684,8 +720,10 @@ File: `ansible/playbooks/setup-ztp-server.yml`
 
 Run:
 ```bash
+{% raw %}
 cd ansible
 ansible-playbook --syntax-check playbooks/setup-ztp-server.yml
+{% endraw %}
 ```
 
 Expected: Syntax OK
@@ -694,6 +732,7 @@ Expected: Syntax OK
 
 Run:
 ```bash
+{% raw %}
 git add ansible/playbooks/setup-ztp-server.yml \
   ansible/roles/ztp-server/handlers/main.yml
 git commit -m "feat(switches): add playbook to setup ZTP server
@@ -702,6 +741,7 @@ git commit -m "feat(switches): add playbook to setup ZTP server
 - Install TFTP and HTTP services
 - Configure VLAN 99 interface
 - Add handlers for service management"
+{% endraw %}
 ```
 
 ---
@@ -791,8 +831,10 @@ File: `ansible/playbooks/generate-ztp-configs.yml`
 
 Run:
 ```bash
+{% raw %}
 cd ansible
 ansible-playbook --syntax-check playbooks/generate-ztp-configs.yml
+{% endraw %}
 ```
 
 Expected: Syntax OK
@@ -801,6 +843,7 @@ Expected: Syntax OK
 
 Run:
 ```bash
+{% raw %}
 git add ansible/playbooks/generate-ztp-configs.yml \
   ansible/group_vars/all/vault.yml
 git commit -m "feat(switches): add playbook to generate ZTP configs
@@ -809,6 +852,7 @@ git commit -m "feat(switches): add playbook to generate ZTP configs
 - Integrate with Vault for secrets
 - Copy configs to TFTP server (/srv/tftp/)
 - Support both IOS (network-confg) and NX-OS (conf.SERIAL) naming"
+{% endraw %}
 ```
 
 ---
@@ -822,6 +866,7 @@ git commit -m "feat(switches): add playbook to generate ZTP configs
 
 File: `ansible/templates/switches/core-nexus.j2`
 ```
+{% raw %}
 {# Nexus 9100 Core Switch Configuration #}
 {# Variables: hostname, mgmt_ip, peer_ip, is_primary, vlans #}
 
@@ -917,12 +962,14 @@ banner motd ^
 ^
 
 end
+{% endraw %}
 ```
 
 **Step 2: Test core template rendering**
 
 Run:
 ```bash
+{% raw %}
 cd ansible
 python3 << 'EOF'
 from jinja2 import Template
@@ -947,6 +994,7 @@ print(f"Lines: {len(result.splitlines())}")
 assert 'vpc domain 1' in result
 assert 'role priority 1' in result
 EOF
+{% endraw %}
 ```
 
 Expected: Template rendered successfully
@@ -955,6 +1003,7 @@ Expected: Template rendered successfully
 
 Run:
 ```bash
+{% raw %}
 git add ansible/templates/switches/core-nexus.j2
 git commit -m "feat(switches): add Nexus core switch configuration template
 
@@ -963,6 +1012,7 @@ git commit -m "feat(switches): add Nexus core switch configuration template
 - Support primary/secondary role priority
 - Configure VLANs, management, SSH, SNMP v3
 - Placeholder peer-link configuration"
+{% endraw %}
 ```
 
 ---
@@ -976,6 +1026,7 @@ git commit -m "feat(switches): add Nexus core switch configuration template
 
 File: `ansible/templates/switches/edge-ios.j2`
 ```
+{% raw %}
 {# Cisco IOS Edge Switch Configuration #}
 {# Variables: hostname, mgmt_ip, vlans, trunk_ports #}
 
@@ -1071,12 +1122,14 @@ banner motd ^
 ^
 
 end
+{% endraw %}
 ```
 
 **Step 2: Test edge template rendering**
 
 Run:
 ```bash
+{% raw %}
 cd ansible
 python3 << 'EOF'
 from jinja2 import Template
@@ -1100,6 +1153,7 @@ print(f"Lines: {len(result.splitlines())}")
 assert 'ip dhcp snooping' in result
 assert 'switchport port-security' in result
 EOF
+{% endraw %}
 ```
 
 Expected: Template rendered successfully
@@ -1108,6 +1162,7 @@ Expected: Template rendered successfully
 
 Run:
 ```bash
+{% raw %}
 git add ansible/templates/switches/edge-ios.j2
 git commit -m "feat(switches): add IOS edge switch configuration template
 
@@ -1116,6 +1171,7 @@ git commit -m "feat(switches): add IOS edge switch configuration template
 - Access ports with port-security and DHCP snooping
 - Storm control and spanning-tree security
 - Management VLAN 99, SSH, SNMP v3"
+{% endraw %}
 ```
 
 ---
@@ -1197,8 +1253,10 @@ File: `ansible/playbooks/provision-new-switch.yml`
 
 Run:
 ```bash
+{% raw %}
 cd ansible
 ansible-playbook --syntax-check playbooks/provision-new-switch.yml
+{% endraw %}
 ```
 
 Expected: Syntax OK
@@ -1207,6 +1265,7 @@ Expected: Syntax OK
 
 Run:
 ```bash
+{% raw %}
 git add ansible/playbooks/provision-new-switch.yml
 git commit -m "feat(switches): add full switch provisioning playbook
 
@@ -1215,6 +1274,7 @@ git commit -m "feat(switches): add full switch provisioning playbook
 - Render templates based on switch model/role
 - Integrate with Vault for secrets
 - Use ansible network modules (ios_config, nxos_config)"
+{% endraw %}
 ```
 
 ---
@@ -1229,6 +1289,7 @@ git commit -m "feat(switches): add full switch provisioning playbook
 Add to `CLAUDE.md` after line 286 (VLAN Distribution table):
 
 ```markdown
+{% raw %}
 ## Switch Management (ZTP)
 
 **VLAN 99 (10.0.99.0/24)** - Dedicated management network for switches, isolated from VLAN 10 (Infrastructure).
@@ -1260,13 +1321,16 @@ Add to `CLAUDE.md` after line 286 (VLAN Distribution table):
 - Oxidized for config backups (Git repo)
 - TACACS+ for centralized authentication (Authentik LDAP)
 - NetBox for inventory (https://netbox.hl0.dev)
+{% endraw %}
 ```
 
 **Step 2: Verify formatting**
 
 Run:
 ```bash
+{% raw %}
 head -n 320 CLAUDE.md | tail -30
+{% endraw %}
 ```
 
 Expected: New section visible after VLAN Distribution
@@ -1275,6 +1339,7 @@ Expected: New section visible after VLAN Distribution
 
 Run:
 ```bash
+{% raw %}
 git add CLAUDE.md
 git commit -m "docs: add switch management section to CLAUDE.md
 
@@ -1282,6 +1347,7 @@ git commit -m "docs: add switch management section to CLAUDE.md
 - Add ansible playbook commands for provisioning
 - Reference templates and Vault secrets
 - Include monitoring stack overview"
+{% endraw %}
 ```
 
 ---
@@ -1295,10 +1361,12 @@ git commit -m "docs: add switch management section to CLAUDE.md
 
 Run:
 ```bash
+{% raw %}
 curl -X POST "https://api.cloudflare.com/client/v4/zones/283c74f5bfbbb2a804dabdb938ccde8f/dns_records" \
   -H "Authorization: Bearer $(vault kv get -field=api_token secret/infrastructure/cloudflare)" \
   -H "Content-Type: application/json" \
   --data '{"type":"A","name":"ztp","content":"10.0.99.20","ttl":300,"proxied":false}'
+{% endraw %}
 ```
 
 Expected: DNS record created successfully
@@ -1307,8 +1375,10 @@ Expected: DNS record created successfully
 
 Run:
 ```bash
+{% raw %}
 sleep 3
 dig @1.1.1.1 ztp.hl0.dev +short
+{% endraw %}
 ```
 
 Expected: 10.0.99.20
@@ -1328,6 +1398,7 @@ No commit needed - DNS is infrastructure state, not code.
 
 File: `docs/switch-ztp-testing.md`
 ```markdown
+{% raw %}
 # Switch ZTP Testing Guide
 
 ## Pre-Deployment Tests
@@ -1338,6 +1409,7 @@ File: `docs/switch-ztp-testing.md`
 vault kv get secret/infrastructure/switches/global
 vault kv get secret/infrastructure/switches/tacacs
 vault kv get secret/infrastructure/switches/oxidized
+{% endraw %}
 ```
 
 All secrets should be populated.
@@ -1345,6 +1417,7 @@ All secrets should be populated.
 ### 2. ZTP Server Services
 
 ```bash
+{% raw %}
 # VLAN 99 interface
 ip addr show vlan99
 # Expected: 10.0.99.20/24
@@ -1356,21 +1429,26 @@ ss -ulnp | grep :69
 # nginx service
 systemctl status nginx
 curl http://10.0.99.20/
+{% endraw %}
 ```
 
 ### 3. TFTP Download Test
 
 ```bash
+{% raw %}
 # From another machine on VLAN 99 (or ubuntu-mgmt01)
 tftp 10.0.99.20 -c get network-confg
 # Should download file from /srv/tftp/
+{% endraw %}
 ```
 
 ### 4. Ansible Inventory
 
 ```bash
+{% raw %}
 cd ansible
 ansible-inventory -i inventory/switches.yml --list
+{% endraw %}
 ```
 
 Expected: Valid YAML, switches listed.
@@ -1378,8 +1456,10 @@ Expected: Valid YAML, switches listed.
 ### 5. Template Rendering
 
 ```bash
+{% raw %}
 cd ansible
 ansible-playbook playbooks/generate-ztp-configs.yml --check
+{% endraw %}
 ```
 
 Expected: No errors, configs would be generated.
@@ -1395,8 +1475,10 @@ Expected: No errors, configs would be generated.
 
 1. **Factory Reset Switch**
    ```
+{% raw %}
    Switch# write erase
    Switch# reload
+{% endraw %}
    ```
 
 2. **Connect to VLAN 99**
@@ -1415,6 +1497,7 @@ Expected: No errors, configs would be generated.
 4. **Validate Final State**
 
    ```bash
+{% raw %}
    ssh ansible@<switch-ip>
 
    # IOS
@@ -1428,6 +1511,7 @@ Expected: No errors, configs would be generated.
    show vlan brief
    show interface brief
    show ip route
+{% endraw %}
    ```
 
    Expected:
@@ -1442,6 +1526,7 @@ Expected: No errors, configs would be generated.
 After deploying core switches:
 
 ```bash
+{% raw %}
 # vPC status
 show vpc
 show vpc brief
@@ -1460,6 +1545,7 @@ show environment power
 
 # Logs
 show logging last 100
+{% endraw %}
 ```
 
 ## Monitoring Validation
@@ -1467,8 +1553,10 @@ show logging last 100
 ### 1. SNMP Exporter
 
 ```bash
+{% raw %}
 kubectl get servicemonitor -n monitoring switches-snmp
 kubectl get pods -n monitoring | grep snmp-exporter
+{% endraw %}
 ```
 
 ### 2. Prometheus Targets
@@ -1484,6 +1572,7 @@ Check dashboards display switch metrics (traffic, CPU, temperature).
 ### TFTP Not Working
 
 ```bash
+{% raw %}
 # Check service
 systemctl status atftpd
 journalctl -u atftpd -n 50
@@ -1496,6 +1585,7 @@ tftp 127.0.0.1 -c get network-confg
 
 # Check firewall
 ufw status | grep 69
+{% endraw %}
 ```
 
 ### Switch Not Getting DHCP
@@ -1514,6 +1604,7 @@ ufw status | grep 69
 ### Ansible Cannot Connect
 
 ```bash
+{% raw %}
 # Test manual SSH
 ssh ansible@<switch-ip>
 
@@ -1522,6 +1613,7 @@ ansible-inventory -i inventory/switches.yml --host <hostname>
 
 # Test ping
 ansible switches -i inventory/switches.yml -m ping -l <hostname>
+{% endraw %}
 ```
 
 ## Success Criteria Checklist
@@ -1535,6 +1627,7 @@ ansible switches -i inventory/switches.yml -m ping -l <hostname>
 - [ ] SNMP metrics visible in Prometheus
 - [ ] Grafana dashboards showing switch data
 ```
+{% raw %}
 
 **Step 2: Commit testing documentation**
 
@@ -1548,6 +1641,7 @@ git commit -m "docs: add comprehensive ZTP testing guide
 - Production validation for Nexus cores
 - Monitoring stack verification
 - Troubleshooting common issues"
+{% endraw %}
 ```
 
 ---
