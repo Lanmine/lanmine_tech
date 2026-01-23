@@ -135,13 +135,13 @@ spec:
                 echo "$(date): Syncing devices from NetBox..."
                 if wget -q -O - --header="Authorization: Token ${NETBOX_TOKEN}" \
                   "${NETBOX_URL}/api/dcim/devices/?status=active&has_primary_ip=true&limit=1000" | \
-                  jq -r '.results[] | "\(.name):\(.device_type.slug):\(.primary_ip4.address | split("/")[0])"' > /oxidized-data/router.db.tmp 2>/dev/null; then
+                  jq -r '.results[] | select(.role.slug == "access" or .role.slug == "firewall" or .role.slug == "router" or .role.slug == "core-switch" or .role.slug == "distribution-switch") | "\(.name):\(.device_type.slug):\(.primary_ip4.address | split("/")[0])"' > /oxidized-data/router.db.tmp 2>/dev/null; then
                   if [ -s /oxidized-data/router.db.tmp ]; then
                     mv /oxidized-data/router.db.tmp /oxidized-data/router.db
                     echo "$(date): ✓ Updated router.db with $(wc -l < /oxidized-data/router.db) devices"
                     cat /oxidized-data/router.db
                   else
-                    echo "$(date): ✗ No devices found"
+                    echo "$(date): ✗ No network devices found"
                     rm -f /oxidized-data/router.db.tmp
                   fi
                 else

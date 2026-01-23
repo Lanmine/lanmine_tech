@@ -1,0 +1,19 @@
+---
+# SNMP agent configuration defaults
+
+snmp_community: "{{ vault_snmp_community }}"
+snmp_location: "Lanmine Datacenter"
+snmp_contact: "ops@lanmine.no"
+
+# System information
+snmp_syslocation: "{{ snmp_location }}"
+snmp_syscontact: "{{ snmp_contact }}"
+
+# Access control
+snmp_rocommunity: "{{ snmp_community }}"
+snmp_allowed_networks:
+  - 10.0.10.0/24  # Infrastructure VLAN
+
+# Disk monitoring thresholds (%)
+snmp_disk_warn: 80
+snmp_disk_crit: 90

@@ -51,8 +51,19 @@ data:
         """Generate Oxidized router.db CSV format"""
         lines = []
 
+        # Network equipment roles that Oxidized should back up
+        network_roles = ['access', 'firewall', 'router', 'core-switch', 'distribution-switch']
+
         for device in devices:
             name = device.get('name')
+
+            # Filter by device role - only include network equipment
+            role = device.get('role', {})
+            role_slug = role.get('slug', '')
+
+            if role_slug not in network_roles:
+                logger.debug(f'Skipping {name}: role {role_slug} not in network_roles')
+                continue
 
             # Get model from device_type.slug
             device_type = device.get('device_type', {})

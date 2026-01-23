@@ -1,0 +1,21 @@
+---
+- name: Deploy SNMP Agents to Linux VMs
+  hosts: linux_vms
+  gather_facts: yes
+  become: yes
+
+  pre_tasks:
+    - name: Verify SNMP community is defined
+      ansible.builtin.assert:
+        that:
+          - vault_snmp_community is defined
+          - vault_snmp_community | length > 0
+        fail_msg: "SNMP community string not found in Vault"
+
+  roles:
+    - snmp_agent
+
+  post_tasks:
+    - name: Display SNMP agent status
+      ansible.builtin.debug:
+        msg: "SNMP agent installed and configured on {{ inventory_hostname }} ({{ ansible_default_ipv4.address }})"
