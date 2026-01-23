@@ -58,7 +58,7 @@ spec:
               python3 /scripts/sync.py
           env:
             - name: NETBOX_URL
-              value: "http://netbox.netbox.svc.cluster.local:8080"
+              value: "https://netbox.hl0.dev"
             - name: NETBOX_TOKEN
               valueFrom:
                 secretKeyRef:
