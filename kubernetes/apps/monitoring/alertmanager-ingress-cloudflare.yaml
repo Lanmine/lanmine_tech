@@ -1,0 +1,26 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alertmanager-cloudflare
+  namespace: monitoring
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: alertmanager.hl0.dev
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - alertmanager.hl0.dev
+      secretName: alertmanager-hl0-tls
+  rules:
+    - host: alertmanager.hl0.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kube-prometheus-stack-alertmanager
+                port:
+                  number: 9093

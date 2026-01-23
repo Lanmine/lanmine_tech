@@ -1,0 +1,26 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: traefik-dashboard-cloudflare
+  namespace: traefik
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: traefik.hl0.dev
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - traefik.hl0.dev
+      secretName: traefik-hl0-tls
+  rules:
+    - host: traefik.hl0.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: traefik
+                port:
+                  number: 9000

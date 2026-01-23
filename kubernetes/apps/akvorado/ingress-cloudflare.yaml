@@ -1,0 +1,26 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: akvorado-cloudflare
+  namespace: default
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: akvorado.hl0.dev
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - akvorado.hl0.dev
+      secretName: akvorado-hl0-tls
+  rules:
+    - host: akvorado.hl0.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: akvorado
+                port:
+                  number: 8080

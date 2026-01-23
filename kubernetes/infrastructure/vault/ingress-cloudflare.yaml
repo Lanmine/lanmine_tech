@@ -1,0 +1,27 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vault-cloudflare
+  namespace: vault
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: vault.hl0.dev
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/service.serversscheme: https
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - vault.hl0.dev
+      secretName: vault-hl0-tls
+  rules:
+    - host: vault.hl0.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vault-external
+                port:
+                  number: 8200

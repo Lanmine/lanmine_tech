@@ -1,0 +1,26 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: uptime-kuma-cloudflare
+  namespace: uptime-kuma
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: uptime.hl0.dev
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - uptime.hl0.dev
+      secretName: uptime-hl0-tls
+  rules:
+    - host: uptime.hl0.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: uptime-kuma
+                port:
+                  number: 3001
