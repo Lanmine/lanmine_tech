@@ -1,0 +1,41 @@
+# SNMP daemon configuration for {{ inventory_hostname }}
+# Managed by Ansible - do not edit manually
+
+# System information
+sysLocation    {{ snmp_syslocation }}
+sysContact     {{ snmp_syscontact }}
+sysServices    72
+
+# Access control
+# Read-only community from localhost and infrastructure network
+rocommunity {{ snmp_rocommunity }} localhost
+{% for network in snmp_allowed_networks %}
+rocommunity {{ snmp_rocommunity }} {{ network }}
+{% endfor %}
+
+# Disable write access
+rwcommunity private localhost
+
+# System monitoring
+# Monitor disk usage
+{% for mount in ansible_mounts | selectattr('mount', 'match', '^/(|home|var|opt)$') %}
+disk {{ mount.mount }} {{ snmp_disk_warn }}%
+{% endfor %}
+
+# Monitor load average
+load 12 10 5
+
+# Process monitoring
+proc sshd
+proc snmpd
+
+# Extend snmpd to include additional system information
+extend uptime /usr/bin/uptime
+extend osinfo /bin/uname -a
+
+# Enable AgentX for subagents
+master agentx
+
+# Logging
+# Log errors to syslog
+dontLogTCPWrappersConnects yes

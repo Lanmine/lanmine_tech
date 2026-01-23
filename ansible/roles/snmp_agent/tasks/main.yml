@@ -1,0 +1,47 @@
+---
+# Install and configure SNMP agent (snmpd)
+
+- name: Install SNMP daemon and utilities
+  ansible.builtin.apt:
+    name:
+      - snmpd
+      - snmp
+      - libsnmp-dev
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Deploy snmpd configuration
+  ansible.builtin.template:
+    src: snmpd.conf.j2
+    dest: /etc/snmp/snmpd.conf
+    owner: root
+    group: root
+    mode: '0600'
+  become: yes
+  notify: restart snmpd
+
+- name: Configure snmpd to listen on all interfaces
+  ansible.builtin.lineinfile:
+    path: /etc/default/snmpd
+    regexp: '^SNMPDOPTS='
+    line: 'SNMPDOPTS="-LS0-6d -Lf /dev/null -u Debian-snmp -g Debian-snmp -I -smux,mteTrigger,mteTriggerConf -p /run/snmpd.pid"'
+    state: present
+    create: no
+  become: yes
+  notify: restart snmpd
+  ignore_errors: yes  # File may not exist in check mode
+
+- name: Enable and start snmpd service
+  ansible.builtin.systemd:
+    name: snmpd
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Ensure snmpd is restarted after config changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait a moment for snmpd to initialize
+  ansible.builtin.pause:
+    seconds: 2
