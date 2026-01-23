@@ -94,6 +94,7 @@ mkdir -p ansible/templates/switches
 
 File: `ansible/roles/ztp-server/tasks/main.yml`
 ```yaml
+{% raw %}
 ---
 - name: Setup VLAN 99 interface
   include_tasks: vlan99.yml
@@ -106,12 +107,14 @@ File: `ansible/roles/ztp-server/tasks/main.yml`
 - name: Setup nginx HTTP server
   include_tasks: nginx.yml
   tags: nginx
+{% endraw %}
 ```
 
 **Step 3: Create switches inventory skeleton**
 
 File: `ansible/inventory/switches.yml`
 ```yaml
+{% raw %}
 ---
 # Cisco Switch Inventory
 # Format:
@@ -134,6 +137,7 @@ switches: []
 #     role: core
 #     mgmt_ip: 10.0.99.11
 #     vlans: [10, 20, 30, 99]
+{% endraw %}
 ```
 
 **Step 4: Create placeholder files**
@@ -171,6 +175,7 @@ Expected: Files committed successfully
 
 File: `ansible/roles/ztp-server/templates/netplan-vlan99.yml.j2`
 ```yaml
+{% raw %}
 network:
   version: 2
   ethernets:
@@ -189,12 +194,14 @@ network:
         addresses:
           - 10.0.99.1
           - 1.1.1.1
+{% endraw %}
 ```
 
 **Step 2: Create VLAN 99 configuration task**
 
 File: `ansible/roles/ztp-server/tasks/vlan99.yml`
 ```yaml
+{% raw %}
 ---
 - name: Check if VLAN 99 interface exists
   command: ip addr show vlan99
@@ -216,6 +223,7 @@ File: `ansible/roles/ztp-server/tasks/vlan99.yml`
   command: ip link set vlan99 up
   when: vlan99_check.rc == 0 and "'state DOWN' in vlan99_check.stdout"
   changed_when: true
+{% endraw %}
 ```
 
 **Step 3: Test task syntax**
@@ -282,6 +290,7 @@ ATFTPD_MAX_THREAD=100
 
 File: `ansible/roles/ztp-server/tasks/tftp.yml`
 ```yaml
+{% raw %}
 ---
 - name: Install atftpd package
   apt:
@@ -320,6 +329,7 @@ File: `ansible/roles/ztp-server/tasks/tftp.yml`
     from_ip: 10.0.99.0/24
   when: ansible_facts.services['ufw'] is defined
   ignore_errors: yes
+{% endraw %}
 ```
 
 **Step 3: Test TFTP task syntax**
@@ -389,6 +399,7 @@ server {
 
 File: `ansible/roles/ztp-server/tasks/nginx.yml`
 ```yaml
+{% raw %}
 ---
 - name: Install nginx
   apt:
@@ -434,6 +445,7 @@ File: `ansible/roles/ztp-server/tasks/nginx.yml`
     from_ip: 10.0.99.0/24
   when: ansible_facts.services['ufw'] is defined
   ignore_errors: yes
+{% endraw %}
 ```
 
 **Step 3: Test nginx task syntax**
@@ -617,6 +629,7 @@ git commit -m "feat(switches): add ZTP bootstrap configuration template
 
 File: `ansible/roles/ztp-server/handlers/main.yml`
 ```yaml
+{% raw %}
 ---
 - name: restart atftpd
   systemd:
@@ -632,12 +645,14 @@ File: `ansible/roles/ztp-server/handlers/main.yml`
   command: netplan apply
   async: 45
   poll: 0
+{% endraw %}
 ```
 
 **Step 2: Create setup playbook**
 
 File: `ansible/playbooks/setup-ztp-server.yml`
 ```yaml
+{% raw %}
 ---
 - name: Setup ZTP Server Infrastructure on ubuntu-mgmt01
   hosts: localhost
@@ -662,6 +677,7 @@ File: `ansible/playbooks/setup-ztp-server.yml`
           - "1. Configure OPNsense VLAN 99 and DHCP"
           - "2. Generate ZTP configs: ansible-playbook generate-ztp-configs.yml"
           - "3. Test with spare switch"
+{% endraw %}
 ```
 
 **Step 3: Test playbook syntax**
@@ -700,6 +716,7 @@ git commit -m "feat(switches): add playbook to setup ZTP server
 
 File: `ansible/group_vars/all/vault.yml`
 ```yaml
+{% raw %}
 ---
 # Vault integration for switch secrets
 vault_addr: "{{ lookup('env', 'VAULT_ADDR') | default('http://10.0.10.21:8200', true) }}"
@@ -709,12 +726,14 @@ switch_enable_secret: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=se
 switch_ansible_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/infrastructure/switches/global:ansible_password') }}"
 switch_snmp_v3_auth: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/infrastructure/switches/global:snmp_v3_auth_pass') }}"
 switch_snmp_v3_priv: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secret/infrastructure/switches/global:snmp_v3_priv_pass') }}"
+{% endraw %}
 ```
 
 **Step 2: Create generate configs playbook**
 
 File: `ansible/playbooks/generate-ztp-configs.yml`
 ```yaml
+{% raw %}
 ---
 - name: Generate ZTP Bootstrap Configurations
   hosts: localhost
@@ -765,6 +784,7 @@ File: `ansible/playbooks/generate-ztp-configs.yml`
           - ""
           - "Test TFTP download:"
           - "  tftp 10.0.99.20 -c get network-confg"
+{% endraw %}
 ```
 
 **Step 3: Test generate playbook syntax**
@@ -1109,6 +1129,7 @@ git commit -m "feat(switches): add IOS edge switch configuration template
 
 File: `ansible/playbooks/provision-new-switch.yml`
 ```yaml
+{% raw %}
 ---
 - name: Provision New Switch with Full Configuration
   hosts: "{{ target_switch | default('all') }}"
@@ -1169,6 +1190,7 @@ File: `ansible/playbooks/provision-new-switch.yml`
     - name: Verify configuration applied
       debug:
         msg: "Configuration applied successfully to {{ inventory_hostname }}"
+{% endraw %}
 ```
 
 **Step 2: Test provisioning playbook syntax**
