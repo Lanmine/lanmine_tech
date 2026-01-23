@@ -1,0 +1,255 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: snmp-targets
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: snmp-netbox-sync-script
+  namespace: monitoring
+data:
+  sync.py: |
+    #!/usr/bin/env python3
+    """
+    NetBox to SNMP Exporter File Service Discovery Sync Script
+    Queries NetBox API for active devices and generates Prometheus file_sd JSON
+    """
+    import os
+    import sys
+    import time
+    import json
+    import requests
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+    logger = logging.getLogger(__name__)
+
+    NETBOX_URL = os.environ.get('NETBOX_URL', 'http://netbox.netbox.svc.cluster.local:8080')
+    NETBOX_TOKEN = os.environ.get('NETBOX_TOKEN')
+    OUTPUT_FILE = '/targets/snmp-targets.json'
+    SYNC_INTERVAL = int(os.environ.get('SYNC_INTERVAL', '300'))  # 5 minutes
+
+    def fetch_devices():
+        """Fetch active devices from NetBox with network interfaces"""
+        try:
+            headers = {'Authorization': f'Token {NETBOX_TOKEN}'}
+            params = {'status': 'active'}
+
+            response = requests.get(
+                f'{NETBOX_URL}/api/dcim/devices/',
+                headers=headers,
+                params=params,
+                timeout=10
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            return data.get('results', [])
+        except Exception as e:
+            logger.error(f'Failed to fetch devices from NetBox: {e}')
+            return None
+
+    def generate_file_sd_targets(devices):
+        """Generate Prometheus file_sd_configs JSON format"""
+        targets = []
+
+        for device in devices:
+            name = device.get('name')
+
+            # Get primary IP address (strip CIDR notation)
+            primary_ip4 = device.get('primary_ip4')
+            if not primary_ip4:
+                logger.warning(f'Device {name} has no primary IP, skipping')
+                continue
+
+            ip_address = primary_ip4.get('address', '')
+            ip = ip_address.split('/')[0]  # Strip /24, /32, etc.
+
+            if not ip:
+                logger.warning(f'Device {name} has invalid IP address, skipping')
+                continue
+
+            # Get device metadata for labels
+            device_type = device.get('device_type', {})
+            site = device.get('site', {})
+            role = device.get('role', {})
+            platform = device.get('platform', {})
+
+            # Create target with labels
+            target = {
+                'targets': [f'{ip}:161'],  # SNMP port
+                'labels': {
+                    'device': name,
+                    'device_type': device_type.get('model', 'unknown'),
+                    'site': site.get('name', 'unknown'),
+                    'role': role.get('name', 'unknown'),
+                    'job': 'snmp'
+                }
+            }
+
+            # Add platform label if available
+            if platform:
+                target['labels']['platform'] = platform.get('slug', 'unknown')
+
+            targets.append(target)
+            logger.info(f'Added device: {name} at {ip} (site: {site.get("name", "unknown")}, role: {role.get("name", "unknown")})')
+
+        return targets
+
+    def write_targets_file(targets):
+        """Write Prometheus file_sd JSON atomically"""
+        try:
+            # Ensure output directory exists
+            os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
+
+            # Write to temp file first
+            temp_file = f'{OUTPUT_FILE}.tmp'
+            with open(temp_file, 'w') as f:
+                json.dump(targets, f, indent=2)
+
+            # Atomic rename
+            os.rename(temp_file, OUTPUT_FILE)
+            logger.info(f'Successfully wrote {OUTPUT_FILE}')
+            return True
+        except Exception as e:
+            logger.error(f'Failed to write targets file: {e}')
+            return False
+
+    def sync_once():
+        """Single sync iteration"""
+        logger.info('Starting NetBox SNMP targets sync...')
+
+        devices = fetch_devices()
+        if devices is None:
+            logger.error('Sync failed - could not fetch devices')
+            return False
+
+        if not devices:
+            logger.warning('No active devices found in NetBox')
+            # Write empty array to clear stale targets
+            write_targets_file([])
+            return False
+
+        logger.info(f'Found {len(devices)} active devices in NetBox')
+
+        targets = generate_file_sd_targets(devices)
+        if not targets:
+            logger.warning('No valid devices with primary IPs')
+            write_targets_file([])
+            return False
+
+        success = write_targets_file(targets)
+        if success:
+            logger.info(f'Sync complete - {len(targets)} SNMP targets generated')
+
+        return success
+
+    def main():
+        """Main sync loop"""
+        if not NETBOX_TOKEN:
+            logger.error('NETBOX_TOKEN environment variable not set')
+            sys.exit(1)
+
+        logger.info(f'NetBox SNMP Sync starting - syncing every {SYNC_INTERVAL} seconds')
+        logger.info(f'NetBox URL: {NETBOX_URL}')
+        logger.info(f'Output file: {OUTPUT_FILE}')
+
+        # Initial sync
+        sync_once()
+
+        # Continuous sync loop
+        while True:
+            time.sleep(SYNC_INTERVAL)
+            sync_once()
+
+    if __name__ == '__main__':
+        main()
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: netbox-token
+  namespace: monitoring
+spec:
+  refreshInterval: 5m
+  secretStoreRef:
+    name: vault
+    kind: ClusterSecretStore
+  target:
+    name: netbox-token
+    creationPolicy: Owner
+  data:
+    - secretKey: api-token
+      remoteRef:
+        key: secret/infrastructure/netbox
+        property: api_token
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: snmp-netbox-sync
+  namespace: monitoring
+  labels:
+    app: snmp-netbox-sync
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: snmp-netbox-sync
+  template:
+    metadata:
+      labels:
+        app: snmp-netbox-sync
+    spec:
+      containers:
+        - name: sync
+          image: python:3.11-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              pip install --no-cache-dir requests && \
+              python3 /scripts/sync.py
+          env:
+            - name: NETBOX_URL
+              value: "http://netbox.netbox.svc.cluster.local:8080"
+            - name: NETBOX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: netbox-token
+                  key: api-token
+            - name: SYNC_INTERVAL
+              value: "300"
+          volumeMounts:
+            - name: sync-script
+              mountPath: /scripts
+            - name: targets
+              mountPath: /targets
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+      volumes:
+        - name: sync-script
+          configMap:
+            name: snmp-netbox-sync-script
+            defaultMode: 0755
+        - name: targets
+          persistentVolumeClaim:
+            claimName: snmp-targets

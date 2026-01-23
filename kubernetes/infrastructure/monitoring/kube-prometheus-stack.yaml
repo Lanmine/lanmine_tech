@@ -126,6 +126,21 @@ spec:
                 requests:
                   storage: 20Gi
 
+        # Additional scrape configs for SNMP file_sd
+        additionalScrapeConfigs:
+          name: prometheus-snmp-scrape-config
+          key: snmp-scrape.yaml
+
+        # Mount snmp-targets PVC
+        volumes:
+          - name: snmp-targets
+            persistentVolumeClaim:
+              claimName: snmp-targets
+        volumeMounts:
+          - name: snmp-targets
+            mountPath: /targets
+            readOnly: true
+
     # Disable components not needed for small clusters or incompatible with Talos
     kubeEtcd:
       enabled: false  # Talos manages etcd differently
