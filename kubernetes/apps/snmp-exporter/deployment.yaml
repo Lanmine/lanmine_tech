@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: snmp-exporter
+  namespace: snmp-exporter
+  labels:
+    app: snmp-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: snmp-exporter
+  template:
+    metadata:
+      labels:
+        app: snmp-exporter
+    spec:
+      containers:
+        - name: snmp-exporter
+          image: prom/snmp-exporter:v0.26.0
+          args:
+            - --config.file=/etc/snmp_exporter/snmp.yml
+          ports:
+            - containerPort: 9116
+              name: http
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/snmp_exporter
+            - name: targets
+              mountPath: /targets
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9116
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9116
+            initialDelaySeconds: 5
+            periodSeconds: 10
+        - name: netbox-sync
+          image: python:3.11-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              pip install --no-cache-dir requests && \
+              python3 /scripts/sync.py
+          env:
+            - name: NETBOX_URL
+              value: "http://netbox.netbox.svc.cluster.local:8080"
+            - name: NETBOX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: netbox-token
+                  key: api-token
+            - name: SYNC_INTERVAL
+              value: "300"
+          volumeMounts:
+            - name: sync-script
+              mountPath: /scripts
+            - name: targets
+              mountPath: /targets
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+      volumes:
+        - name: config
+          configMap:
+            name: snmp-exporter-config
+        - name: sync-script
+          configMap:
+            name: snmp-netbox-sync-script
+            defaultMode: 0755
+        - name: targets
+          persistentVolumeClaim:
+            claimName: snmp-targets
