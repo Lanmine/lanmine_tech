@@ -90,7 +90,7 @@ data:
 
             # Create target with labels
             target = {
-                'targets': [f'{ip}:161'],  # SNMP port
+                'targets': [ip],  # Just IP, SNMP exporter adds port
                 'labels': {
                     'device': name,
                     'device_type': device_type.get('model', 'unknown'),

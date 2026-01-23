@@ -1,0 +1,30 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prometheus-snmp-scrape-config
+  namespace: monitoring
+type: Opaque
+stringData:
+  snmp-scrape.yaml: |
+    - job_name: 'snmp-netbox'
+      file_sd_configs:
+        - files:
+            - /targets/snmp-targets.json
+          refresh_interval: 5m
+      metrics_path: /snmp
+      params:
+        module: [if_mib]
+        auth: [lanmine]
+      relabel_configs:
+        # Strip port from __address__ and use as __param_target
+        - source_labels: [__address__]
+          regex: '([^:]+)(?::\d+)?'
+          replacement: '$1'
+          target_label: __param_target
+        # Use the device label as the instance label
+        - source_labels: [device]
+          target_label: instance
+        # Point to SNMP exporter service
+        - target_label: __address__
+          replacement: snmp-exporter.snmp-exporter.svc.cluster.local:9116
