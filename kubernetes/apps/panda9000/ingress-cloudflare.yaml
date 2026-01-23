@@ -1,0 +1,26 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: panda9000-cloudflare
+  namespace: default
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: panda.hl0.dev
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - panda.hl0.dev
+      secretName: panda-hl0-tls
+  rules:
+    - host: panda.hl0.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: panda9000
+                port:
+                  number: 80

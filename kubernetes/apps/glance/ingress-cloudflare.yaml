@@ -1,0 +1,26 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: glance-cloudflare
+  namespace: glance
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: glance.hl0.dev
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - glance.hl0.dev
+      secretName: glance-hl0-tls
+  rules:
+    - host: glance.hl0.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: glance
+                port:
+                  number: 8080

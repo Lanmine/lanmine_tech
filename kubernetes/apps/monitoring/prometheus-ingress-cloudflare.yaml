@@ -1,0 +1,26 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus-cloudflare
+  namespace: monitoring
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: prometheus.hl0.dev
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - prometheus.hl0.dev
+      secretName: prometheus-hl0-tls
+  rules:
+    - host: prometheus.hl0.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kube-prometheus-stack-prometheus
+                port:
+                  number: 9090
