@@ -1,0 +1,111 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: switch-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+  - name: network-switches
+    rules:
+    - alert: SwitchInterfaceDown
+      annotations:
+        description: 'Interface {{ $labels.ifDescr }} on {{ $labels.device }} has gone down.'
+        summary: 'Switch interface down: {{ $labels.device }}/{{ $labels.ifDescr }}'
+      expr: |
+        ifOperStatus{device=~"mgmt-sw-.*|opnsense"} == 2
+        and
+        ifAdminStatus{device=~"mgmt-sw-.*|opnsense"} == 1
+      for: 2m
+      labels:
+        severity: warning
+        component: network
+
+    - alert: SwitchInterfaceFlapping
+      annotations:
+        description: 'Interface {{ $labels.ifDescr }} on {{ $labels.device }} has changed state multiple times in the last 10 minutes.'
+        summary: 'Switch interface flapping: {{ $labels.device }}/{{ $labels.ifDescr }}'
+      expr: |
+        changes(ifOperStatus{device=~"mgmt-sw-.*|opnsense"}[10m]) > 3
+      for: 5m
+      labels:
+        severity: warning
+        component: network
+
+    - alert: SwitchInterfaceHighErrorRate
+      annotations:
+        description: 'Interface {{ $labels.ifDescr }} on {{ $labels.device }} has high error rate: {{ $value | humanize }} errors/sec.'
+        summary: 'Switch interface errors: {{ $labels.device }}/{{ $labels.ifDescr }}'
+      expr: |
+        (
+          rate(ifInErrors{device=~"mgmt-sw-.*|opnsense"}[5m]) +
+          rate(ifOutErrors{device=~"mgmt-sw-.*|opnsense"}[5m])
+        ) > 10
+      for: 5m
+      labels:
+        severity: warning
+        component: network
+
+    - alert: SwitchInterfaceHighUtilization
+      annotations:
+        description: 'Interface {{ $labels.ifDescr }} on {{ $labels.device }} is at {{ $value | humanizePercentage }} utilization.'
+        summary: 'Switch interface high utilization: {{ $labels.device }}/{{ $labels.ifDescr }}'
+      expr: |
+        (
+          (rate(ifHCInOctets{device=~"mgmt-sw-.*|opnsense"}[5m]) * 8) /
+          (ifHighSpeed{device=~"mgmt-sw-.*|opnsense"} * 1000000)
+        ) * 100 > 80
+      for: 10m
+      labels:
+        severity: warning
+        component: network
+
+    - alert: SwitchInterfaceCriticalUtilization
+      annotations:
+        description: 'Interface {{ $labels.ifDescr }} on {{ $labels.device }} is at {{ $value | humanizePercentage }} utilization.'
+        summary: 'Switch interface critical utilization: {{ $labels.device }}/{{ $labels.ifDescr }}'
+      expr: |
+        (
+          (rate(ifHCInOctets{device=~"mgmt-sw-.*|opnsense"}[5m]) * 8) /
+          (ifHighSpeed{device=~"mgmt-sw-.*|opnsense"} * 1000000)
+        ) * 100 > 90
+      for: 5m
+      labels:
+        severity: critical
+        component: network
+
+    - alert: SwitchUnreachable
+      annotations:
+        description: 'Switch {{ $labels.device }} at {{ $labels.instance }} is not responding to SNMP queries.'
+        summary: 'Switch unreachable: {{ $labels.device }}'
+      expr: |
+        up{job="snmp-exporter"} == 0
+        or
+        snmp_scrape_pdus_returned{device=~"mgmt-sw-.*|opnsense"} == 0
+      for: 3m
+      labels:
+        severity: critical
+        component: network
+
+    - alert: SwitchSNMPScrapeSlow
+      annotations:
+        description: 'SNMP scrape for {{ $labels.device }} is taking {{ $value }}s (threshold: 20s).'
+        summary: 'Switch SNMP scrape slow: {{ $labels.device }}'
+      expr: |
+        snmp_scrape_duration_seconds{device=~"mgmt-sw-.*|opnsense"} > 20
+      for: 5m
+      labels:
+        severity: warning
+        component: network
+
+    - alert: SwitchReloaded
+      annotations:
+        description: 'Switch {{ $labels.device }} has reloaded. Uptime is {{ $value | humanizeDuration }}.'
+        summary: 'Switch reloaded: {{ $labels.device }}'
+      expr: |
+        (sysUpTime{device=~"mgmt-sw-.*|opnsense"} / 100) < 600
+      for: 1m
+      labels:
+        severity: info
+        component: network
