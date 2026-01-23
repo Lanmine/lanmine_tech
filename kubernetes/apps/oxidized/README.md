@@ -121,21 +121,36 @@ kubectl exec -n oxidized deployment/oxidized -c oxidized -- \
 
 ## Credentials
 
-Device SSH credentials stored in Vault and synced via secret:
+Device SSH credentials stored in Vault and automatically synced via External Secrets Operator:
 
+**Vault Paths:**
 ```
 secret/infrastructure/cisco-switch
 ├── user      # SSH username (admin)
 ├── password  # SSH password
+
+secret/infrastructure/netbox
+├── api_token # NetBox API token
+
+secret/infrastructure/oxidized
+├── web_password # Oxidized web UI password
 ```
 
-Kubernetes secret: `oxidized-secrets`
-- `ios_username`
-- `ios_password`
-- `ios_enable_password`
-- `nxos_username`
-- `nxos_password`
-- `netbox_token`
+**Kubernetes Secret:** `oxidized-secrets` (managed by ExternalSecret)
+- `ios_username` → from cisco-switch.user
+- `ios_password` → from cisco-switch.password
+- `ios_enable_password` → from cisco-switch.password
+- `nxos_username` → from cisco-switch.user
+- `nxos_password` → from cisco-switch.password
+- `netbox_token` → from netbox.api_token
+- `oxidized_password` → from oxidized.web_password
+
+**Auto-sync:** External Secrets Operator refreshes every 5 minutes from Vault
+
+**Manual Sync (Deprecated):**
+The `sync-secrets.sh` script is deprecated. Use ExternalSecret for automatic sync.
+
+See: `/docs/vault-external-secrets.md` for details
 
 ## Model Mapping
 
