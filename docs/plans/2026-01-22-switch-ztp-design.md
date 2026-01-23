@@ -1,7 +1,29 @@
 # Zero Touch Provisioning for Cisco Switches Design
 
 **Date:** 2026-01-22
-**Status:** Design Complete, Ready for Implementation
+**Status:** Partially Implemented
+
+## Implementation Status
+
+**Completed (2026-01-23):**
+- ✅ Oxidized configuration backup deployed and working
+  - Backing up mgmt-sw-01 via SSH (credentials from `secret/infrastructure/cisco-switch`)
+  - Git repository storing configs at `/opt/oxidized/configs.git`
+  - Pod: `oxidized-7df49cdc9f-qfnr9` in `oxidized` namespace
+- ✅ SNMP exporter deployed and collecting metrics
+  - Namespace: `snmp-exporter`
+  - Using SNMPv2c with community string `lanmine-monitor`
+  - Module: `if_mib` (standard interface metrics)
+  - Targets: OPNsense (10.0.10.1) and mgmt-sw-01 (10.0.99.101)
+  - Switch ACL 99 allows Kubernetes pod network (10.244.0.0/16)
+  - Metrics available in Prometheus: ifOperStatus, ifHCInOctets, ifHCOutOctets, etc.
+
+**Pending:**
+- NetBox deployment and integration
+- TACACS+ with Authentik
+- Ansible ZTP playbooks
+- TFTP server configuration
+- Full switch templates (core-nexus.j2, edge-ios.j2)
 
 ## Overview
 
@@ -547,39 +569,48 @@ Configure Prometheus alerts for:
 ### Prometheus SNMP Exporter
 
 **Deployment:**
-- Kubernetes namespace: `monitoring`
-- ConfigMap: Cisco IOS/NX-OS MIBs
+- Kubernetes namespace: `snmp-exporter`
+- Auth: SNMPv2c community string `lanmine-monitor`
+- Module: `if_mib` (standard IF-MIB metrics)
+- File: `kubernetes/infrastructure/snmp-exporter/snmp-exporter.yaml`
+
+**Switch ACL Requirement:**
+```cisco
+! Allow SNMP queries from Kubernetes pod network
+access-list 99 permit 10.0.10.0 0.0.0.255  # Infrastructure VLAN
+access-list 99 permit 10.244.0.0 0.0.255.255  # Kubernetes pods
+```
 
 **Metrics Collected:**
-- Interface traffic (bytes/packets in/out)
-- Interface errors (CRC, collisions, drops)
-- CPU usage (1min, 5min averages)
-- Memory usage (used/free)
-- Temperature sensors
-- Fan speeds
-- Power supply status
+- Interface traffic: ifHCInOctets, ifHCOutOctets (64-bit counters)
+- Interface status: ifOperStatus, ifAdminStatus
+- Interface info: ifDescr, ifName, ifType, ifSpeed, ifHighSpeed
+- Interface errors: ifInErrors, ifOutErrors
+- Interface packets: ifInUcastPkts, ifOutUcastPkts
+- System info: sysUpTime, sysName
 
 **ServiceMonitor:**
 ```yaml
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: switches-snmp
+  name: snmp-exporter
   namespace: monitoring
 spec:
   endpoints:
   - port: http
-    interval: 30s
+    interval: 60s
+    scrapeTimeout: 30s
     path: /snmp
     params:
-      module: [cisco_ios]
+      module: [if_mib]
+      auth: [lanmine]
+      target: [10.0.99.101]  # mgmt-sw-01 on VLAN 99
     relabelings:
-    - sourceLabels: [__address__]
-      targetLabel: __param_target
     - sourceLabels: [__param_target]
       targetLabel: instance
-    - targetLabel: __address__
-      replacement: snmp-exporter:9116
+    - targetLabel: device
+      replacement: mgmt-sw-01
   selector:
     matchLabels:
       app: snmp-exporter
