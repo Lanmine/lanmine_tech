@@ -1,0 +1,50 @@
+---
+- name: Configure systemd-resolved DNS routing for lanmine.local on localhost
+  hosts: localhost
+  become: yes
+  gather_facts: no
+
+  tasks:
+    - name: Create systemd service to configure DNS routing on boot
+      copy:
+        dest: /etc/systemd/system/lanmine-dns-routing.service
+        content: |
+          [Unit]
+          Description=Configure DNS routing for lanmine.local domain
+          After=network-online.target systemd-resolved.service
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/bin/resolvectl domain ens18 ~lanmine.local
+          RemainAfterExit=yes
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+      register: service_file
+
+    - name: Enable and start lanmine-dns-routing service
+      systemd:
+        name: lanmine-dns-routing
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Configure DNS routing domain immediately
+      command: resolvectl domain ens18 ~lanmine.local
+      changed_when: false
+
+    - name: Wait for DNS configuration to propagate
+      wait_for:
+        timeout: 3
+
+    - name: Test lanmine.local DNS resolution
+      command: dig +short vault.lanmine.local
+      register: dns_test
+      changed_when: false
+      failed_when: dns_test.stdout != '10.0.10.21'
+
+    - name: Display DNS test result
+      debug:
+        msg: "vault.lanmine.local resolves to {{ dns_test.stdout }}"
