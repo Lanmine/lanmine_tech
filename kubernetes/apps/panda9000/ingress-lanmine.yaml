@@ -1,0 +1,26 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: panda9000-lanmine
+  namespace: default
+  annotations:
+    cert-manager.io/cluster-issuer: vault-issuer
+    cert-manager.io/common-name: panda.lanmine.local
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - panda.lanmine.local
+      secretName: panda-lanmine-tls
+  rules:
+    - host: panda.lanmine.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: panda9000-external
+                port:
+                  number: 8080

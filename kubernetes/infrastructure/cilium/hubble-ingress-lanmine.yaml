@@ -1,0 +1,26 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hubble-ui-lanmine
+  namespace: cilium
+  annotations:
+    cert-manager.io/cluster-issuer: vault-issuer
+    cert-manager.io/common-name: hubble.lanmine.local
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - hubble.lanmine.local
+      secretName: hubble-lanmine-tls
+  rules:
+    - host: hubble.lanmine.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hubble-ui
+                port:
+                  number: 80

@@ -1,0 +1,26 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: glance-lanmine
+  namespace: glance
+  annotations:
+    cert-manager.io/cluster-issuer: vault-issuer
+    cert-manager.io/common-name: glance.lanmine.local
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - glance.lanmine.local
+      secretName: glance-lanmine-tls
+  rules:
+    - host: glance.lanmine.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: glance
+                port:
+                  number: 8080
