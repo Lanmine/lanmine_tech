@@ -2,12 +2,7 @@
 - name: Configure OPNsense DNS for WAN Resilience
   hosts: opnsense
   gather_facts: yes
-  become: yes
-
-  vars:
-    ansible_connection: ssh
-    ansible_user: root
-    ansible_ssh_pass: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/opnsense', validate_certs=true).secret.root_password }}"
+  # Note: Connecting as root directly via SSH key (2FA bypassed for key auth)
 
   roles:
     - opnsense_dns

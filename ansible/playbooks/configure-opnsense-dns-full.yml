@@ -1,0 +1,127 @@
+---
+- name: Configure OPNsense DNS via Config.XML and Template
+  hosts: localhost
+  gather_facts: no
+
+  tasks:
+    - name: Create PHP script to add custom DNS options
+      copy:
+        dest: /tmp/add-opnsense-dns.php
+        content: |
+          <?php
+          // Add custom DNS options to OPNsense config.xml
+          $config_file = '/conf/config.xml';
+          $backup_file = '/conf/config.xml.pre-lanmine-' . date('Ymd-His');
+
+          // Load config
+          $config = file_get_contents($config_file);
+
+          // Check if already configured
+          if (strpos($config, 'lanmine.local') !== false) {
+              echo "DNS already configured\n";
+              exit(0);
+          }
+
+          // Create backup
+          copy($config_file, $backup_file);
+
+          $custom_dns = <<<'EOF'
+          # WAN Resilience - lanmine.local domain
+          local-zone: "lanmine.local." static
+          local-data: "vault.lanmine.local. IN A 10.0.10.21"
+          local-data: "postgres.lanmine.local. IN A 10.0.10.23"
+          local-data: "authentik.lanmine.local. IN A 10.0.10.25"
+          local-data: "akvorado.lanmine.local. IN A 10.0.10.26"
+          local-data: "n8n.lanmine.local. IN A 10.0.10.27"
+          local-data: "proxmox.lanmine.local. IN A 10.0.10.5"
+          local-data: "opnsense.lanmine.local. IN A 10.0.10.1"
+          local-data: "grafana.lanmine.local. IN A 10.0.10.40"
+          local-data: "netbox.lanmine.local. IN A 10.0.10.40"
+          local-data: "argocd.lanmine.local. IN A 10.0.10.40"
+          local-data: "prometheus.lanmine.local. IN A 10.0.10.40"
+          local-data: "alertmanager.lanmine.local. IN A 10.0.10.40"
+          local-data: "hubble.lanmine.local. IN A 10.0.10.40"
+          local-data: "uptime.lanmine.local. IN A 10.0.10.40"
+          local-data: "panda.lanmine.local. IN A 10.0.10.40"
+          local-data: "glance.lanmine.local. IN A 10.0.10.40"
+          local-data: "traefik.lanmine.local. IN A 10.0.10.40"
+          local-data-ptr: "10.0.10.21 vault.lanmine.local"
+          local-data-ptr: "10.0.10.23 postgres.lanmine.local"
+          local-data-ptr: "10.0.10.25 authentik.lanmine.local"
+          local-data-ptr: "10.0.10.26 akvorado.lanmine.local"
+          local-data-ptr: "10.0.10.27 n8n.lanmine.local"
+          local-data-ptr: "10.0.10.5 proxmox.lanmine.local"
+          local-data-ptr: "10.0.10.1 opnsense.lanmine.local"
+          local-data-ptr: "10.0.10.40 grafana.lanmine.local"
+          EOF;
+
+          // Add custom_options element before </advanced>
+          $custom_element = "        <custom_options><![CDATA[" . $custom_dns . "]]></custom_options>\n      </advanced>";
+          $config = str_replace('      </advanced>', $custom_element, $config);
+
+          // Write config
+          file_put_contents($config_file, $config);
+          echo "Custom DNS options added successfully\n";
+          ?>
+        mode: '0644'
+
+    - name: Copy PHP script to OPNsense
+      command: scp /tmp/add-opnsense-dns.php root@10.0.10.1:/tmp/
+
+    - name: Execute PHP script on OPNsense
+      command: ssh root@10.0.10.1 'php /tmp/add-opnsense-dns.php'
+      register: php_result
+
+    - name: Display PHP script result
+      debug:
+        msg: "{{ php_result.stdout }}"
+
+    - name: Create template append content
+      copy:
+        dest: /tmp/advanced-append.txt
+        content: |
+
+          {% if not helpers.empty('OPNsense.unboundplus.advanced.custom_options') %}
+          {{ OPNsense.unboundplus.advanced.custom_options }}
+          {% endif %}
+        mode: '0644'
+
+    - name: Copy template append to OPNsense
+      command: scp /tmp/advanced-append.txt root@10.0.10.1:/tmp/
+
+    - name: Append custom_options to Unbound template
+      command: ssh root@10.0.10.1 'cat /tmp/advanced-append.txt >> /usr/local/opnsense/service/templates/OPNsense/Unbound/core/advanced.conf'
+      register: template_result
+
+    - name: Reload Unbound templates
+      command: ssh root@10.0.10.1 'configctl template reload OPNsense/Unbound'
+      register: reload_result
+      failed_when: false
+
+    - name: Restart Unbound service
+      command: ssh root@10.0.10.1 'configctl unbound restart'
+      register: restart_result
+
+    - name: Display restart result
+      debug:
+        msg: "{{ restart_result.stdout }}"
+
+    - name: Wait for Unbound to start
+      pause:
+        seconds: 5
+
+    - name: Test DNS resolution
+      command: dig +short grafana.lanmine.local @10.0.10.1
+      register: dns_test
+      changed_when: false
+
+    - name: Display DNS test result
+      debug:
+        msg: "grafana.lanmine.local resolves to: {{ dns_test.stdout }}"
+
+    - name: Verify DNS resolution
+      assert:
+        that:
+          - dns_test.stdout == '10.0.10.40'
+        success_msg: "✓ DNS configuration successful!"
+        fail_msg: "✗ DNS resolution failed"

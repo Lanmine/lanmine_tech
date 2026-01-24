@@ -1,12 +1,11 @@
-server:
-  # Local domain authority for {{ local_domain }}
-  local-zone: "{{ local_domain }}." static
+# Local domain authority for {{ local_domain }}
+local-zone: "{{ local_domain }}." static
 
 {% for record in local_dns_records %}
-  local-data: "{{ record.name }}.{{ local_domain }}. IN A {{ record.ip }}"
+local-data: "{{ record.name }}.{{ local_domain }}. IN A {{ record.ip }}"
 {% endfor %}
 
-  # Reverse DNS for local domain
+# Reverse DNS for local domain
 {% for record in local_dns_records %}
-  local-data-ptr: "{{ record.ip }} {{ record.name }}.{{ local_domain }}"
+local-data-ptr: "{{ record.ip }} {{ record.name }}.{{ local_domain }}"
 {% endfor %}
