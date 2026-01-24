@@ -11,237 +11,324 @@
 - Direct access to Authentik (10.0.10.25:9000)
 - Potential for lateral movement or data exfiltration
 
-## Recommended Firewall Rules
+## Network Architecture
 
-### Allow from VLAN 20 to VLAN 10
+```
+┌─────────────────────────────────────────────────────────────┐
+│ VLAN 20 Clients (10.0.20.x)                                │
+│ - Gateway: 10.0.20.1 (OPNsense)                            │
+│ - DNS: 10.0.20.2 (LANcache)                                │
+└────────────────┬────────────────────────────────────────────┘
+                 │
+        ┌────────┴────────┐
+        │                 │
+        ▼                 ▼
+┌──────────────┐   ┌─────────────────────────┐
+│  LANcache    │   │  Internet               │
+│  10.0.20.2   │   │  (via 10.0.20.1)        │
+│              │   │                         │
+│  Needs:      │   └─────────────────────────┘
+│  DNS → 10.0.10.1:53                        │
+└──────────────┘
+```
 
-| Service | Destination | Port | Protocol | Justification |
-|---------|-------------|------|----------|---------------|
-| DNS | 10.0.10.1 | 53 | UDP | Required for name resolution |
-| HTTP/HTTPS (via Traefik) | 10.0.10.40 | 80, 443 | TCP | Access to dashboards (Grafana, etc.) |
+## Key Insight
 
-### Block from VLAN 20 to VLAN 10
+**OPNsense already has an interface on VLAN 20 (10.0.20.1)**
 
-| Service | Destination | Port | Protocol | Reason |
-|---------|-------------|------|----------|--------|
-| **Vault** | 10.0.10.21 | 8200 | TCP | Secrets management - admin only |
-| **PostgreSQL** | 10.0.10.23 | 5432 | TCP | Database - internal only |
-| **Authentik** | 10.0.10.25 | 9000, 9443 | TCP | SSO admin interface - staff only |
-| **Akvorado** | 10.0.10.26 | 8080 | TCP | NetFlow collector - admin only |
-| **n8n** | 10.0.10.27 | 5678 | TCP | Workflow automation - admin only |
-| **All other VLAN 10** | 10.0.10.0/24 | * | * | Default deny |
+This means:
+- Contestants don't need to reach VLAN 10 at all
+- LANcache is on the same VLAN as contestants
+- Only LANcache needs to query OPNsense DNS on VLAN 10
 
-### Services Accessible via Traefik (10.0.10.40)
+## What Contestants Actually Need
 
-Contestants can access these dashboards through Traefik ingress:
-- Grafana (grafana.lanmine.local or grafana.hl0.dev)
-- Uptime Kuma (uptime.lanmine.local)
-- Glance (glance.lanmine.local)
+| Resource | Location | Access Method |
+|----------|----------|---------------|
+| Game downloads | LANcache (10.0.20.2) | Same VLAN ✅ |
+| Internet (YouTube, Discord) | OPNsense gateway (10.0.20.1) | Same VLAN ✅ |
+| DNS resolution | LANcache (10.0.20.2) | Same VLAN ✅ |
+| **Infrastructure dashboards** | **VLAN 10** | **NOT NEEDED** ❌ |
 
-Traefik handles authentication/authorization, so contestants only see public dashboards.
+Contestants don't need Grafana, NetBox, or monitoring - that's for staff only.
 
-## Proposed OPNsense Firewall Configuration
+## Simplified Firewall Rules
 
-### Rule Order (VLAN 20 Interface)
+### OPNsense VLAN020 Interface Rules
 
 ```
 Priority  Action  Source         Destination        Port      Description
-────────────────────────────────────────────────────────────────────────────
-1         Pass    VLAN20         10.0.10.1          53/UDP    DNS to OPNsense
-2         Pass    VLAN20         10.0.10.40         80/TCP    HTTP to Traefik
-3         Pass    VLAN20         10.0.10.40         443/TCP   HTTPS to Traefik
-4         Block   VLAN20         10.0.10.0/24       *         Block infrastructure
-5         Pass    VLAN20         any                *         Allow internet
+─────────────────────────────────────────────────────────────────────────────
+1         Pass    10.0.20.2      10.0.10.1          53/UDP    LANcache DNS upstream
+2         Block   VLAN20 net     10.0.10.0/24       *         Block infrastructure access
+3         Pass    VLAN20 net     any                *         Allow internet
 ```
 
-### Configuration via OPNsense Web UI
+## Configuration via OPNsense Web UI
 
 **Firewall → Rules → VLAN020**
 
-1. **Allow DNS**
-   - Action: Pass
-   - Interface: VLAN020
-   - Protocol: UDP
-   - Source: VLAN020 net
-   - Destination: 10.0.10.1
-   - Destination port: 53
-   - Description: "Allow DNS queries to OPNsense"
+### Rule 1: Allow LANcache DNS Queries
 
-2. **Allow Traefik HTTP**
-   - Action: Pass
-   - Interface: VLAN020
-   - Protocol: TCP
-   - Source: VLAN020 net
-   - Destination: 10.0.10.40
-   - Destination port: 80
-   - Description: "Allow HTTP to Traefik (dashboards)"
+- **Action:** Pass
+- **Interface:** VLAN020
+- **Protocol:** UDP
+- **Source:** Single host: `10.0.20.2`
+- **Destination:** Single host: `10.0.10.1`
+- **Destination port:** 53
+- **Description:** "LANcache DNS upstream to OPNsense"
 
-3. **Allow Traefik HTTPS**
-   - Action: Pass
-   - Interface: VLAN020
-   - Protocol: TCP
-   - Source: VLAN020 net
-   - Destination: 10.0.10.40
-   - Destination port: 443
-   - Description: "Allow HTTPS to Traefik (dashboards)"
+### Rule 2: Block Infrastructure VLAN
 
-4. **Block Infrastructure VLAN**
-   - Action: Block
-   - Interface: VLAN020
-   - Protocol: Any
-   - Source: VLAN020 net
-   - Destination: 10.0.10.0/24
-   - Description: "Block direct access to infrastructure"
-   - Log: Yes (for security monitoring)
+- **Action:** Block
+- **Interface:** VLAN020
+- **Protocol:** Any
+- **Source:** VLAN020 net
+- **Destination:** 10.0.10.0/24
+- **Description:** "Block contestant access to infrastructure"
+- **Log:** Yes (for security monitoring)
 
-5. **Allow Internet**
-   - Action: Pass
-   - Interface: VLAN020
-   - Protocol: Any
-   - Source: VLAN020 net
-   - Destination: any
-   - Description: "Allow internet access"
+### Rule 3: Allow Internet Access
 
-## Alternative: Alias-Based Configuration
+- **Action:** Pass
+- **Interface:** VLAN020
+- **Protocol:** Any
+- **Source:** VLAN020 net
+- **Destination:** any
+- **Description:** "Allow internet access"
 
-Create firewall aliases for easier management:
+## Traffic Flows After Rules
 
-**Firewall → Aliases**
+### Game Download (Works)
 
-### Networks
-- `VLAN10_Infrastructure`: 10.0.10.0/24
-- `VLAN20_Contestants`: 10.0.20.0/23
-
-### Hosts
-- `Infrastructure_OPNsense`: 10.0.10.1
-- `Infrastructure_Traefik`: 10.0.10.40
-- `Infrastructure_Vault`: 10.0.10.21
-- `Infrastructure_PostgreSQL`: 10.0.10.23
-- `Infrastructure_Authentik`: 10.0.10.25
-
-### Port Groups
-- `Traefik_Ports`: 80, 443
-- `DNS_Port`: 53
-
-Then use these aliases in rules for cleaner configuration.
-
-## Monitoring and Alerting
-
-### Log Analysis
-
-Monitor blocked connection attempts:
-```bash
-# View firewall blocks in real-time
-ssh root@10.0.10.1 'clog /var/log/filter.log | grep -i block'
+```
+Contestant → Steam CDN query
+  ↓ DNS to 10.0.20.2
+LANcache-DNS → Intercept, return 10.0.20.2
+  ↓
+Contestant → Download from 10.0.20.2:80/443
+  ↓
+LANcache → Serve cached content
 ```
 
-### Prometheus Alert
+### Internet Website (Works)
 
-Create alert for suspicious VLAN 20 → VLAN 10 traffic:
-
-```yaml
-- name: network_security
-  rules:
-  - alert: VLAN20InfrastructureAccess
-    expr: rate(firewall_blocked_packets{src_vlan="20",dst_vlan="10"}[5m]) > 10
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "High rate of blocked packets from VLAN 20 to infrastructure"
-      description: "Contestants may be scanning infrastructure network"
 ```
+Contestant → youtube.com query
+  ↓ DNS to 10.0.20.2
+LANcache-DNS → Not a CDN, forward to 10.0.10.1 ✅ (Rule 1 allows)
+  ↓
+OPNsense → Resolve via Cloudflare
+  ↓
+Contestant → Connect to YouTube via gateway 10.0.20.1
+```
+
+### Infrastructure Access Attempt (Blocked)
+
+```
+Contestant → Try to access vault.lanmine.local
+  ↓ DNS to 10.0.20.2
+LANcache-DNS → Forward to 10.0.10.1, get 10.0.10.21
+  ↓
+Contestant → Try HTTPS to 10.0.10.21:8200
+  ❌ BLOCKED by Rule 2 (destination 10.0.10.0/24)
+```
+
+## What Gets Blocked
+
+All direct access from VLAN 20 clients to VLAN 10:
+
+| Service | IP | Port | Impact |
+|---------|-----|------|--------|
+| Vault | 10.0.10.21 | 8200 | ❌ Blocked |
+| PostgreSQL | 10.0.10.23 | 5432 | ❌ Blocked |
+| Authentik | 10.0.10.25 | 9000 | ❌ Blocked |
+| Akvorado | 10.0.10.26 | 8080 | ❌ Blocked |
+| n8n | 10.0.10.27 | 5678 | ❌ Blocked |
+| Kubernetes services | 10.0.10.40 | 80, 443 | ❌ Blocked |
+| **All VLAN 10** | 10.0.10.0/24 | * | ❌ Blocked |
+
+**Exception:** LANcache (10.0.20.2) can still query OPNsense DNS (10.0.10.1:53)
+
+## Staff Access to Infrastructure
+
+Staff should use Tailscale VPN to access infrastructure services:
+
+- Grafana: https://grafana.lionfish-caiman.ts.net
+- Vault: https://vault-01.lionfish-caiman.ts.net:8200
+- NetBox: https://netbox.lionfish-caiman.ts.net
+- Completely bypasses VLAN restrictions
+
+Or connect from VLAN 10 management network.
 
 ## Testing the Rules
 
-### Before Applying Rules
+### Before Applying (Current State)
 
-Test current access from a VLAN 20 client:
+From a VLAN 20 client:
+
 ```bash
-# Should succeed (currently no restrictions)
+# Currently works (should be blocked)
 curl -k https://10.0.10.21:8200/v1/sys/health
-curl http://10.0.10.23:5432  # Should connect to PostgreSQL
+telnet 10.0.10.23 5432
 ```
 
 ### After Applying Rules
 
-Test restricted access:
+From a VLAN 20 client:
+
 ```bash
 # Should timeout/be blocked
-curl -k --max-time 5 https://10.0.10.21:8200/v1/sys/health  # Vault blocked
-curl --max-time 5 http://10.0.10.23:5432  # PostgreSQL blocked
+curl -k --max-time 5 https://10.0.10.21:8200  # Vault blocked
+telnet 10.0.10.23 5432  # PostgreSQL blocked
+curl --max-time 5 http://10.0.10.40  # Traefik blocked
 
-# Should succeed
-dig @10.0.10.1 grafana.lanmine.local  # DNS allowed
-curl https://10.0.10.40  # Traefik allowed
-curl https://grafana.lanmine.local  # Dashboard via Traefik allowed
+# Should work
+ping 10.0.20.2  # LANcache (same VLAN)
+dig @10.0.20.2 steampowered.com  # DNS via LANcache
+curl https://youtube.com  # Internet access
+```
+
+### From LANcache Server
+
+```bash
+ssh ubuntu@10.0.20.2
+dig @10.0.10.1 vault.lanmine.local  # Should work (Rule 1)
+```
+
+## Monitoring
+
+### View Blocked Connection Attempts
+
+```bash
+# SSH to OPNsense
+ssh root@10.0.10.1
+
+# View firewall logs
+clog /var/log/filter.log | grep -i block | grep "10.0.20"
+```
+
+### Expected Log Entries
+
+```
+Jan 24 13:00:00 filterlog: 5,,,1000000103,igb2,match,block,in,4,0x0,,64,12345,0,none,6,tcp,60,10.0.20.50,10.0.10.21,54321,8200,0,S,1234567890,,64240,,mss
+```
+
+This shows a blocked attempt from 10.0.20.50 trying to reach 10.0.10.21:8200 (Vault).
+
+### Prometheus Alert
+
+```yaml
+- name: network_security
+  rules:
+  - alert: ContestantInfrastructureAccess
+    expr: rate(firewall_blocked_packets{src_vlan="20",dst_net="10.0.10.0/24"}[5m]) > 5
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Contestants attempting to access infrastructure VLAN"
+      description: "High rate of blocked packets from VLAN 20 to VLAN 10"
 ```
 
 ## Rollback Plan
 
-If firewall rules cause issues:
+If rules cause issues:
 
-1. **Via Web UI:** Disable the blocking rule temporarily
-2. **Via SSH:**
-   ```bash
-   ssh root@10.0.10.1
-   pfctl -d  # Disable firewall (emergency only!)
-   ```
-3. **Via Console:** Physical access to OPNsense console
+### Via Web UI
+1. Navigate to **Firewall → Rules → VLAN020**
+2. Disable the blocking rule (Rule 2)
+3. Click **Apply Changes**
 
-## Additional Security Layers
-
-### 1. Traefik Middlewares
-
-Add authentication to dashboards:
-```yaml
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: contestant-auth
-spec:
-  basicAuth:
-    secret: contestant-credentials
+### Via SSH (Emergency)
+```bash
+ssh root@10.0.10.1
+pfctl -d  # Disable packet filter (EMERGENCY ONLY)
+configctl filter reload  # Reload with original rules
 ```
 
-### 2. Network Policies (Kubernetes)
+### Via Console
+Physical access to OPNsense console to disable firewall
 
-Restrict pod-to-pod communication:
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: deny-from-vlan20
-spec:
-  podSelector: {}
-  policyTypes:
-  - Ingress
-  ingress:
-  - from:
-    - ipBlock:
-        cidr: 10.0.10.0/24  # Only allow from infrastructure VLAN
+## Alternative: Per-Service Blocking
+
+Instead of blocking entire VLAN 10, block specific services:
+
+```
+1. Block 10.0.10.21:8200 (Vault)
+2. Block 10.0.10.23:5432 (PostgreSQL)
+3. Block 10.0.10.25:9000,9443 (Authentik)
+4. Block 10.0.10.26:8080 (Akvorado)
+5. Block 10.0.10.27:5678 (n8n)
+6. Allow rest
 ```
 
-### 3. VPN Access for Admins
+**Not recommended:** More complex, easy to miss a service, default-deny is more secure.
 
-Staff access to infrastructure services via Tailscale:
-- Vault: https://vault-01.lionfish-caiman.ts.net:8200
-- Authentik: https://authentik.lionfish-caiman.ts.net:9000
-- Bypass VLAN restrictions entirely
+## Implementation Checklist
 
-## Implementation Steps
+- [ ] Backup OPNsense config (**System → Configuration → Backups**)
+- [ ] Take screenshot of current VLAN020 rules (for rollback reference)
+- [ ] Add Rule 1: Allow LANcache DNS (10.0.20.2 → 10.0.10.1:53)
+- [ ] Add Rule 2: Block VLAN 10 access (VLAN20 net → 10.0.10.0/24)
+- [ ] Add Rule 3: Allow internet (VLAN20 net → any)
+- [ ] Apply changes
+- [ ] Test from VLAN 20 client (ping, DNS, game download, infrastructure block)
+- [ ] Monitor logs during first hour
+- [ ] Document any issues or exceptions needed
 
-1. **Backup current firewall config** (OPNsense Web UI → System → Configuration → Backups)
-2. **Create aliases** for cleaner rules
-3. **Add rules in order** (DNS, Traefik, Block, Allow Internet)
-4. **Test from VLAN 20 client** before event
-5. **Monitor logs** during event for blocked attempts
-6. **Document any exceptions** needed during event
+## Additional Security Measures
+
+### 1. Rate Limiting (DNS)
+
+Prevent DNS amplification attacks:
+```
+Services → Unbound DNS → Advanced
+  Rate Limiting: 1000 queries/second per IP
+```
+
+### 2. Private RFC1918 Blocking
+
+Prevent contestants from spoofing private IPs:
+```
+Firewall → Rules → VLAN020
+  Block source: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+  (except VLAN 20 subnet)
+```
+
+### 3. Egress Filtering
+
+Block outbound traffic to bogon networks:
+```
+Firewall → Rules → VLAN020
+  Block destination: RFC1918, Multicast, Reserved
+```
+
+### 4. MAC Address Filtering (Optional)
+
+For high-security events, whitelist known MAC addresses:
+```
+Services → DHCPv4 → [VLAN020]
+  Deny unknown clients: Yes
+```
 
 ## Future Enhancements
 
-1. **VLAN 30 (OOB/iDRAC):** Similar restrictions to VLAN 20
-2. **Rate Limiting:** Limit DNS queries per IP to prevent abuse
-3. **IDS/IPS:** Deploy Suricata on OPNsense for threat detection
-4. **802.1X:** Port-based authentication for switch access
-5. **VLAN Tagging:** Dynamic VLAN assignment based on device type
+1. **VLAN 30 Isolation:** Apply same rules to OOB/iDRAC VLAN
+2. **IDS/IPS:** Deploy Suricata on OPNsense
+3. **802.1X:** Port-based authentication on switches
+4. **Honeypot:** Deploy fake services on VLAN 10 to detect scanning
+5. **Automatic Blocking:** Auto-block IPs with >100 blocked attempts
+
+## Summary
+
+**Simple 3-Rule Firewall:**
+1. ✅ Allow LANcache → OPNsense DNS (10.0.20.2 → 10.0.10.1:53)
+2. ❌ Block all VLAN 20 → VLAN 10 (10.0.20.0/23 → 10.0.10.0/24)
+3. ✅ Allow internet access (VLAN 20 → any)
+
+**Result:**
+- Contestants get game downloads and internet
+- Infrastructure protected from contestant access
+- LANcache can still resolve domains via OPNsense
+- Simple to understand, audit, and maintain
