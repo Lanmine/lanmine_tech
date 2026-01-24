@@ -133,8 +133,7 @@ All workflows authenticate to Vault via AppRole using repository secrets: `VAULT
 | akvorado-01 | 10.0.10.26 | Akvorado network flow collector |
 | n8n-01 | 10.0.10.27 | n8n workflow automation |
 | talos-cp-01 | 10.0.10.30 | Talos Kubernetes control plane |
-| talos-worker-01 | 10.0.10.31 | Talos Kubernetes worker |
-| talos-worker-02 | 10.0.10.32 | Talos Kubernetes worker |
+| talos-bdg-qhb | 10.0.10.102 | Talos Kubernetes worker |
 | ubuntu-mgmt02 | 10.0.20.2 | LANcache server (Dell R630, VLAN 20) |
 
 ## Kubernetes Cluster
@@ -301,7 +300,7 @@ Comprehensive monitoring stack with 100% device coverage (12/12 devices).
 
 *node-exporter DaemonSet:*
 - Deployed to: `node-exporter` namespace
-- Monitors: talos-cp-01, talos-worker-01, talos-worker-02
+- Monitors: talos-cp-01, talos-bdg-qhb
 - Metrics: CPU, memory, disk, network, system stats
 - Manifest: `kubernetes/infrastructure/node-exporter/daemonset.yaml`
 - Namespace: Privileged (required for host access)
@@ -408,9 +407,8 @@ Comprehensive monitoring stack with 100% device coverage (12/12 devices).
 | lancache | ✓ | - | ✓ | 100% |
 | mgmt-sw-01 | ✓ | - | ✓ | 100% |
 | talos-cp-01 | - | ✓ | ✓ | 100% |
-| talos-worker-01 | - | ✓ | ✓ | 100% |
-| talos-worker-02 | - | ✓ | ✓ | 100% |
-| **Total** | **9** | **3** | **16** | **100%** |
+| talos-bdg-qhb | - | ✓ | ✓ | 100% |
+| **Total** | **9** | **2** | **13** | **100%** |
 
 ### Cloudflare DNS (hl0.dev)
 
