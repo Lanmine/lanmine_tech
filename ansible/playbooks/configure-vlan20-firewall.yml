@@ -1,0 +1,157 @@
+---
+- name: Configure VLAN 20 firewall rules on OPNsense via SSH
+  hosts: localhost
+  gather_facts: no
+
+  tasks:
+    - name: Create PHP script to add VLAN 20 firewall rules
+      copy:
+        dest: /tmp/configure-vlan20-firewall.php
+        content: |
+          <?php
+          // Add VLAN 20 firewall rules to OPNsense config.xml
+
+          $config_file = '/conf/config.xml';
+          $backup_file = '/conf/config.xml.pre-vlan20-firewall-' . date('Ymd-His');
+
+          // Load config
+          $xml = simplexml_load_file($config_file);
+          if ($xml === false) {
+              echo "Failed to load config.xml\n";
+              exit(1);
+          }
+
+          // Find VLAN 20 interface name
+          $vlan20_if = null;
+          foreach ($xml->interfaces->children() as $ifname => $if) {
+              if (isset($if->if) && strpos((string)$if->if, 'vlan') !== false) {
+                  // Check if this VLAN has tag 20
+                  $vlan_if = (string)$if->if;
+                  foreach ($xml->vlans->vlan as $vlan) {
+                      if ((string)$vlan->if === $vlan_if && (string)$vlan->tag === '20') {
+                          $vlan20_if = $ifname;
+                          echo "Found VLAN 20 interface: $ifname\n";
+                          break 2;
+                      }
+                  }
+              }
+          }
+
+          if (!$vlan20_if) {
+              echo "Error: Could not find VLAN 20 interface\n";
+              exit(1);
+          }
+
+          // Create backup
+          copy($config_file, $backup_file);
+          echo "Created backup: $backup_file\n";
+
+          // Check if rules already exist
+          $existing_rules = 0;
+          if (isset($xml->filter->rule)) {
+              foreach ($xml->filter->rule as $rule) {
+                  if (isset($rule->descr) &&
+                      (strpos((string)$rule->descr, 'LANcache DNS upstream') !== false ||
+                       strpos((string)$rule->descr, 'Block contestant access') !== false)) {
+                      $existing_rules++;
+                  }
+              }
+          }
+
+          if ($existing_rules > 0) {
+              echo "Warning: Found $existing_rules existing VLAN 20 rules\n";
+              echo "Remove them manually first if needed\n";
+              exit(0);
+          }
+
+          // Create filter section if it doesn't exist
+          if (!isset($xml->filter)) {
+              $xml->addChild('filter');
+          }
+
+          // Rule 1: Allow LANcache DNS to OPNsense
+          $rule1 = $xml->filter->addChild('rule');
+          $rule1->addChild('type', 'pass');
+          $rule1->addChild('interface', $vlan20_if);
+          $rule1->addChild('ipprotocol', 'inet');
+          $rule1->addChild('protocol', 'udp');
+          $source1 = $rule1->addChild('source');
+          $source1->addChild('address', '10.0.20.2/32');
+          $destination1 = $rule1->addChild('destination');
+          $destination1->addChild('address', '10.0.10.1/32');
+          $destination1->addChild('port', '53');
+          $rule1->addChild('descr', 'Allow LANcache DNS upstream to OPNsense');
+          echo "Added Rule 1: Allow LANcache DNS\n";
+
+          // Rule 2: Block VLAN 20 to VLAN 10
+          $rule2 = $xml->filter->addChild('rule');
+          $rule2->addChild('type', 'block');
+          $rule2->addChild('interface', $vlan20_if);
+          $rule2->addChild('ipprotocol', 'inet');
+          $rule2->addChild('protocol', 'any');
+          $rule2->addChild('log', '1');
+          $source2 = $rule2->addChild('source');
+          $source2->addChild('network', $vlan20_if);
+          $destination2 = $rule2->addChild('destination');
+          $destination2->addChild('address', '10.0.10.0/24');
+          $rule2->addChild('descr', 'Block contestant access to infrastructure VLAN');
+          echo "Added Rule 2: Block infrastructure access\n";
+
+          // Rule 3: Allow internet access (actually handled by default rule, but explicit is better)
+          $rule3 = $xml->filter->addChild('rule');
+          $rule3->addChild('type', 'pass');
+          $rule3->addChild('interface', $vlan20_if);
+          $rule3->addChild('ipprotocol', 'inet');
+          $rule3->addChild('protocol', 'any');
+          $source3 = $rule3->addChild('source');
+          $source3->addChild('network', $vlan20_if);
+          $destination3 = $rule3->addChild('destination');
+          $destination3->addChild('any');
+          $rule3->addChild('descr', 'Allow internet access');
+          echo "Added Rule 3: Allow internet\n";
+
+          // Save XML with proper formatting
+          $dom = new DOMDocument('1.0');
+          $dom->preserveWhiteSpace = false;
+          $dom->formatOutput = true;
+          $dom->loadXML($xml->asXML());
+          $dom->save($config_file);
+
+          echo "\n=== Configuration updated successfully ===\n";
+          echo "3 firewall rules added to interface: $vlan20_if\n";
+          echo "Backup saved: $backup_file\n";
+          ?>
+        mode: '0644'
+
+    - name: Copy PHP script to OPNsense
+      command: scp /tmp/configure-vlan20-firewall.php root@10.0.10.1:/tmp/
+
+    - name: Execute PHP script on OPNsense
+      command: ssh root@10.0.10.1 'php /tmp/configure-vlan20-firewall.php'
+      register: php_result
+
+    - name: Display configuration result
+      debug:
+        msg: "{{ php_result.stdout_lines }}"
+
+    - name: Reload firewall filter
+      command: ssh root@10.0.10.1 'configctl filter reload'
+      register: reload_result
+
+    - name: Display reload result
+      debug:
+        msg: "{{ reload_result.stdout }}"
+
+    - name: Wait for firewall to apply
+      pause:
+        seconds: 3
+
+    - name: Test firewall rules - verify LANcache can reach OPNsense DNS
+      command: ssh root@10.0.10.1 'pfctl -sr | grep -i lancache'
+      register: rule_check
+      failed_when: false
+      changed_when: false
+
+    - name: Display active firewall rules for VLAN 20
+      debug:
+        msg: "{{ rule_check.stdout_lines if rule_check.stdout_lines is defined else 'No matching rules found in output' }}"

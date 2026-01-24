@@ -64,7 +64,22 @@ Priority  Action  Source         Destination        Port      Description
 3         Pass    VLAN20 net     any                *         Allow internet
 ```
 
-## Configuration via OPNsense Web UI
+## Configuration via Ansible (Automated)
+
+**Run the playbook:**
+```bash
+cd ansible
+ansible-playbook playbooks/configure-vlan20-firewall.yml
+```
+
+The playbook will:
+1. Auto-detect VLAN 20 interface name
+2. Create backup of config.xml
+3. Add the 3 firewall rules via PHP/SSH
+4. Reload firewall configuration
+5. Verify rules are active
+
+## Configuration via OPNsense Web UI (Manual Alternative)
 
 **Firewall → Rules → VLAN020**
 
