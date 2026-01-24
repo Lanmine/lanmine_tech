@@ -21,24 +21,18 @@
               exit(1);
           }
 
-          // Find VLAN 20 interface name
+          // Find VLAN 20 interface by IP address (10.0.20.1)
           $vlan20_if = null;
           foreach ($xml->interfaces->children() as $ifname => $if) {
-              if (isset($if->if) && strpos((string)$if->if, 'vlan') !== false) {
-                  // Check if this VLAN has tag 20
-                  $vlan_if = (string)$if->if;
-                  foreach ($xml->vlans->vlan as $vlan) {
-                      if ((string)$vlan->if === $vlan_if && (string)$vlan->tag === '20') {
-                          $vlan20_if = $ifname;
-                          echo "Found VLAN 20 interface: $ifname\n";
-                          break 2;
-                      }
-                  }
+              if (isset($if->ipaddr) && (string)$if->ipaddr === '10.0.20.1') {
+                  $vlan20_if = $ifname;
+                  echo "Found VLAN 20 interface: $ifname (IP: 10.0.20.1)\n";
+                  break;
               }
           }
 
           if (!$vlan20_if) {
-              echo "Error: Could not find VLAN 20 interface\n";
+              echo "Error: Could not find VLAN 20 interface with IP 10.0.20.1\n";
               exit(1);
           }
 
