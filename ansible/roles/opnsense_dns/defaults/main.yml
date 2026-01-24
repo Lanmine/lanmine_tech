@@ -1,0 +1,54 @@
+---
+# OPNsense DNS configuration
+opnsense_api_url: "https://10.0.10.1"
+opnsense_api_key: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/opnsense', validate_certs=true).secret.api_key }}"
+opnsense_api_secret: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/opnsense', validate_certs=true).secret.api_secret }}"
+
+# Local domain configuration
+local_domain: "lanmine.local"
+
+# DNS records for lanmine.local
+local_dns_records:
+  # Infrastructure VMs
+  - name: vault
+    ip: 10.0.10.21
+  - name: postgres
+    ip: 10.0.10.23
+  - name: authentik
+    ip: 10.0.10.25
+  - name: akvorado
+    ip: 10.0.10.26
+  - name: n8n
+    ip: 10.0.10.27
+  - name: proxmox
+    ip: 10.0.10.5
+  - name: opnsense
+    ip: 10.0.10.1
+
+  # Kubernetes services (via Traefik LoadBalancer)
+  - name: grafana
+    ip: 10.0.10.40
+  - name: netbox
+    ip: 10.0.10.40
+  - name: argocd
+    ip: 10.0.10.40
+  - name: prometheus
+    ip: 10.0.10.40
+  - name: alertmanager
+    ip: 10.0.10.40
+  - name: hubble
+    ip: 10.0.10.40
+  - name: uptime
+    ip: 10.0.10.40
+  - name: panda
+    ip: 10.0.10.40
+  - name: glance
+    ip: 10.0.10.40
+  - name: traefik
+    ip: 10.0.10.40
+
+# Domain overrides
+domain_overrides:
+  - domain: hl0.dev
+    ip: 10.0.10.40
+    description: "Cloudflare domain override (WAN-resilient)"

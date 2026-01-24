@@ -1,0 +1,4 @@
+---
+- name: restart unbound
+  command: /usr/local/etc/rc.d/unbound restart
+  listen: restart unbound

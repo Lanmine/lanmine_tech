@@ -1,0 +1,56 @@
+---
+- name: Generate Unbound custom configuration
+  template:
+    src: unbound-custom.conf.j2
+    dest: /tmp/unbound-custom.conf
+  delegate_to: localhost
+
+- name: Display generated Unbound configuration
+  debug:
+    msg: "{{ lookup('file', '/tmp/unbound-custom.conf') }}"
+
+- name: Copy Unbound custom configuration to OPNsense
+  copy:
+    src: /tmp/unbound-custom.conf
+    dest: /var/unbound/unbound.conf.d/lanmine-local.conf
+    owner: root
+    group: wheel
+    mode: '0644'
+  notify: restart unbound
+
+- name: Clean up temporary file
+  file:
+    path: /tmp/unbound-custom.conf
+    state: absent
+  delegate_to: localhost
+
+- name: Generate domain override configuration
+  set_fact:
+    domain_override_config: |
+      # Domain overrides for WAN-resilient DNS
+      {% for override in domain_overrides %}
+      forward-zone:
+        name: "{{ override.domain }}"
+        forward-addr: {{ override.ip }}@853
+      {% endfor %}
+
+- name: Display domain override configuration
+  debug:
+    msg: "Domain override configuration generated. Manual configuration required in OPNsense UI."
+    verbosity: 0
+
+- name: Instructions for domain override
+  debug:
+    msg: |
+      Manual step required: Configure domain override in OPNsense UI
+
+      Navigate to: Services → Unbound DNS → Query Forwarding
+
+      For each domain override:
+      {% for override in domain_overrides %}
+      - Domain: {{ override.domain }}
+        Server IP: {{ override.ip }}
+        Description: {{ override.description }}
+      {% endfor %}
+
+      Alternatively, use OPNsense API (future automation).

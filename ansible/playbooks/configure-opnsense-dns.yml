@@ -1,0 +1,44 @@
+---
+- name: Configure OPNsense DNS for WAN Resilience
+  hosts: opnsense
+  gather_facts: yes
+  become: yes
+
+  vars:
+    ansible_connection: ssh
+    ansible_user: root
+    ansible_ssh_pass: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/opnsense', validate_certs=true).secret.root_password }}"
+
+  roles:
+    - opnsense_dns
+
+  post_tasks:
+    - name: Verify Unbound configuration syntax
+      command: unbound-checkconf
+      register: unbound_check
+      changed_when: false
+      failed_when: unbound_check.rc != 0
+
+    - name: Display verification result
+      debug:
+        msg: "Unbound configuration valid: {{ unbound_check.stdout }}"
+
+    - name: Create DNS test results directory
+      file:
+        path: /tmp/dns-tests
+        state: directory
+      delegate_to: localhost
+
+    - name: Test lanmine.local resolution
+      command: dig +short {{ item.name }}.lanmine.local @10.0.10.1
+      loop: "{{ local_dns_records[:5] }}"
+      register: dns_test_results
+      delegate_to: localhost
+      changed_when: false
+      failed_when: false
+
+    - name: Display DNS test results
+      debug:
+        msg: "{{ item.item.name }}.lanmine.local → {{ item.stdout }}"
+      loop: "{{ dns_test_results.results }}"
+      when: item.stdout != ""
