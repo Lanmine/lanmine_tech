@@ -1,0 +1,105 @@
+---
+- name: Test DNS Resolution for WAN Resilience
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    dns_server: 10.0.10.1
+    test_domains:
+      # lanmine.local domain
+      - domain: grafana.lanmine.local
+        expected_ip: 10.0.10.40
+        type: internal
+      - domain: vault.lanmine.local
+        expected_ip: 10.0.10.21
+        type: internal
+      - domain: netbox.lanmine.local
+        expected_ip: 10.0.10.40
+        type: internal
+      - domain: authentik.lanmine.local
+        expected_ip: 10.0.10.25
+        type: internal
+
+      # hl0.dev domain (override)
+      - domain: grafana.hl0.dev
+        expected_ip: 10.0.10.40
+        type: override
+      - domain: netbox.hl0.dev
+        expected_ip: 10.0.10.40
+        type: override
+
+      # ts.net domain (WAN-dependent, will fail if WAN down)
+      - domain: grafana.lionfish-caiman.ts.net
+        expected_ip: "varies"
+        type: external
+        optional: true
+
+  tasks:
+    - name: Test DNS resolution for all domains
+      command: dig +short {{ item.domain }} @{{ dns_server }}
+      loop: "{{ test_domains }}"
+      register: dns_results
+      changed_when: false
+      failed_when: false
+
+    - name: Analyze DNS test results
+      set_fact:
+        test_summary:
+          passed: []
+          failed: []
+          optional_failed: []
+
+    - name: Evaluate test results
+      set_fact:
+        test_summary: "{{ test_summary | combine({
+          'passed': test_summary.passed + ([item.item.domain] if (item.stdout != '' and (item.item.expected_ip == 'varies' or item.item.expected_ip in item.stdout)) else []),
+          'failed': test_summary.failed + ([item.item.domain] if (item.stdout == '' or (item.item.expected_ip != 'varies' and item.item.expected_ip not in item.stdout)) and not (item.item.optional | default(false)) else []),
+          'optional_failed': test_summary.optional_failed + ([item.item.domain] if (item.stdout == '' or (item.item.expected_ip != 'varies' and item.item.expected_ip not in item.stdout)) and (item.item.optional | default(false)) else [])
+        }) }}"
+      loop: "{{ dns_results.results }}"
+
+    - name: Display test results summary
+      debug:
+        msg: |
+          ============================================
+          DNS Resolution Test Results
+          ============================================
+
+          ✓ PASSED ({{ test_summary.passed | length }}):
+          {% for domain in test_summary.passed %}
+            - {{ domain }}
+          {% endfor %}
+
+          ✗ FAILED ({{ test_summary.failed | length }}):
+          {% for domain in test_summary.failed %}
+            - {{ domain }}
+          {% endfor %}
+
+          ⚠ OPTIONAL FAILED ({{ test_summary.optional_failed | length }}):
+          {% for domain in test_summary.optional_failed %}
+            - {{ domain }} (WAN-dependent, expected to fail without WAN)
+          {% endfor %}
+
+          ============================================
+          Status: {{ 'PASS' if test_summary.failed | length == 0 else 'FAIL' }}
+          ============================================
+
+    - name: Fail if critical tests failed
+      fail:
+        msg: "DNS resolution tests failed for: {{ test_summary.failed | join(', ') }}"
+      when: test_summary.failed | length > 0
+
+    - name: Test reverse DNS
+      command: dig +short -x {{ item.ip }} @{{ dns_server }}
+      loop:
+        - { ip: "10.0.10.40", expected: "grafana.lanmine.local" }
+        - { ip: "10.0.10.21", expected: "vault.lanmine.local" }
+        - { ip: "10.0.10.25", expected: "authentik.lanmine.local" }
+      register: reverse_dns_results
+      changed_when: false
+      failed_when: false
+
+    - name: Display reverse DNS results
+      debug:
+        msg: "{{ item.item.ip }} → {{ item.stdout }}"
+      loop: "{{ reverse_dns_results.results }}"
