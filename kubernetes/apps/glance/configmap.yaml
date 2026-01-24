@@ -151,7 +151,7 @@ data:
                   - title: Panda9000
                     url: https://panda.lionfish-caiman.ts.net
                     check-url: http://panda9000-external.default.svc.cluster.local:8080
-                    icon: si:panda
+                    icon: di:frigate
                     alt-status-codes:
                       - 401
                       - 403
@@ -159,7 +159,7 @@ data:
                   - title: ArgoCD
                     url: https://argocd.lionfish-caiman.ts.net
                     check-url: http://argocd-server.argocd.svc.cluster.local:443
-                    icon: di:argocd
+                    icon: di:argo-cd
                     allow-insecure: true
                     alt-status-codes:
                       - 401
@@ -168,8 +168,17 @@ data:
                   - title: NetBox
                     url: https://netbox.lionfish-caiman.ts.net
                     check-url: http://netbox.netbox.svc.cluster.local:8080
-                    icon: si:databricks
+                    icon: di:netbox
                     alt-status-codes:
+                      - 401
+                      - 403
+
+                  - title: Oxidized
+                    url: https://oxidized.lionfish-caiman.ts.net
+                    check-url: http://oxidized.oxidized.svc.cluster.local:8888
+                    icon: di:router
+                    alt-status-codes:
+                      - 303
                       - 401
                       - 403
 
