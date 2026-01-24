@@ -9,3 +9,14 @@ resources:
   - node-exporter-endpoint.yaml
   - servicemonitor-node.yaml
   - dashboards-configmap.yaml
+
+# Use server-side apply for dashboards ConfigMap to avoid annotation size limit
+patches:
+  - target:
+      kind: ConfigMap
+      name: opnsense-dashboards
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-options: ServerSideApply=true
