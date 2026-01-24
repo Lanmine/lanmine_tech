@@ -66,8 +66,16 @@ data:
         """Generate Prometheus file_sd_configs JSON format"""
         targets = []
 
+        # Devices already configured in ServiceMonitor (to avoid duplicates)
+        EXCLUDED_DEVICES = ['mgmt-sw-01', 'opnsense']
+
         for device in devices:
             name = device.get('name')
+
+            # Skip devices already in ServiceMonitor
+            if name in EXCLUDED_DEVICES:
+                logger.info(f'Device {name} already in ServiceMonitor, skipping')
+                continue
 
             # Get primary IP address (strip CIDR notation)
             primary_ip4 = device.get('primary_ip4')

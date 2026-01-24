@@ -18,3 +18,20 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: netbox-secret
+      jsonPointers:
+        - /data/secret-key
+    - group: ""
+      kind: Secret
+      name: netbox-postgres
+      jsonPointers:
+        - /data/password
+    - group: ""
+      kind: Secret
+      name: netbox-superuser
+      jsonPointers:
+        - /data/password
+        - /data/api-token

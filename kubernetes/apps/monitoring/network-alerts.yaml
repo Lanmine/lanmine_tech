@@ -1,0 +1,110 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: network-monitoring-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: network_infrastructure
+      interval: 60s
+      rules:
+        # Switch/Device Down Alert
+        - alert: NetworkDeviceDown
+          expr: up{job="snmp-netbox"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            category: network
+          annotations:
+            summary: "Network device {{ $labels.device }} is down"
+            description: "Device {{ $labels.device }} ({{ $labels.instance }}) at site {{ $labels.site }} has been unreachable for more than 5 minutes."
+
+        # Interface Down Alert (excluding admin down)
+        - alert: InterfaceDown
+          expr: ifOperStatus{job="snmp-netbox"} == 2 and ifAdminStatus{job="snmp-netbox"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            category: network
+          annotations:
+            summary: "Interface {{ $labels.ifDescr }} down on {{ $labels.device }}"
+            description: "Interface {{ $labels.ifDescr }} on device {{ $labels.device }} is operationally down but administratively up."
+
+        # High Interface Error Rate
+        - alert: HighInterfaceErrorRate
+          expr: |
+            rate(ifInErrors{job="snmp-netbox"}[5m]) > 100
+            or
+            rate(ifOutErrors{job="snmp-netbox"}[5m]) > 100
+          for: 10m
+          labels:
+            severity: warning
+            category: network
+          annotations:
+            summary: "High error rate on {{ $labels.ifDescr }} ({{ $labels.device }})"
+            description: "Interface {{ $labels.ifDescr }} on {{ $labels.device }} is experiencing {{ $value | humanize }} errors/sec."
+
+        # Interface Bandwidth Utilization (>80%)
+        - alert: HighInterfaceBandwidth
+          expr: |
+            (
+              rate(ifHCInOctets{job="snmp-netbox"}[5m]) * 8
+              or
+              rate(ifHCOutOctets{job="snmp-netbox"}[5m]) * 8
+            ) / ifHighSpeed{job="snmp-netbox"} / 1000000 > 0.8
+          for: 15m
+          labels:
+            severity: warning
+            category: network
+          annotations:
+            summary: "High bandwidth utilization on {{ $labels.ifDescr }} ({{ $labels.device }})"
+            description: "Interface {{ $labels.ifDescr }} on {{ $labels.device }} is at {{ $value | humanizePercentage }} utilization for >15 minutes."
+
+        # CRC/Alignment Errors
+        - alert: InterfaceCRCErrors
+          expr: rate(ifInErrors{job="snmp-netbox"}[5m]) > 10
+          for: 10m
+          labels:
+            severity: warning
+            category: network
+          annotations:
+            summary: "CRC errors detected on {{ $labels.ifDescr }} ({{ $labels.device }})"
+            description: "Interface {{ $labels.ifDescr }} on {{ $labels.device }} is experiencing {{ $value | humanize }} input errors/sec, possibly indicating cable/transceiver issues."
+
+        # Switch CPU High
+        - alert: SwitchHighCPU
+          expr: cpmCPUTotal5minRev{job="snmp-netbox"} > 80
+          for: 10m
+          labels:
+            severity: warning
+            category: network
+          annotations:
+            summary: "High CPU usage on {{ $labels.device }}"
+            description: "Device {{ $labels.device }} CPU usage is at {{ $value }}% for >10 minutes."
+
+        # Switch Memory High
+        - alert: SwitchHighMemory
+          expr: |
+            (ciscoMemoryPoolUsed{job="snmp-netbox"} / ciscoMemoryPoolFree{job="snmp-netbox"} * 100) > 90
+          for: 10m
+          labels:
+            severity: warning
+            category: network
+          annotations:
+            summary: "High memory usage on {{ $labels.device }}"
+            description: "Device {{ $labels.device }} memory usage is at {{ $value | humanizePercentage }}."
+
+        # NetFlow Data Loss
+        - alert: NetFlowDataLoss
+          expr: |
+            rate(akvorado_inlet_flow_errors_total[5m]) > 10
+          for: 5m
+          labels:
+            severity: warning
+            category: network
+          annotations:
+            summary: "NetFlow data loss detected"
+            description: "Akvorado is experiencing {{ $value | humanize }} flow errors/sec, indicating potential packet loss from NetFlow exporters."

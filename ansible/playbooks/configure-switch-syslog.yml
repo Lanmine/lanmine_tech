@@ -1,0 +1,12 @@
+---
+- name: Configure syslog on Cisco switches
+  hosts: cisco_switches
+  gather_facts: no
+  tasks:
+    - name: Configure syslog to alloy-syslog service
+      cisco.ios.ios_config:
+        lines:
+          - logging host 10.0.10.50
+          - logging trap informational
+          - service timestamps log datetime
+        save_when: modified

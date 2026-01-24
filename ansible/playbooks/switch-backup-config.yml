@@ -1,0 +1,39 @@
+---
+- name: Backup switch running configuration
+  hosts: cisco_switches
+  gather_facts: no
+  vars:
+    backup_dir: "../backups/switches"
+  tasks:
+    - name: Create backup directory
+      local_action:
+        module: file
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0750'
+      run_once: true
+
+    - name: Backup running configuration
+      cisco.ios.ios_config:
+        backup: yes
+        backup_options:
+          filename: "{{ inventory_hostname }}_{{ ansible_date_time.date }}.cfg"
+          dir_path: "{{ backup_dir }}"
+      register: backup_result
+
+    - name: Get configuration diff
+      cisco.ios.ios_command:
+        commands:
+          - show archive config differences nvram:startup-config system:running-config
+      register: config_diff
+      failed_when: false
+
+    - name: Display backup location
+      debug:
+        msg: "Configuration backed up to {{ backup_result.backup_path }}"
+      when: backup_result.backup_path is defined
+
+    - name: Show configuration differences
+      debug:
+        msg: "{{ config_diff.stdout_lines[0] }}"
+      when: config_diff.stdout_lines[0] | length > 0

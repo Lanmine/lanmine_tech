@@ -1,0 +1,41 @@
+---
+- name: Configure VLAN on switch ports
+  hosts: cisco_switches
+  gather_facts: no
+  vars_prompt:
+    - name: vlan_id
+      prompt: "Enter VLAN ID"
+      private: no
+    - name: vlan_name
+      prompt: "Enter VLAN name"
+      private: no
+    - name: interface_range
+      prompt: "Enter interface range (e.g., Gi1/0/1-10)"
+      private: no
+  tasks:
+    - name: Create VLAN
+      cisco.ios.ios_config:
+        lines:
+          - "name {{ vlan_name }}"
+        parents: "vlan {{ vlan_id }}"
+        save_when: never
+
+    - name: Configure interfaces for VLAN
+      cisco.ios.ios_config:
+        lines:
+          - switchport mode access
+          - "switchport access vlan {{ vlan_id }}"
+          - spanning-tree portfast
+        parents: "interface range {{ interface_range }}"
+        save_when: modified
+
+    - name: Verify VLAN configuration
+      cisco.ios.ios_command:
+        commands:
+          - "show vlan id {{ vlan_id }}"
+          - "show interface {{ interface_range.split('-')[0] }} switchport"
+      register: vlan_status
+
+    - name: Display VLAN status
+      debug:
+        var: vlan_status.stdout_lines

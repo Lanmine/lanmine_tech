@@ -1,0 +1,159 @@
+{
+  "name": "Oxidized Backup Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Daily at 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://oxidized.oxidized.svc.cluster.local:8888/nodes/stats.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-oxidized-stats",
+      "name": "Get Oxidized Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stats = $input.item.json;\nconst devices = stats.nodes || [];\n\nconst now = Date.now();\nconst oneHourAgo = now - (60 * 60 * 1000);\nconst oneDayAgo = now - (24 * 60 * 60 * 1000);\n\nlet staleDevices = [];\nlet failedDevices = [];\nlet successCount = 0;\n\nfor (const device of devices) {\n  const lastUpdate = new Date(device.last.end).getTime();\n  \n  if (device.last.status !== 'success') {\n    failedDevices.push({\n      name: device.name,\n      status: device.last.status,\n      error: device.last.msg || 'Unknown error'\n    });\n  } else if (lastUpdate < oneDayAgo) {\n    staleDevices.push({\n      name: device.name,\n      lastBackup: device.last.end,\n      ageHours: Math.round((now - lastUpdate) / (60 * 60 * 1000))\n    });\n  } else {\n    successCount++;\n  }\n}\n\nreturn {\n  totalDevices: devices.length,\n  successCount: successCount,\n  failedCount: failedDevices.length,\n  staleCount: staleDevices.length,\n  failedDevices: failedDevices,\n  staleDevices: staleDevices,\n  hasIssues: (failedDevices.length > 0 || staleDevices.length > 0)\n};"
+      },
+      "id": "analyze-backups",
+      "name": "Analyze Backup Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.hasIssues}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-issues",
+      "name": "Has Issues?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.item.json;\n\nlet message = `📊 Oxidized Backup Report\\n\\n`;\nmessage += `Total Devices: ${data.totalDevices}\\n`;\nmessage += `✅ Successful: ${data.successCount}\\n`;\nmessage += `❌ Failed: ${data.failedCount}\\n`;\nmessage += `⏰ Stale (>24h): ${data.staleCount}\\n\\n`;\n\nif (data.failedDevices.length > 0) {\n  message += `Failed Backups:\\n`;\n  data.failedDevices.forEach(d => {\n    message += `  - ${d.name}: ${d.error}\\n`;\n  });\n  message += `\\n`;\n}\n\nif (data.staleDevices.length > 0) {\n  message += `Stale Backups (>24h):\\n`;\n  data.staleDevices.forEach(d => {\n    message += `  - ${d.name}: ${d.ageHours}h old\\n`;\n  });\n}\n\nreturn {\n  subject: data.hasIssues ? '⚠️ Oxidized Backup Issues Detected' : '✅ Oxidized Backups OK',\n  body: message\n};"
+      },
+      "id": "format-alert",
+      "name": "Format Alert Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SMTP_WEBHOOK_URL}}",
+        "options": {
+          "bodyParametersUi": {
+            "parameter": [
+              {
+                "name": "subject",
+                "value": "={{$json.subject}}"
+              },
+              {
+                "name": "body",
+                "value": "={{$json.body}}\\n\\nTimestamp: {{$now.format('yyyy-MM-dd HH:mm:ss')}}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "send-alert",
+      "name": "Send Alert Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "Daily at 9am": {
+      "main": [
+        [
+          {
+            "node": "Get Oxidized Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Oxidized Stats": {
+      "main": [
+        [
+          {
+            "node": "Analyze Backup Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Backup Status": {
+      "main": [
+        [
+          {
+            "node": "Has Issues?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Issues?": {
+      "main": [
+        [
+          {
+            "node": "Format Alert Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Alert Message": {
+      "main": [
+        [
+          {
+            "node": "Send Alert Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "tags": ["network", "backup", "oxidized", "monitoring"],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-24T00:00:00.000Z",
+  "versionId": "1"
+}

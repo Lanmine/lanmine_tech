@@ -14,7 +14,7 @@ fi
 
 # Get credentials from Vault
 export VAULT_ADDR="${VAULT_ADDR:-https://vault-01.lionfish-caiman.ts.net:8200}"
-ANSIBLE_USER="ansible"
+ANSIBLE_USER=$(vault kv get -field=ansible_user secret/infrastructure/switches/global 2>/dev/null || echo "")
 ANSIBLE_PASSWORD=$(vault kv get -field=ansible_password secret/infrastructure/switches/global 2>/dev/null || echo "")
 ENABLE_SECRET=$(vault kv get -field=enable_secret secret/infrastructure/switches/global 2>/dev/null || echo "")
 

@@ -1,0 +1,105 @@
+---
+- name: Document network topology in NetBox
+  hosts: localhost
+  gather_facts: no
+  vars:
+    netbox_url: "https://netbox.lionfish-caiman.ts.net"
+    netbox_token: "{{ lookup('env', 'NETBOX_TOKEN') }}"
+  tasks:
+    - name: Ensure NetBox token is set
+      assert:
+        that:
+          - netbox_token != ""
+        fail_msg: "NETBOX_TOKEN environment variable must be set"
+
+    - name: Create VLANs in NetBox
+      netbox.netbox.netbox_vlan:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        data:
+          name: "{{ item.name }}"
+          vid: "{{ item.vid }}"
+          description: "{{ item.description }}"
+          status: active
+        state: present
+      loop:
+        - { vid: 10, name: "Infrastructure", description: "Core infrastructure services" }
+        - { vid: 20, name: "Contestants", description: "LAN party contestant network" }
+        - { vid: 30, name: "OOB", description: "Out-of-band management" }
+        - { vid: 99, name: "MGMT", description: "Switch management network" }
+      loop_control:
+        label: "VLAN {{ item.vid }} - {{ item.name }}"
+
+    - name: Create IP prefixes in NetBox
+      netbox.netbox.netbox_prefix:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        data:
+          prefix: "{{ item.prefix }}"
+          vlan:
+            name: "{{ item.vlan }}"
+          description: "{{ item.description }}"
+          status: active
+        state: present
+      loop:
+        - { prefix: "10.0.10.0/24", vlan: "Infrastructure", description: "Infrastructure subnet" }
+        - { prefix: "10.0.20.0/23", vlan: "Contestants", description: "Contestant subnet" }
+        - { prefix: "10.0.30.0/24", vlan: "OOB", description: "OOB management subnet" }
+        - { prefix: "10.0.99.0/24", vlan: "MGMT", description: "Switch management subnet" }
+      loop_control:
+        label: "{{ item.prefix }}"
+
+    - name: Document network services
+      debug:
+        msg:
+          - "Network topology documented in NetBox"
+          - "VLANs: Infrastructure (10), Contestants (20), OOB (30), MGMT (99)"
+          - "IP Prefixes: 10.0.10.0/24, 10.0.20.0/23, 10.0.30.0/24, 10.0.99.0/24"
+          - ""
+          - "Next steps:"
+          - "1. Add cable connections between devices"
+          - "2. Document interface assignments on switches"
+          - "3. Add IP addresses to device interfaces"
+          - "4. Create site and rack information"
+
+- name: Discover and document switch topology
+  hosts: cisco_switches
+  gather_facts: no
+  tasks:
+    - name: Gather interface information
+      cisco.ios.ios_command:
+        commands:
+          - show interface status
+          - show vlan brief
+          - show ip interface brief
+      register: switch_topology
+
+    - name: Display switch topology
+      debug:
+        msg:
+          - "=== {{ inventory_hostname }} Topology ==="
+          - "Interface Status:"
+          - "{{ switch_topology.stdout[0] }}"
+          - ""
+          - "VLAN Assignment:"
+          - "{{ switch_topology.stdout[1] }}"
+          - ""
+          - "IP Interfaces:"
+          - "{{ switch_topology.stdout[2] }}"
+
+    - name: Save topology to local file
+      local_action:
+        module: copy
+        content: |
+          # Switch Topology: {{ inventory_hostname }}
+          Generated: {{ ansible_date_time.iso8601 }}
+
+          ## Interface Status
+          {{ switch_topology.stdout[0] }}
+
+          ## VLAN Assignment
+          {{ switch_topology.stdout[1] }}
+
+          ## IP Interfaces
+          {{ switch_topology.stdout[2] }}
+        dest: "../docs/topology_{{ inventory_hostname }}_{{ ansible_date_time.date }}.txt"

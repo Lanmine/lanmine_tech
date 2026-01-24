@@ -46,6 +46,7 @@ locals {
       vm_id       = 9201
       cpu         = 4
       memory      = 8192
+      disk_size   = 80
       ip          = "10.0.10.31/24"
       role        = "worker"
       description = "Talos Kubernetes worker node"
@@ -56,6 +57,7 @@ locals {
       vm_id       = 9202
       cpu         = 4
       memory      = 8192
+      disk_size   = 80
       ip          = "10.0.10.32/24"
       role        = "worker"
       description = "Talos Kubernetes worker node"
@@ -242,7 +244,7 @@ resource "proxmox_virtual_environment_vm" "talos" {
 
   disk {
     datastore_id = "local-lvm"
-    size         = 50
+    size         = lookup(each.value, "disk_size", 50)
     interface    = "scsi0"
   }
 
