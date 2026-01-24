@@ -37,7 +37,7 @@ data:
     )
     logger = logging.getLogger(__name__)
 
-    NETBOX_URL = os.environ.get('NETBOX_URL', 'https://netbox.hl0.dev')
+    NETBOX_URL = os.environ.get('NETBOX_URL', 'http://netbox.netbox.svc.cluster.local:8080')
     NETBOX_TOKEN = os.environ.get('NETBOX_TOKEN')
     OUTPUT_FILE = '/targets/snmp-targets.json'
     SYNC_INTERVAL = int(os.environ.get('SYNC_INTERVAL', '300'))  # 5 minutes
@@ -225,7 +225,7 @@ spec:
               python3 /scripts/sync.py
           env:
             - name: NETBOX_URL
-              value: "https://netbox.hl0.dev"
+              value: "http://netbox.netbox.svc.cluster.local:8080"
             - name: NETBOX_TOKEN
               valueFrom:
                 secretKeyRef:
