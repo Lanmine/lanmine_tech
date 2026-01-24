@@ -4,21 +4,14 @@ metadata:
   name: oxidized-tailscale
   namespace: oxidized
   annotations:
-    cert-manager.io/cluster-issuer: lanmine-ca-issuer
+    tailscale.com/funnel: "false"
 spec:
   ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: oxidized
+      port:
+        number: 8888
   tls:
     - hosts:
         - oxidized
-      secretName: oxidized-tls
-  rules:
-    - host: oxidized
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: oxidized
-                port:
-                  number: 8888
