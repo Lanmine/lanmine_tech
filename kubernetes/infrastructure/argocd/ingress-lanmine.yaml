@@ -1,0 +1,27 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-lanmine
+  namespace: argocd
+  annotations:
+    cert-manager.io/cluster-issuer: vault-issuer
+    cert-manager.io/common-name: argocd.lanmine.local
+    traefik.ingress.kubernetes.io/router.middlewares: argocd-stripprefix@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - argocd.lanmine.local
+      secretName: argocd-lanmine-tls
+  rules:
+    - host: argocd.lanmine.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
