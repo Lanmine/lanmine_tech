@@ -21,6 +21,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: akvorado
+                name: akvorado-external
                 port:
                   number: 8080
