@@ -1,0 +1,201 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: proxmox-netbox-sync
+  namespace: netbox
+data:
+  sync.py: |
+    #!/usr/bin/env python3
+    """Sync Proxmox VMs to NetBox"""
+    import os
+    import requests
+    import urllib3
+    urllib3.disable_warnings()
+
+    PROXMOX_HOST = os.environ.get('PROXMOX_HOST', 'https://10.0.10.5:8006')
+    PROXMOX_TOKEN_ID = os.environ.get('PROXMOX_TOKEN_ID')
+    PROXMOX_TOKEN_SECRET = os.environ.get('PROXMOX_TOKEN_SECRET')
+    NETBOX_URL = os.environ.get('NETBOX_URL', 'http://netbox.netbox.svc.cluster.local:8080')
+    NETBOX_TOKEN = os.environ.get('NETBOX_TOKEN')
+
+    def get_proxmox_headers():
+        return {'Authorization': f'PVEAPIToken={PROXMOX_TOKEN_ID}={PROXMOX_TOKEN_SECRET}'}
+
+    def get_proxmox_vms():
+        headers = get_proxmox_headers()
+
+        # Get nodes
+        resp = requests.get(f"{PROXMOX_HOST}/api2/json/nodes", headers=headers, verify=False)
+        if resp.status_code != 200:
+            print(f"Failed to get nodes: {resp.status_code} {resp.text}")
+            return []
+        nodes = [n['node'] for n in resp.json()['data']]
+
+        vms = []
+        for node in nodes:
+            # Get QEMU VMs
+            resp = requests.get(f"{PROXMOX_HOST}/api2/json/nodes/{node}/qemu", headers=headers, verify=False)
+            for vm in resp.json().get('data', []):
+                vm['node'] = node
+                vm['type'] = 'qemu'
+                vms.append(vm)
+
+            # Get LXC containers
+            resp = requests.get(f"{PROXMOX_HOST}/api2/json/nodes/{node}/lxc", headers=headers, verify=False)
+            for vm in resp.json().get('data', []):
+                vm['node'] = node
+                vm['type'] = 'lxc'
+                vms.append(vm)
+
+        return vms
+
+    def get_or_create_netbox_vm(name, vm_type, status, vmid, node, mem_mb, cpus):
+        headers = {'Authorization': f'Token {NETBOX_TOKEN}', 'Content-Type': 'application/json'}
+
+        # Check if VM exists
+        resp = requests.get(f"{NETBOX_URL}/api/virtualization/virtual-machines/?name={name}", headers=headers)
+        results = resp.json().get('results', [])
+
+        if results:
+            # Update existing VM
+            vm_id = results[0]['id']
+            nb_status = 'active' if status == 'running' else 'offline'
+            data = {
+                'status': nb_status,
+                'memory': mem_mb,
+                'vcpus': cpus,
+            }
+            resp = requests.patch(f"{NETBOX_URL}/api/virtualization/virtual-machines/{vm_id}/", headers=headers, json=data)
+            print(f"  {name}: updated (status={nb_status})")
+            return vm_id
+
+        # Get or create cluster
+        resp = requests.get(f"{NETBOX_URL}/api/virtualization/clusters/?name=Proxmox", headers=headers)
+        clusters = resp.json().get('results', [])
+        if clusters:
+            cluster_id = clusters[0]['id']
+        else:
+            # Get cluster type
+            resp = requests.get(f"{NETBOX_URL}/api/virtualization/cluster-types/?slug=proxmox", headers=headers)
+            cluster_types = resp.json().get('results', [])
+            if not cluster_types:
+                # Create cluster type
+                resp = requests.post(f"{NETBOX_URL}/api/virtualization/cluster-types/", headers=headers, json={'name': 'Proxmox', 'slug': 'proxmox'})
+                cluster_type_id = resp.json()['id']
+            else:
+                cluster_type_id = cluster_types[0]['id']
+
+            # Create cluster
+            resp = requests.post(f"{NETBOX_URL}/api/virtualization/clusters/", headers=headers, json={'name': 'Proxmox', 'type': cluster_type_id})
+            cluster_id = resp.json()['id']
+            print(f"  Created cluster: Proxmox")
+
+        # Create VM
+        nb_status = 'active' if status == 'running' else 'offline'
+        data = {
+            'name': name,
+            'cluster': cluster_id,
+            'status': nb_status,
+            'memory': mem_mb,
+            'vcpus': cpus,
+            'comments': f"Proxmox VMID: {vmid}, Node: {node}, Type: {vm_type}",
+        }
+
+        resp = requests.post(f"{NETBOX_URL}/api/virtualization/virtual-machines/", headers=headers, json=data)
+        if resp.status_code == 201:
+            print(f"  {name}: created")
+            return resp.json()['id']
+        else:
+            print(f"  {name}: failed - {resp.text}")
+            return None
+
+    def main():
+        print("Syncing Proxmox VMs to NetBox...")
+
+        vms = get_proxmox_vms()
+        print(f"Found {len(vms)} VMs in Proxmox")
+
+        for vm in vms:
+            name = vm.get('name', f"vm-{vm['vmid']}")
+            status = vm.get('status', 'unknown')
+            vmid = vm.get('vmid')
+            node = vm.get('node')
+            mem_mb = vm.get('maxmem', 0) // (1024 * 1024)
+            cpus = vm.get('cpus', vm.get('maxcpu', 1))
+            get_or_create_netbox_vm(name, vm['type'], status, vmid, node, mem_mb, cpus)
+
+        print("Sync complete!")
+
+    if __name__ == '__main__':
+        main()
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: proxmox-netbox-sync
+  namespace: netbox
+spec:
+  schedule: "*/30 * * * *"  # Every 30 minutes
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: sync
+            image: python:3.12-slim
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
+            command:
+            - /bin/sh
+            - -c
+            - |
+              export HOME=/tmp
+              pip install --user -q requests && python /scripts/sync.py
+            env:
+            - name: PROXMOX_HOST
+              value: "https://10.0.10.5:8006"
+            - name: PROXMOX_TOKEN_ID
+              valueFrom:
+                secretKeyRef:
+                  name: proxmox-credentials
+                  key: token-id
+            - name: PROXMOX_TOKEN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: proxmox-credentials
+                  key: token-secret
+            - name: NETBOX_URL
+              value: "http://netbox.netbox.svc.cluster.local:8080"
+            - name: NETBOX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: netbox-superuser
+                  key: api-token
+            volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+          volumes:
+          - name: scripts
+            configMap:
+              name: proxmox-netbox-sync
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: proxmox-credentials
+  namespace: netbox
+  annotations:
+    vault-path: secret/infrastructure/proxmox
+type: Opaque
+stringData:
+  token-id: "PLACEHOLDER"
+  token-secret: "PLACEHOLDER"

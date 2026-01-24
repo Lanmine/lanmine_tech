@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: netbox-oidc-config
+  namespace: netbox
+data:
+  oidc.py: |
+    import os
+
+    # OIDC Authentication with Authentik
+    SOCIAL_AUTH_OIDC_OIDC_ENDPOINT = os.environ.get('SOCIAL_AUTH_OIDC_OIDC_ENDPOINT', '')
+    SOCIAL_AUTH_OIDC_KEY = os.environ.get('SOCIAL_AUTH_OIDC_KEY', '')
+    SOCIAL_AUTH_OIDC_SECRET = os.environ.get('SOCIAL_AUTH_OIDC_SECRET', '')
+
+    # Ensure social-auth can construct proper redirect URLs
+    SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
+    SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['state']
+    SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS = ['netbox.lionfish-caiman.ts.net', 'netbox.hl0.dev']
+
+    # Login banner
+    BANNER_LOGIN = '<div style="text-align:center;padding:15px;background:#1a5fb4;color:white;border-radius:8px;margin-bottom:20px;font-size:16px;"><strong>Sign in with Authentik</strong><br><small>Click "OpenID Connect" below</small></div>'
