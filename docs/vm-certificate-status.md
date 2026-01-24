@@ -4,8 +4,8 @@
 
 Status of VMs outside Kubernetes cluster with HTTPS services requiring WAN-resilient certificates for `.lanmine.local` domains.
 
-**Completed**: Vault, OPNsense
-**Pending**: Authentik (certificate files updated but not active)
+**Completed**: Vault, OPNsense, Authentik ✅
+**All services now use Vault PKI certificates with WAN-resilient SANs**
 
 ## Services Requiring Certificate Updates
 
@@ -32,14 +32,10 @@ Refid: 6974d713210a
 - Lighttpd backup: `/usr/local/etc/lighttpd_webgui/cert.pem.backup-20260124-153049`
 
 ### 2. Authentik (10.0.10.25:9443)
-**Status**: ⚠️ Certificate generated but not active
-**Current**: Using Authentik default self-signed certificate
-**Required**: Certificate with both `authentik.lanmine.local` and `authentik-01.lionfish-caiman.ts.net`
+**Status**: ✅ Complete
+**Current**: Vault PKI certificate for both `authentik.lanmine.local` and `authentik-01.lionfish-caiman.ts.net`
 **Certificate Generated**: ✓ Yes
-**Files Updated**: ✓ Yes (`/opt/authentik/certs/`)
-**Installed**: ❌ No - Authentik not loading files, using default cert
-
-**Issue**: Authentik appears to manage certificates through its "Brand" system in the Web UI/database rather than reading from environment variable file paths. The certificate files were updated correctly, but Authentik is still serving its default certificate.
+**Installed**: ✓ Yes (via Authentik API + Brand configuration)
 
 **Certificate Details**:
 ```
@@ -47,19 +43,18 @@ Subject: CN=authentik.lanmine.local
 SANs: authentik-01.lionfish-caiman.ts.net, authentik.lanmine.local
 Issuer: Lanmine Internal Root CA
 Validity: 8760h (1 year)
-Location: /opt/authentik/certs/authentik-01.lionfish-caiman.ts.net.{crt,key}
+Certificate UUID: 08965095-3670-4a62-990a-51efb49cae9f
+Brand UUID: 3eeeb010-291c-4fb1-a7b9-6550f6d80623
 ```
 
-**Files in Container**:
-- `/certs/authentik-01.lionfish-caiman.ts.net.crt` - ✓ Has correct SANs
-- `/certs/authentik-01.lionfish-caiman.ts.net.key` - ✓ Present
-- Backup files created with timestamp
+**Installation Method**:
+- Uploaded certificate via Authentik API (`/api/v3/crypto/certificatekeypairs/`)
+- Configured default brand to use certificate via PATCH to `/api/v3/core/brands/`
+- Environment variable `AUTHENTIK_LISTEN__DISABLE_BRAND_TLS=true` added to .env (currently not required but recommended)
+- Restarted Authentik server to apply changes
 
-**Next Steps for Authentik**:
-1. Research Authentik brand certificate configuration
-2. Upload certificate via Authentik Admin UI (System → Certificates)
-3. Configure brand to use uploaded certificate
-4. Alternative: Set environment variable to disable brand certificate management
+**Why Environment Variables Alone Didn't Work**:
+Authentik's "Brand TLS" feature manages certificates through its database, not directly from environment variable file paths. The `AUTHENTIK_LISTEN__SSL__CERTIFICATE` environment variable is only used when brand TLS is disabled or when no brand certificate is configured. The correct approach is to upload the certificate via the API and assign it to the brand.
 
 ### 3. n8n (10.0.10.27:5678)
 **Status**: ✅ No action needed
@@ -97,7 +92,7 @@ All generated certificates are in `/tmp/` on ubuntu-mgmt01:
 
 ## Next Actions
 
-1. **Authentik**: Configure brand certificates to use uploaded cert files (files already in `/opt/authentik/certs/` but not active)
-2. **Testing**: Verify HTTPS access via `.lanmine.local` domains works without TLS errors
-3. **Documentation**: Update CLAUDE.md with certificate renewal procedures
-4. **Automation**: Consider creating Ansible playbook for certificate renewal from Vault PKI
+1. **Testing**: Verify HTTPS access to all services via `.lanmine.local` domains ✅
+2. **Documentation**: Update CLAUDE.md with certificate renewal procedures
+3. **Automation**: Create Ansible playbook for certificate renewal from Vault PKI
+4. **Monitoring**: Set up alerts for certificate expiration (certificates expire in 1 year)
