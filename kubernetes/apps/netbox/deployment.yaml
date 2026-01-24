@@ -179,6 +179,33 @@ spec:
             secretKeyRef:
               name: netbox-superuser
               key: api-token
+        # Authentik OIDC authentication
+        - name: REMOTE_AUTH_ENABLED
+          value: "true"
+        - name: REMOTE_AUTH_BACKEND
+          value: "social_core.backends.open_id_connect.OpenIdConnectAuth"
+        - name: REMOTE_AUTH_AUTO_CREATE_USER
+          value: "true"
+        - name: REMOTE_AUTH_DEFAULT_GROUPS
+          value: ""
+        - name: REMOTE_AUTH_SUPERUSERS
+          value: "akadmin"
+        - name: REMOTE_AUTH_STAFF_USERS
+          value: "akadmin"
+        - name: SOCIAL_AUTH_OIDC_NAME
+          value: "Sign in with Authentik"
+        - name: SOCIAL_AUTH_OIDC_OIDC_ENDPOINT
+          value: "http://authentik-01.lionfish-caiman.ts.net:9000/application/o/netbox/"
+        - name: SOCIAL_AUTH_OIDC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: netbox-oauth
+              key: client-id
+        - name: SOCIAL_AUTH_OIDC_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: netbox-oauth
+              key: client-secret
         livenessProbe:
           httpGet:
             path: /
@@ -207,8 +234,14 @@ spec:
           mountPath: /opt/netbox/netbox/media
         - name: netbox-static
           mountPath: /opt/netbox/netbox/static
+        - name: oidc-config
+          mountPath: /etc/netbox/config/oidc.py
+          subPath: oidc.py
       volumes:
       - name: netbox-media
         emptyDir: {}
       - name: netbox-static
         emptyDir: {}
+      - name: oidc-config
+        configMap:
+          name: netbox-oidc-config
