@@ -6,8 +6,9 @@ metadata:
 spec:
   secretName: grafana-tls
   issuerRef:
-    name: lanmine-ca-issuer
+    name: vault-issuer
     kind: ClusterIssuer
+  commonName: grafana.lanmine.local
   dnsNames:
     - grafana.lanmine.local
 ---
