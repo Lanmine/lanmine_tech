@@ -2,21 +2,18 @@
 
 ## Summary
 
-VMs outside Kubernetes cluster with HTTPS services that need WAN-resilient certificates for `.lanmine.local` domains.
+Status of VMs outside Kubernetes cluster with HTTPS services requiring WAN-resilient certificates for `.lanmine.local` domains.
+
+**Completed**: Vault, OPNsense
+**Pending**: Authentik (certificate files updated but not active)
 
 ## Services Requiring Certificate Updates
 
 ### 1. OPNsense (10.0.10.1:443)
-**Status**: ⚠️ Certificate needs update
-**Current**: Let's Encrypt certificate for `opnsense.lionfish-caiman.ts.net` only
-**Required**: Certificate with both `opnsense.lanmine.local` and `opnsense.lionfish-caiman.ts.net`
-**Certificate Generated**: ✓ Yes (`/tmp/opnsense.crt`, `/tmp/opnsense.key`)
-**Installed**: ❌ No - requires Web UI or API upload
-
-**Installation Method**:
-- Option 1: Upload via Web UI (System → Trust → Certificates)
-- Option 2: Use OPNsense API to import certificate
-- Option 3: Modify `/conf/config.xml` directly (risky)
+**Status**: ✅ Complete
+**Current**: Vault PKI certificate for both `opnsense.lanmine.local` and `opnsense.lionfish-caiman.ts.net`
+**Certificate Generated**: ✓ Yes
+**Installed**: ✓ Yes (via config.xml modification + lighttpd reload)
 
 **Certificate Details**:
 ```
@@ -24,7 +21,15 @@ Subject: CN=opnsense.lanmine.local
 SANs: opnsense.lanmine.local, opnsense.lionfish-caiman.ts.net
 Issuer: Lanmine Internal Root CA
 Validity: 8760h (1 year)
+UUID: 64967b5f-dcc8-4f43-ae85-42a1093b9dfd
+Refid: 6974d713210a
 ```
+
+**Installation Details**:
+- Certificate added to `/conf/config.xml`
+- Backup: `/conf/config.xml.pre-vault-cert-20260124-152835`
+- Lighttpd cert files: `/usr/local/etc/lighttpd_webgui/{cert.pem,key.pem}`
+- Lighttpd backup: `/usr/local/etc/lighttpd_webgui/cert.pem.backup-20260124-153049`
 
 ### 2. Authentik (10.0.10.25:9443)
 **Status**: ⚠️ Certificate generated but not active
@@ -92,7 +97,7 @@ All generated certificates are in `/tmp/` on ubuntu-mgmt01:
 
 ## Next Actions
 
-1. **OPNsense**: Install certificate via Web UI or API
-2. **Authentik**: Configure brand certificates to use uploaded cert files
-3. **Testing**: Verify HTTPS access via `.lanmine.local` domains works without TLS errors
-4. **Documentation**: Update CLAUDE.md with certificate renewal procedures
+1. **Authentik**: Configure brand certificates to use uploaded cert files (files already in `/opt/authentik/certs/` but not active)
+2. **Testing**: Verify HTTPS access via `.lanmine.local` domains works without TLS errors
+3. **Documentation**: Update CLAUDE.md with certificate renewal procedures
+4. **Automation**: Consider creating Ansible playbook for certificate renewal from Vault PKI
