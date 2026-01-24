@@ -6,3 +6,5 @@ resources:
   - cert-manager.yaml
   - cloudflare-secret.yaml
   - letsencrypt-issuer.yaml
+  - vault-approle-secret.yaml
+  - vault-issuer.yaml
