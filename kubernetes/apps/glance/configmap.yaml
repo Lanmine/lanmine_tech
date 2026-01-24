@@ -110,7 +110,7 @@ data:
 
                   - title: Akvorado
                     url: https://akvorado.lionfish-caiman.ts.net
-                    check-url: https://akvorado.hl0.dev
+                    check-url: http://10.0.10.26:8080
                     icon: si:cilium
                     alt-status-codes:
                       - 401
@@ -118,7 +118,7 @@ data:
 
                   - title: n8n
                     url: https://n8n.lionfish-caiman.ts.net
-                    check-url: https://n8n.hl0.dev
+                    check-url: http://10.0.10.27:5678
                     icon: si:n8n
                     alt-status-codes:
                       - 401
