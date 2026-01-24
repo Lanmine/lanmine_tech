@@ -1,0 +1,147 @@
+{
+  "name": "Network Health Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Daily at 8am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/ubuntu-mgmt01/infra/lanmine_tech/ansible && ansible-playbook playbooks/switch-health-check.yml --limit cisco_switches -o",
+        "options": {}
+      },
+      "id": "run-health-check",
+      "name": "Run Switch Health Check",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.stderr}}",
+              "operation": "contains",
+              "value2": "failed=0"
+            }
+          ]
+        }
+      },
+      "id": "check-results",
+      "name": "Check Results",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SMTP_WEBHOOK_URL}}",
+        "options": {
+          "bodyParametersUi": {
+            "parameter": [
+              {
+                "name": "subject",
+                "value": "✅ Network Health Check - All Switches OK"
+              },
+              {
+                "name": "body",
+                "value": "Daily health check completed successfully.\n\nAll Cisco switches responding normally.\n\nTimestamp: {{$now.format('yyyy-MM-dd HH:mm:ss')}}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "notify-success",
+      "name": "Notify Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SMTP_WEBHOOK_URL}}",
+        "options": {
+          "bodyParametersUi": {
+            "parameter": [
+              {
+                "name": "subject",
+                "value": "⚠️ Network Health Check - Issues Detected"
+              },
+              {
+                "name": "body",
+                "value": "Daily health check completed with failures.\n\n{{$json.stderr}}\n\nTimestamp: {{$now.format('yyyy-MM-dd HH:mm:ss')}}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "notify-failure",
+      "name": "Notify Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 400]
+    }
+  ],
+  "connections": {
+    "Daily at 8am": {
+      "main": [
+        [
+          {
+            "node": "Run Switch Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Switch Health Check": {
+      "main": [
+        [
+          {
+            "node": "Check Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Results": {
+      "main": [
+        [
+          {
+            "node": "Notify Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "tags": ["network", "monitoring", "health-check"],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-24T00:00:00.000Z",
+  "versionId": "1"
+}

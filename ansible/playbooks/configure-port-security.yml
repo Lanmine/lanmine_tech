@@ -1,0 +1,84 @@
+---
+- name: Configure port security on Cisco switch access ports
+  hosts: cisco_switches
+  gather_facts: no
+  vars:
+    # Port security settings
+    max_mac_addresses: 3
+    violation_action: "restrict"  # Options: protect, restrict, shutdown
+    aging_time: 1440  # 24 hours in minutes
+
+  tasks:
+    - name: Get current interface status
+      cisco.ios.ios_command:
+        commands:
+          - show interface status
+      register: interface_status
+
+    - name: Configure port security on VLAN 20 (Contestant) ports
+      cisco.ios.ios_config:
+        lines:
+          - switchport mode access
+          - switchport port-security
+          - "switchport port-security maximum {{ max_mac_addresses }}"
+          - "switchport port-security violation {{ violation_action }}"
+          - switchport port-security mac-address sticky
+          - "switchport port-security aging time {{ aging_time }}"
+          - switchport port-security aging type inactivity
+        parents: "interface {{ item }}"
+        save_when: never
+      loop:
+        - GigabitEthernet1/0/1
+        - GigabitEthernet1/0/2
+        - GigabitEthernet1/0/3
+        - GigabitEthernet1/0/4
+        - GigabitEthernet1/0/22
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Configure port security on VLAN 10 (Infrastructure) ports - More restrictive
+      cisco.ios.ios_config:
+        lines:
+          - switchport mode access
+          - switchport port-security
+          - switchport port-security maximum 1
+          - switchport port-security violation shutdown
+          - switchport port-security mac-address sticky
+          - "switchport port-security aging time {{ aging_time }}"
+          - switchport port-security aging type inactivity
+        parents: "interface {{ item }}"
+        save_when: never
+      loop:
+        - GigabitEthernet1/0/5
+        - GigabitEthernet1/0/6
+        - GigabitEthernet1/0/7
+        - GigabitEthernet1/0/8
+        - GigabitEthernet1/0/9
+      loop_control:
+        label: "{{ item }}"
+      when: false  # Disabled by default - enable when infrastructure ports are in use
+
+    - name: Save configuration
+      cisco.ios.ios_config:
+        save_when: always
+
+    - name: Verify port security configuration
+      cisco.ios.ios_command:
+        commands:
+          - show port-security interface GigabitEthernet1/0/1
+          - show port-security address
+      register: port_security_status
+
+    - name: Display port security status
+      debug:
+        msg:
+          - "=== Port Security Configuration Applied ==="
+          - "Contestant ports (VLAN 20): Max {{ max_mac_addresses }} MACs, violation action: {{ violation_action }}"
+          - "MAC aging: {{ aging_time }} minutes (inactivity based)"
+          - "Sticky MAC learning: Enabled"
+          - ""
+          - "Sample port status (Gi1/0/1):"
+          - "{{ port_security_status.stdout[0] }}"
+          - ""
+          - "Learned MAC addresses:"
+          - "{{ port_security_status.stdout[1] }}"

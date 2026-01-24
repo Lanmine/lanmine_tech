@@ -1,0 +1,191 @@
+{
+  "name": "NetBox Inventory Sync Verification",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Weekly Monday 10am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://netbox.lionfish-caiman.ts.net/api/dcim/devices/?status=active&has_primary_ip=true",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-netbox-devices",
+      "name": "Get NetBox Devices",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "NetBox API Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "cd /home/ubuntu-mgmt01/infra/lanmine_tech/ansible && ansible all -i inventory/ -m ping --one-line 2>&1 | grep -E 'SUCCESS|UNREACHABLE|FAILED'",
+        "options": {}
+      },
+      "id": "ansible-ping",
+      "name": "Ansible Ping All Hosts",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [450, 450]
+    },
+    {
+      "parameters": {
+        "jsCode": "const netboxDevices = $input.item(0).json.results || [];\nconst ansibleOutput = $input.item(1).json.stdout || '';\n\nconst netboxHosts = netboxDevices.map(d => ({\n  name: d.name,\n  ip: d.primary_ip4?.address?.split('/')[0],\n  role: d.role?.name,\n  status: 'in-netbox'\n}));\n\nconst ansibleResults = [];\nconst lines = ansibleOutput.split('\\n');\nlines.forEach(line => {\n  const match = line.match(/^([^|]+)\\s*\\|\\s*(SUCCESS|UNREACHABLE|FAILED)/);\n  if (match) {\n    ansibleResults.push({\n      name: match[1].trim(),\n      status: match[2]\n    });\n  }\n});\n\n// Find devices in NetBox but unreachable\nconst unreachable = [];\nnetboxHosts.forEach(nb => {\n  const ansible = ansibleResults.find(a => a.name === nb.name);\n  if (!ansible || ansible.status !== 'SUCCESS') {\n    unreachable.push({\n      name: nb.name,\n      ip: nb.ip,\n      role: nb.role,\n      ansibleStatus: ansible?.status || 'NOT_IN_ANSIBLE'\n    });\n  }\n});\n\n// Find devices responding but not in NetBox\nconst notInNetbox = [];\nansibleResults.forEach(a => {\n  if (a.status === 'SUCCESS') {\n    const nb = netboxHosts.find(n => n.name === a.name);\n    if (!nb) {\n      notInNetbox.push(a.name);\n    }\n  }\n});\n\nconst totalNetbox = netboxHosts.length;\nconst reachable = netboxHosts.length - unreachable.length;\n\nreturn {\n  totalNetboxDevices: totalNetbox,\n  reachableDevices: reachable,\n  unreachableDevices: unreachable.length,\n  devicesNotInNetbox: notInNetbox.length,\n  unreachableList: unreachable,\n  notInNetboxList: notInNetbox,\n  hasIssues: (unreachable.length > 0 || notInNetbox.length > 0)\n};"
+      },
+      "id": "compare-inventories",
+      "name": "Compare Inventories",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 375]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.hasIssues}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-sync",
+      "name": "Sync Issues?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 375]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.item.json;\n\nlet message = `📋 NetBox Inventory Sync Report\\n\\n`;\nmessage += `NetBox Devices: ${data.totalNetboxDevices}\\n`;\nmessage += `✅ Reachable: ${data.reachableDevices}\\n`;\nmessage += `❌ Unreachable: ${data.unreachableDevices}\\n`;\nmessage += `⚠️ Not in NetBox: ${data.devicesNotInNetbox}\\n\\n`;\n\nif (data.unreachableList.length > 0) {\n  message += `Unreachable Devices (in NetBox but not responding):\\n`;\n  data.unreachableList.forEach(d => {\n    message += `  - ${d.name} (${d.ip}) - Role: ${d.role} - Status: ${d.ansibleStatus}\\n`;\n  });\n  message += `\\n`;\n}\n\nif (data.notInNetboxList.length > 0) {\n  message += `Devices Not in NetBox (responding but not registered):\\n`;\n  data.notInNetboxList.forEach(name => {\n    message += `  - ${name}\\n`;\n  });\n  message += `\\n`;\n}\n\nmessage += `Action Required:\\n`;\nif (data.unreachableDevices > 0) {\n  message += `  - Investigate unreachable devices\\n`;\n  message += `  - Update NetBox status if decommissioned\\n`;\n}\nif (data.devicesNotInNetbox > 0) {\n  message += `  - Register new devices in NetBox\\n`;\n}\n\nreturn {\n  subject: data.hasIssues ? '⚠️ NetBox Sync Issues Detected' : '✅ NetBox Inventory Sync OK',\n  body: message\n};"
+      },
+      "id": "format-report",
+      "name": "Format Sync Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 475]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SMTP_WEBHOOK_URL}}",
+        "options": {
+          "bodyParametersUi": {
+            "parameter": [
+              {
+                "name": "subject",
+                "value": "={{$json.subject}}"
+              },
+              {
+                "name": "body",
+                "value": "={{$json.body}}\\n\\nTimestamp: {{$now.format('yyyy-MM-dd HH:mm:ss')}}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "send-report",
+      "name": "Send Report Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 475]
+    }
+  ],
+  "connections": {
+    "Weekly Monday 10am": {
+      "main": [
+        [
+          {
+            "node": "Get NetBox Devices",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ansible Ping All Hosts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get NetBox Devices": {
+      "main": [
+        [
+          {
+            "node": "Compare Inventories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ansible Ping All Hosts": {
+      "main": [
+        [
+          {
+            "node": "Compare Inventories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare Inventories": {
+      "main": [
+        [
+          {
+            "node": "Sync Issues?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync Issues?": {
+      "main": [
+        [
+          {
+            "node": "Format Sync Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Sync Report": {
+      "main": [
+        [
+          {
+            "node": "Send Report Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "tags": ["network", "netbox", "inventory", "sync"],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-24T00:00:00.000Z",
+  "versionId": "1"
+}

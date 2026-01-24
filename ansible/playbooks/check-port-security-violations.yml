@@ -1,0 +1,49 @@
+---
+- name: Check for port security violations
+  hosts: cisco_switches
+  gather_facts: no
+  tasks:
+    - name: Check port security violations
+      cisco.ios.ios_command:
+        commands:
+          - show port-security
+          - show port-security address
+          - show interface status err-disabled
+      register: security_status
+
+    - name: Parse violation counts
+      cisco.ios.ios_command:
+        commands:
+          - show port-security | include Security Violation Count
+      register: violation_count
+
+    - name: Display security status
+      debug:
+        msg:
+          - "=== Port Security Status ==="
+          - "{{ security_status.stdout[0] }}"
+          - ""
+          - "Learned MAC Addresses:"
+          - "{{ security_status.stdout[1] }}"
+          - ""
+          - "Err-disabled Interfaces:"
+          - "{{ security_status.stdout[2] }}"
+          - ""
+          - "Violation Summary:"
+          - "{{ violation_count.stdout[0] }}"
+
+    - name: Check for active violations
+      set_fact:
+        has_violations: "{{ 'Security Violation Count' in violation_count.stdout[0] and 'Security Violation Count : 0' not in violation_count.stdout[0] }}"
+
+    - name: Alert on violations
+      debug:
+        msg: "WARNING: Security violations detected! Review output above."
+      when: has_violations | default(false)
+
+    - name: Re-enable err-disabled ports (manual approval required)
+      debug:
+        msg: |
+          To re-enable err-disabled ports after investigating violations:
+          ansible {{ inventory_hostname }} -m cisco.ios.ios_config -a "lines='shutdown,no shutdown' parents='interface GigabitEthernet1/0/X' save_when=modified"
+      when: "'err-disabled' in security_status.stdout[2]"

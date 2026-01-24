@@ -1,0 +1,51 @@
+---
+- name: Switch health check and status report
+  hosts: cisco_switches
+  gather_facts: no
+  tasks:
+    - name: Gather switch facts
+      cisco.ios.ios_facts:
+        gather_subset:
+          - hardware
+          - interfaces
+      register: facts
+
+    - name: Check interface status
+      cisco.ios.ios_command:
+        commands:
+          - show interface status | include connected
+          - show interface status | include notconnect
+          - show interface status | include err-disabled
+      register: interface_status
+
+    - name: Check system resources
+      cisco.ios.ios_command:
+        commands:
+          - show processes cpu sorted | include CPU
+          - show memory statistics | include Processor
+          - show environment all
+      register: system_resources
+
+    - name: Check for errors in logs
+      cisco.ios.ios_command:
+        commands:
+          - show logging | include %ERR
+          - show logging | include %CRIT
+      register: error_logs
+
+    - name: Display health summary
+      debug:
+        msg:
+          - "=== {{ inventory_hostname }} Health Check ==="
+          - "Model: {{ facts.ansible_facts.ansible_net_model }}"
+          - "IOS Version: {{ facts.ansible_facts.ansible_net_version }}"
+          - "Serial: {{ facts.ansible_facts.ansible_net_serialnum }}"
+          - "Uptime: {{ facts.ansible_facts.ansible_net_uptime }}"
+          - "Interfaces: {{ facts.ansible_facts.ansible_net_interfaces | length }}"
+          - ""
+          - "Connected interfaces:"
+          - "{{ interface_status.stdout[0] }}"
+          - ""
+          - "System resources:"
+          - "{{ system_resources.stdout[0] }}"
+          - "{{ system_resources.stdout[1] }}"

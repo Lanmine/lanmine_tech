@@ -1,0 +1,35 @@
+---
+- name: Configure SNMP v3 on Cisco switches
+  hosts: cisco_switches
+  gather_facts: no
+  vars:
+    snmp_location: "{{ site | default('Lanmine LAN Party') }}"
+    snmp_contact: "admin@lanmine.no"
+    snmp_v3_user: "lanmine"
+    snmp_v3_auth_pass: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/switches/global', url='https://vault-01.lionfish-caiman.ts.net:8200').secret.snmp_v3_auth_pass }}"
+    snmp_v3_priv_pass: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/switches/global', url='https://vault-01.lionfish-caiman.ts.net:8200').secret.snmp_v3_priv_pass }}"
+  tasks:
+    - name: Configure SNMP system information
+      cisco.ios.ios_config:
+        lines:
+          - "snmp-server location {{ snmp_location }}"
+          - "snmp-server contact {{ snmp_contact }}"
+        save_when: modified
+
+    - name: Configure SNMP v3 user
+      cisco.ios.ios_config:
+        lines:
+          - "snmp-server group lanmine-group v3 priv"
+          - "snmp-server user {{ snmp_v3_user }} lanmine-group v3 auth sha {{ snmp_v3_auth_pass }} priv aes 128 {{ snmp_v3_priv_pass }}"
+        save_when: modified
+
+    - name: Verify SNMP configuration
+      cisco.ios.ios_command:
+        commands:
+          - show snmp user
+          - show snmp group
+      register: snmp_status
+
+    - name: Display SNMP status
+      debug:
+        var: snmp_status.stdout_lines
