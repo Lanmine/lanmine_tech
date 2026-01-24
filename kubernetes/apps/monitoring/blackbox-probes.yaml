@@ -1,0 +1,191 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blackbox-probe-targets
+  namespace: monitoring
+data:
+  probes.yaml: |
+    # HTTP/HTTPS endpoint probes
+    - job_name: 'blackbox-http'
+      metrics_path: /probe
+      params:
+        module: [http_2xx]
+      static_configs:
+        - targets:
+            # Public endpoints (Cloudflare) - blackbox pod cannot reach Tailscale .ts.net domains
+            - https://grafana.hl0.dev
+            - https://netbox.hl0.dev
+          labels:
+            probe_type: http
+      relabel_configs:
+        - source_labels: [__address__]
+          target_label: __param_target
+        - source_labels: [__param_target]
+          target_label: instance
+        - target_label: __address__
+          replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115
+
+    # ICMP (ping) probes
+    - job_name: 'blackbox-icmp'
+      metrics_path: /probe
+      params:
+        module: [icmp]
+      static_configs:
+        - targets:
+            - 10.0.10.1    # opnsense
+            - 10.0.10.5    # proxmox
+            - 10.0.10.21   # vault-01
+            - 10.0.10.22   # runner-01
+            - 10.0.10.23   # postgres-01
+            - 10.0.10.25   # authentik-01
+            - 10.0.10.26   # akvorado-01
+            - 10.0.10.27   # n8n-01
+            - 10.0.10.28   # panda9000
+            - 10.0.10.30   # talos-cp-01
+            - 10.0.10.102  # talos-bdg-qhb (worker)
+            - 10.0.20.2    # ubuntu-mgmt02 (LANcache)
+            - 10.0.99.101  # mgmt-sw-01
+          labels:
+            probe_type: icmp
+      relabel_configs:
+        - source_labels: [__address__]
+          target_label: __param_target
+        - source_labels: [__param_target]
+          target_label: instance
+        - target_label: __address__
+          replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115
+
+    # DNS probes
+    - job_name: 'blackbox-dns'
+      metrics_path: /probe
+      params:
+        module: [dns_udp]
+      static_configs:
+        - targets:
+            - 10.0.10.1  # OPNsense DNS
+            - 10.0.20.2  # LANcache DNS
+          labels:
+            probe_type: dns
+            query_name: "example.com"
+      relabel_configs:
+        - source_labels: [__address__]
+          target_label: __param_target
+        - source_labels: [__param_target]
+          target_label: instance
+        - target_label: __address__
+          replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115
+
+    # TCP port probes (services)
+    - job_name: 'blackbox-tcp'
+      metrics_path: /probe
+      params:
+        module: [tcp_connect]
+      static_configs:
+        - targets:
+            - 10.0.10.1:443    # OPNsense WebUI
+            - 10.0.10.5:8006   # Proxmox WebUI
+            - 10.0.10.21:8200  # Vault API
+            - 10.0.10.23:5432  # PostgreSQL
+            - 10.0.10.25:9000  # Authentik
+            - 10.0.10.26:8080  # Akvorado
+            - 10.0.10.27:5678  # n8n
+            - 10.0.99.101:22   # mgmt-sw-01 SSH
+          labels:
+            probe_type: tcp
+      relabel_configs:
+        - source_labels: [__address__]
+          target_label: __param_target
+        - source_labels: [__param_target]
+          target_label: instance
+        - target_label: __address__
+          replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: blackbox-monitoring-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: blackbox_probes
+      interval: 60s
+      rules:
+        # HTTP endpoint down
+        - alert: HTTPEndpointDown
+          expr: probe_success{job="blackbox-http"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            category: synthetic
+          annotations:
+            summary: "HTTP endpoint {{ $labels.instance }} is down"
+            description: "{{ $labels.instance }} has been unreachable via HTTP for more than 5 minutes."
+
+        # Slow HTTP response
+        - alert: HTTPSlowResponse
+          expr: probe_http_duration_seconds{job="blackbox-http"} > 3
+          for: 10m
+          labels:
+            severity: warning
+            category: synthetic
+          annotations:
+            summary: "Slow HTTP response from {{ $labels.instance }}"
+            description: "{{ $labels.instance }} is taking {{ $value }}s to respond (threshold: 3s)."
+
+        # SSL certificate expiring
+        - alert: SSLCertificateExpiringSoon
+          expr: (probe_ssl_earliest_cert_expiry{job="blackbox-http"} - time()) / 86400 < 30
+          for: 1h
+          labels:
+            severity: warning
+            category: synthetic
+          annotations:
+            summary: "SSL certificate expiring soon for {{ $labels.instance }}"
+            description: "SSL certificate for {{ $labels.instance }} expires in {{ $value | humanizeDuration }}."
+
+        # Host unreachable (ICMP)
+        - alert: HostUnreachable
+          expr: probe_success{job="blackbox-icmp"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            category: synthetic
+          annotations:
+            summary: "Host {{ $labels.instance }} is unreachable"
+            description: "{{ $labels.instance }} has been unreachable via ICMP for more than 5 minutes."
+
+        # High ICMP latency
+        - alert: HighICMPLatency
+          expr: probe_icmp_duration_seconds{job="blackbox-icmp"} > 0.1
+          for: 10m
+          labels:
+            severity: warning
+            category: synthetic
+          annotations:
+            summary: "High ICMP latency to {{ $labels.instance }}"
+            description: "{{ $labels.instance }} has ICMP latency of {{ $value | humanize }}s (threshold: 100ms)."
+
+        # TCP service down
+        - alert: TCPServiceDown
+          expr: probe_success{job="blackbox-tcp"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            category: synthetic
+          annotations:
+            summary: "TCP service {{ $labels.instance }} is down"
+            description: "{{ $labels.instance }} has been unreachable via TCP for more than 5 minutes."
+
+        # DNS query failure
+        - alert: DNSQueryFailure
+          expr: probe_success{job="blackbox-dns"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            category: synthetic
+          annotations:
+            summary: "DNS query failure on {{ $labels.instance }}"
+            description: "{{ $labels.instance }} is failing DNS queries for more than 5 minutes."
