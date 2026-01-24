@@ -165,6 +165,14 @@ data:
                       - 401
                       - 403
 
+                  - title: NetBox
+                    url: https://netbox.lionfish-caiman.ts.net
+                    check-url: http://netbox.netbox.svc.cluster.local:8080
+                    icon: si:databricks
+                    alt-status-codes:
+                      - 401
+                      - 403
+
               # =========================
               # Repo Awareness
               # =========================
