@@ -113,8 +113,8 @@ spec:
     rules:
     - alert: NetworkInterfaceDown
       annotations:
-        description: 'Network interface {{ $labels.ifDescr }} on {{ $labels.device }} is operationally down.'
-        summary: 'Interface down: {{ $labels.device }}/{{ $labels.ifDescr }}'
+        description: 'Network interface {{ $labels.ifIndex }} on {{ $labels.device }} is operationally down.'
+        summary: 'Interface down: {{ $labels.device }}/if{{ $labels.ifIndex }}'
       expr: ifOperStatus{job="snmp",ifAdminStatus="1"} == 2
       for: 5m
       labels:
@@ -122,28 +122,30 @@ spec:
 
     - alert: NetworkInterfaceHighTrafficIn
       annotations:
-        description: 'Interface {{ $labels.ifDescr }} on {{ $labels.device }} inbound traffic is {{ $value | humanize }}bps, approaching capacity.'
-        summary: 'High inbound traffic: {{ $labels.device }}/{{ $labels.ifDescr }}'
+        description: 'Interface {{ $labels.ifIndex }} on {{ $labels.device }} inbound traffic is {{ $value | printf "%.1f" }}% of capacity.'
+        summary: 'High inbound traffic: {{ $labels.device }}/if{{ $labels.ifIndex }}'
       expr: |
         (irate(ifHCInOctets{job="snmp"}[5m]) * 8) / (ifHighSpeed{job="snmp"} * 1000000) * 100 > 80
+        and ifHighSpeed{job="snmp"} > 0
       for: 10m
       labels:
         severity: warning
 
     - alert: NetworkInterfaceHighTrafficOut
       annotations:
-        description: 'Interface {{ $labels.ifDescr }} on {{ $labels.device }} outbound traffic is {{ $value | humanize }}bps, approaching capacity.'
-        summary: 'High outbound traffic: {{ $labels.device }}/{{ $labels.ifDescr }}'
+        description: 'Interface {{ $labels.ifIndex }} on {{ $labels.device }} outbound traffic is {{ $value | printf "%.1f" }}% of capacity.'
+        summary: 'High outbound traffic: {{ $labels.device }}/if{{ $labels.ifIndex }}'
       expr: |
         (irate(ifHCOutOctets{job="snmp"}[5m]) * 8) / (ifHighSpeed{job="snmp"} * 1000000) * 100 > 80
+        and ifHighSpeed{job="snmp"} > 0
       for: 10m
       labels:
         severity: warning
 
     - alert: NetworkInterfaceErrors
       annotations:
-        description: 'Interface {{ $labels.ifDescr }} on {{ $labels.device }} has {{ $value | printf "%.0f" }} errors in the last 5 minutes.'
-        summary: 'Interface errors: {{ $labels.device }}/{{ $labels.ifDescr }}'
+        description: 'Interface {{ $labels.ifIndex }} on {{ $labels.device }} has {{ $value | printf "%.0f" }} errors in the last 5 minutes.'
+        summary: 'Interface errors: {{ $labels.device }}/if{{ $labels.ifIndex }}'
       expr: |
         increase(ifInErrors{job="snmp"}[5m]) + increase(ifOutErrors{job="snmp"}[5m]) > 10
       for: 5m
