@@ -67,14 +67,30 @@ data:
         targets = []
 
         # Devices already configured in ServiceMonitor (to avoid duplicates)
-        EXCLUDED_DEVICES = ['mgmt-sw-01', 'opnsense']
+        SERVICEMONITOR_DEVICES = {'mgmt-sw-01', 'opnsense'}
+        # Devices that don't have SNMP agents installed
+        NO_SNMP_DEVICES = {'proxmox'}
+        # Platforms that cannot run SNMP agents
+        NO_SNMP_PLATFORMS = {'talos-linux'}
 
         for device in devices:
             name = device.get('name')
+            platform = device.get('platform', {})
+            platform_slug = platform.get('slug', '') if platform else ''
 
             # Skip devices already in ServiceMonitor
-            if name in EXCLUDED_DEVICES:
+            if name in SERVICEMONITOR_DEVICES:
                 logger.info(f'Device {name} already in ServiceMonitor, skipping')
+                continue
+
+            # Skip devices that cannot run SNMP
+            if platform_slug in NO_SNMP_PLATFORMS:
+                logger.info(f'Skipping {name} - platform {platform_slug} does not support SNMP')
+                continue
+
+            # Skip devices without SNMP agents
+            if name in NO_SNMP_DEVICES:
+                logger.info(f'Skipping {name} - no SNMP agent installed')
                 continue
 
             # Get primary IP address (strip CIDR notation)

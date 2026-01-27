@@ -17,14 +17,91 @@ stringData:
         module: [if_mib]
         auth: [lanmine]
       relabel_configs:
-        # Strip port from __address__ and use as __param_target
         - source_labels: [__address__]
           regex: '([^:]+)(?::\d+)?'
           replacement: '$1'
           target_label: __param_target
-        # Use the device label as the instance label
         - source_labels: [device]
           target_label: instance
-        # Point to SNMP exporter service
         - target_label: __address__
           replacement: snmp-exporter.snmp-exporter.svc.cluster.local:9116
+
+    # HTTP endpoint probes (Cloudflare only - Tailscale URLs unreachable from cluster)
+    - job_name: 'blackbox-http'
+      scrape_interval: 60s
+      scrape_timeout: 30s
+      metrics_path: /probe
+      params:
+        module: [http_2xx]
+      static_configs:
+        - targets:
+            - https://grafana.hl0.dev
+            - https://netbox.hl0.dev
+          labels:
+            probe_type: http
+      relabel_configs:
+        - source_labels: [__address__]
+          target_label: __param_target
+        - source_labels: [__param_target]
+          target_label: instance
+        - target_label: __address__
+          replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115
+
+    # ICMP ping probes
+    - job_name: 'blackbox-icmp'
+      scrape_interval: 30s
+      scrape_timeout: 10s
+      metrics_path: /probe
+      params:
+        module: [icmp]
+      static_configs:
+        - targets:
+            - 10.0.10.1    # opnsense
+            - 10.0.10.5    # proxmox
+            - 10.0.10.21   # vault-01
+            - 10.0.10.22   # runner-01
+            - 10.0.10.23   # postgres-01
+            - 10.0.10.25   # authentik-01
+            - 10.0.10.26   # akvorado-01
+            - 10.0.10.27   # n8n-01
+            - 10.0.10.28   # panda9000
+            - 10.0.10.30   # talos-cp-01
+            - 10.0.10.102  # talos-bdg-qhb
+            - 10.0.20.2    # ubuntu-mgmt02
+            - 10.0.99.101  # mgmt-sw-01
+          labels:
+            probe_type: icmp
+      relabel_configs:
+        - source_labels: [__address__]
+          target_label: __param_target
+        - source_labels: [__param_target]
+          target_label: instance
+        - target_label: __address__
+          replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115
+
+    # TCP port probes
+    - job_name: 'blackbox-tcp'
+      scrape_interval: 60s
+      scrape_timeout: 10s
+      metrics_path: /probe
+      params:
+        module: [tcp_connect]
+      static_configs:
+        - targets:
+            - 10.0.10.1:443    # OPNsense WebUI
+            - 10.0.10.5:8006   # Proxmox WebUI
+            - 10.0.10.21:8200  # Vault API
+            - 10.0.10.23:5432  # PostgreSQL
+            - 10.0.10.25:9000  # Authentik
+            - 10.0.10.26:8080  # Akvorado
+            - 10.0.10.27:5678  # n8n
+            - 10.0.99.101:22   # mgmt-sw-01 SSH
+          labels:
+            probe_type: tcp
+      relabel_configs:
+        - source_labels: [__address__]
+          target_label: __param_target
+        - source_labels: [__param_target]
+          target_label: instance
+        - target_label: __address__
+          replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115
