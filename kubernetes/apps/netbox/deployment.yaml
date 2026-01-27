@@ -15,6 +15,10 @@ spec:
       labels:
         app: netbox
     spec:
+      hostAliases:
+      - ip: "10.0.10.25"
+        hostnames:
+        - "authentik-01.lionfish-caiman.ts.net"
       initContainers:
       - name: netbox-init
         image: netboxcommunity/netbox:v4.2
@@ -195,7 +199,7 @@ spec:
         - name: SOCIAL_AUTH_OIDC_NAME
           value: "Sign in with Authentik"
         - name: SOCIAL_AUTH_OIDC_OIDC_ENDPOINT
-          value: "http://authentik-01.lionfish-caiman.ts.net:9000/application/o/netbox/"
+          value: "https://authentik-01.lionfish-caiman.ts.net/application/o/netbox/"
         - name: SOCIAL_AUTH_OIDC_KEY
           valueFrom:
             secretKeyRef:

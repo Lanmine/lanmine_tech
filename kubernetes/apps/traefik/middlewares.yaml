@@ -15,7 +15,7 @@ metadata:
   namespace: traefik
 spec:
   forwardAuth:
-    address: http://authentik-01.lionfish-caiman.ts.net:9000/outpost.goauthentik.io/auth/traefik
+    address: https://authentik-01.lionfish-caiman.ts.net/outpost.goauthentik.io/auth/traefik
     trustForwardHeader: true
     authResponseHeaders:
       - X-authentik-username

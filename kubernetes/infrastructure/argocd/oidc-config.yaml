@@ -7,7 +7,7 @@ data:
   url: "https://argocd.lionfish-caiman.ts.net"
   oidc.config: |
     name: Authentik
-    issuer: http://authentik-01.lionfish-caiman.ts.net:9000/application/o/argocd/
+    issuer: https://authentik-01.lionfish-caiman.ts.net/application/o/argocd/
     clientID: argocd
     clientSecret: $argocd-oidc-secret:clientSecret
     requestedScopes:
