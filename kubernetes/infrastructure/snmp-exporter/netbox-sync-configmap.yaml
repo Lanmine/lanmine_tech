@@ -28,6 +28,11 @@ data:
     OUTPUT_FILE = '/targets/snmp-targets.json'
     SYNC_INTERVAL = int(os.environ.get('SYNC_INTERVAL', '300'))  # 5 minutes
 
+    # Platforms that cannot run SNMP agents
+    EXCLUDED_PLATFORMS = {'talos-linux'}
+    # Devices that don't have SNMP agents installed (can be overridden by SNMP_TAG)
+    EXCLUDED_DEVICES = {'proxmox'}
+
     def fetch_devices():
         """Fetch active devices from NetBox with network interfaces"""
         try:
@@ -43,7 +48,28 @@ data:
             response.raise_for_status()
 
             data = response.json()
-            return data.get('results', [])
+            devices = data.get('results', [])
+
+            # Filter out devices that can't run SNMP
+            filtered = []
+            for device in devices:
+                name = device.get('name', '')
+                platform = device.get('platform', {})
+                platform_slug = platform.get('slug', '') if platform else ''
+
+                # Skip devices on excluded platforms (e.g., Talos Linux)
+                if platform_slug in EXCLUDED_PLATFORMS:
+                    logger.info(f'Skipping {name} - platform {platform_slug} does not support SNMP')
+                    continue
+
+                # Skip explicitly excluded devices (e.g., Proxmox without SNMP)
+                if name in EXCLUDED_DEVICES:
+                    logger.info(f'Skipping {name} - in EXCLUDED_DEVICES list')
+                    continue
+
+                filtered.append(device)
+
+            return filtered
         except Exception as e:
             logger.error(f'Failed to fetch devices from NetBox: {e}')
             return None
