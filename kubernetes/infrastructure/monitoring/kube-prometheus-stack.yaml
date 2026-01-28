@@ -179,6 +179,10 @@ spec:
             - receiver: 'null'
               matchers:
                 - alertname="Watchdog"
+            # Silence unused switch port alerts
+            - receiver: 'null'
+              matchers:
+                - alertname="SwitchInterfaceDown"
             - receiver: 'email'
               matchers:
                 - severity=~"critical|warning"
