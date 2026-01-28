@@ -183,6 +183,10 @@ spec:
             - receiver: 'null'
               matchers:
                 - alertname="SwitchInterfaceDown"
+            # Silence CPU overcommit (acceptable for homelab)
+            - receiver: 'null'
+              matchers:
+                - alertname="KubeCPUOvercommit"
             - receiver: 'email'
               matchers:
                 - severity=~"critical|warning"
