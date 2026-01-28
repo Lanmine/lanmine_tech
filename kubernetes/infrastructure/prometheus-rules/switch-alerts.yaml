@@ -49,13 +49,14 @@ spec:
 
     - alert: SwitchInterfaceHighUtilization
       annotations:
-        description: 'Interface {{ $labels.ifDescr }} on {{ $labels.device }} is at {{ $value | humanizePercentage }} utilization.'
-        summary: 'Switch interface high utilization: {{ $labels.device }}/{{ $labels.ifDescr }}'
+        description: 'Interface {{ $labels.ifIndex }} on {{ $labels.device }} is at {{ $value | printf "%.1f" }}% utilization.'
+        summary: 'Switch interface high utilization: {{ $labels.device }}/if{{ $labels.ifIndex }}'
       expr: |
         (
           (rate(ifHCInOctets{device=~"mgmt-sw-.*|opnsense"}[5m]) * 8) /
           (ifHighSpeed{device=~"mgmt-sw-.*|opnsense"} * 1000000)
         ) * 100 > 80
+        and ifHighSpeed{device=~"mgmt-sw-.*|opnsense"} > 0
       for: 10m
       labels:
         severity: warning
@@ -63,13 +64,14 @@ spec:
 
     - alert: SwitchInterfaceCriticalUtilization
       annotations:
-        description: 'Interface {{ $labels.ifDescr }} on {{ $labels.device }} is at {{ $value | humanizePercentage }} utilization.'
-        summary: 'Switch interface critical utilization: {{ $labels.device }}/{{ $labels.ifDescr }}'
+        description: 'Interface {{ $labels.ifIndex }} on {{ $labels.device }} is at {{ $value | printf "%.1f" }}% utilization.'
+        summary: 'Switch interface critical utilization: {{ $labels.device }}/if{{ $labels.ifIndex }}'
       expr: |
         (
           (rate(ifHCInOctets{device=~"mgmt-sw-.*|opnsense"}[5m]) * 8) /
           (ifHighSpeed{device=~"mgmt-sw-.*|opnsense"} * 1000000)
         ) * 100 > 90
+        and ifHighSpeed{device=~"mgmt-sw-.*|opnsense"} > 0
       for: 5m
       labels:
         severity: critical
