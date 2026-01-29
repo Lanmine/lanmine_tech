@@ -168,8 +168,8 @@
         "url": "http://10.0.20.2:11434/v1/chat/completions",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\"model\":\"default\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a sysadmin assistant. Summarize these infrastructure findings in 1-2 sentences for an alert. Be specific about what's wrong and urgency level.\"},{\"role\":\"user\",\"content\":\"Issues found: {{ $json.issues.map(i => i.check + ' (' + i.severity + '): ' + i.details).join('; ') }}\"}],\"max_tokens\":150}",
-        "options": {"timeout": 30000}
+        "jsonBody": "={\"model\":\"default\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a sysadmin assistant. Summarize these infrastructure findings in 1-2 sentences for an alert. Be specific about what's wrong and urgency level.\"},{\"role\":\"user\",\"content\":\"Issues found: {{ $json.issues.map(i => i.check + ' (' + i.severity + '): ' + i.details).join('; ') }}\"}],\"max_tokens\":500}",
+        "options": {"timeout": 120000}
       },
       "id": "llm-summary",
       "name": "LLM Summary",
@@ -180,7 +180,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const prev = $items('Aggregate Results')[0].json;\nconst llmResponse = $input.first()?.json || {};\n\nlet summary = '';\ntry {\n  summary = llmResponse.choices?.[0]?.message?.content || '';\n} catch (e) {\n  summary = '';\n}\n\n// Fallback if LLM failed\nif (!summary) {\n  const issueList = prev.issues.map(i => i.check).join(', ');\n  summary = `Pre-outage detected: ${prev.issueCount} issues found. Check: ${issueList}`;\n}\n\nreturn [{json: {\n  ...prev,\n  summary: summary,\n  alertname: 'PreOutageDetected'\n}}];"
+        "jsCode": "const prev = $items('Aggregate Results')[0].json;\nconst llmResponse = $input.first()?.json || {};\n\nlet summary = '';\ntry {\n  const msg = llmResponse.choices?.[0]?.message || {};\n  summary = msg.content || '';\n  // If content empty but reasoning exists, extract key insight\n  if (!summary && msg.reasoning) {\n    const lines = msg.reasoning.split('\\n').filter(l => l.trim());\n    summary = lines.slice(-2).join(' ').substring(0, 200);\n  }\n} catch (e) {\n  summary = '';\n}\n\n// Fallback if LLM failed\nif (!summary) {\n  const issueList = prev.issues.map(i => i.check).join(', ');\n  summary = `Pre-outage detected: ${prev.issueCount} issues found. Check: ${issueList}`;\n}\n\nreturn [{json: {\n  ...prev,\n  summary: summary,\n  alertname: 'PreOutageDetected'\n}}];"
       },
       "id": "format-alert",
       "name": "Format Alert",
