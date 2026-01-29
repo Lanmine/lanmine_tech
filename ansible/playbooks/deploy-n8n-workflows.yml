@@ -13,6 +13,7 @@
     n8n_port: 5678
     n8n_api_url: "http://{{ n8n_host }}:{{ n8n_port }}/api/v1"
     n8n_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/n8n', validate_certs=true).secret }}"
+    discord_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/discord', validate_certs=true).secret }}"
     workflows_dir: "{{ playbook_dir }}/../files/n8n-workflows"
 
   tasks:
@@ -28,7 +29,7 @@
 
     - name: Read workflow content
       set_fact:
-        workflows: "{{ workflows | default([]) + [{'name': item.path | basename | splitext | first, 'content': lookup('file', item.path) | from_json}] }}"
+        workflows: "{{ workflows | default([]) + [{'name': item.path | basename | splitext | first, 'content': lookup('file', item.path) | regex_replace('\\{\\{DISCORD_WEBHOOK_URL\\}\\}', discord_secrets.webhook_url | default('')) | from_json}] }}"
       loop: "{{ workflow_files.files }}"
 
     - name: Get existing workflows from n8n
@@ -43,7 +44,7 @@
     - name: Create or update workflows
       uri:
         url: "{{ n8n_api_url }}/workflows{{ (existing_id != '') | ternary('/' + existing_id, '') }}"
-        method: "{{ (existing_id != '') | ternary('PATCH', 'POST') }}"
+        method: "{{ (existing_id != '') | ternary('PUT', 'POST') }}"
         headers:
           X-N8N-API-KEY: "{{ n8n_secrets.api_key }}"
           Content-Type: application/json

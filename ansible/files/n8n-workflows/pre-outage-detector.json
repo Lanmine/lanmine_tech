@@ -1,0 +1,278 @@
+{
+  "name": "Pre-Outage Detector",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "minutes", "minutesInterval": 5}]
+        }
+      },
+      "id": "schedule-1",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "pre-outage-check",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 200],
+      "webhookId": "pre-outage-check"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "sum by (namespace, pod) (increase(kube_pod_container_status_restarts_total[15m])) > 3"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-restarts",
+      "name": "Check Pod Restarts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 100]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "kube_pod_status_phase{phase=\"Pending\"} == 1"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-pending",
+      "name": "Check Pending Pods",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 250]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "(kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes) < 0.15"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-storage",
+      "name": "Check Storage Pressure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "(time() - kube_cronjob_status_last_schedule_time) > 7200"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-cronjobs",
+      "name": "Check Missed CronJobs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 550]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "kube_pod_container_status_ready{namespace=\"flux-system\"} == 0"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-flux",
+      "name": "Check Flux Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 700]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "kube_persistentvolume_status_phase{phase=\"Released\"} == 1"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-pvs",
+      "name": "Check Released PVs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 850]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all check results\nconst results = {\n  timestamp: new Date().toISOString(),\n  issues: [],\n  checks: {}\n};\n\n// Helper to safely get input\nconst getInput = (name) => {\n  try {\n    const items = $items(name);\n    return items?.[0]?.json || null;\n  } catch { return null; }\n};\n\n// Check 1: Pod Restarts\nconst restarts = getInput('Check Pod Restarts');\nif (restarts?.data?.result?.length > 0) {\n  const pods = restarts.data.result.map(r => `${r.metric.namespace}/${r.metric.pod}`).slice(0, 5);\n  results.issues.push({check: 'pod_restarts', severity: 'warning', count: restarts.data.result.length, details: pods.join(', ')});\n}\nresults.checks.pod_restarts = restarts?.data?.result?.length || 0;\n\n// Check 2: Pending Pods\nconst pending = getInput('Check Pending Pods');\nif (pending?.data?.result?.length > 0) {\n  const pods = pending.data.result.map(r => `${r.metric.namespace}/${r.metric.pod}`).slice(0, 5);\n  results.issues.push({check: 'pending_pods', severity: 'warning', count: pending.data.result.length, details: pods.join(', ')});\n}\nresults.checks.pending_pods = pending?.data?.result?.length || 0;\n\n// Check 3: Storage Pressure\nconst storage = getInput('Check Storage Pressure');\nif (storage?.data?.result?.length > 0) {\n  const vols = storage.data.result.map(r => r.metric.persistentvolumeclaim || r.metric.namespace).slice(0, 5);\n  results.issues.push({check: 'storage_pressure', severity: 'warning', count: storage.data.result.length, details: vols.join(', ')});\n}\nresults.checks.storage_pressure = storage?.data?.result?.length || 0;\n\n// Check 4: Missed CronJobs\nconst cronjobs = getInput('Check Missed CronJobs');\nif (cronjobs?.data?.result?.length > 0) {\n  const jobs = cronjobs.data.result.map(r => `${r.metric.namespace}/${r.metric.cronjob}`).slice(0, 5);\n  results.issues.push({check: 'missed_cronjobs', severity: 'warning', count: cronjobs.data.result.length, details: jobs.join(', ')});\n}\nresults.checks.missed_cronjobs = cronjobs?.data?.result?.length || 0;\n\n// Check 5: Flux Health\nconst flux = getInput('Check Flux Health');\nif (flux?.data?.result?.length > 0) {\n  const pods = flux.data.result.map(r => r.metric.pod).slice(0, 5);\n  results.issues.push({check: 'flux_unhealthy', severity: 'critical', count: flux.data.result.length, details: pods.join(', ')});\n}\nresults.checks.flux_unhealthy = flux?.data?.result?.length || 0;\n\n// Check 6: Released PVs\nconst pvs = getInput('Check Released PVs');\nif (pvs?.data?.result?.length > 0) {\n  const names = pvs.data.result.map(r => r.metric.persistentvolume).slice(0, 5);\n  results.issues.push({check: 'released_pvs', severity: 'warning', count: pvs.data.result.length, details: names.join(', ')});\n}\nresults.checks.released_pvs = pvs?.data?.result?.length || 0;\n\n// Determine overall status\nresults.status = results.issues.length === 0 ? 'healthy' : \n  results.issues.some(i => i.severity === 'critical') ? 'critical' : 'warning';\nresults.issueCount = results.issues.length;\n\nreturn [{json: results}];"
+      },
+      "id": "aggregate-1",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
+          "conditions": [
+            {"id": "cond-1", "leftValue": "={{ $json.issueCount }}", "rightValue": "0", "operator": {"type": "number", "operation": "gt"}}
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-issues",
+      "name": "Any Issues?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [950, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://10.0.20.2:11434/v1/chat/completions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"model\":\"default\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a sysadmin assistant. Summarize these infrastructure findings in 1-2 sentences for an alert. Be specific about what's wrong and urgency level.\"},{\"role\":\"user\",\"content\":\"{{ JSON.stringify($json.issues) }}\"}],\"max_tokens\":150}",
+        "options": {"timeout": 30000}
+      },
+      "id": "llm-summary",
+      "name": "LLM Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1150, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $items('Aggregate Results')[0].json;\nconst llmResponse = $input.first()?.json || {};\n\nlet summary = '';\ntry {\n  summary = llmResponse.choices?.[0]?.message?.content || '';\n} catch (e) {\n  summary = '';\n}\n\n// Fallback if LLM failed\nif (!summary) {\n  const issueList = prev.issues.map(i => i.check).join(', ');\n  summary = `Pre-outage detected: ${prev.issueCount} issues found. Check: ${issueList}`;\n}\n\nreturn [{json: {\n  ...prev,\n  summary: summary,\n  alertname: 'PreOutageDetected'\n}}];"
+      },
+      "id": "format-alert",
+      "name": "Format Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://alertmanager.lanmine.local/api/v2/alerts",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[{\"labels\":{\"alertname\":\"PreOutageDetected\",\"severity\":\"{{ $json.status }}\",\"source\":\"n8n-preoutage\"},\"annotations\":{\"summary\":\"Pre-outage pattern detected\",\"description\":\"{{ $json.summary.replace(/\"/g, \"'\") }}\"}}]",
+        "options": {"timeout": 10000}
+      },
+      "id": "alertmanager",
+      "name": "Send to Alertmanager",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1550, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "{{DISCORD_WEBHOOK_URL}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"embeds\":[{\"title\":\"Pre-Outage Alert\",\"description\":\"{{ $json.summary.replace(/\"/g, \"'\") }}\",\"color\":{{ $json.status === 'critical' ? 15158332 : 16776960 }},\"fields\":[{\"name\":\"Status\",\"value\":\"{{ $json.status }}\",\"inline\":true},{\"name\":\"Issues\",\"value\":\"{{ $json.issueCount }}\",\"inline\":true}],\"timestamp\":\"{{ $json.timestamp }}\"}]}",
+        "options": {"timeout": 10000}
+      },
+      "id": "discord",
+      "name": "Send to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1550, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: {\n  status: 'healthy',\n  message: 'All checks passed',\n  timestamp: new Date().toISOString(),\n  checks: $items('Aggregate Results')[0].json.checks\n}}];"
+      },
+      "id": "healthy",
+      "name": "All Healthy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1150, 500]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [[
+        {"node": "Check Pod Restarts", "type": "main", "index": 0},
+        {"node": "Check Pending Pods", "type": "main", "index": 0},
+        {"node": "Check Storage Pressure", "type": "main", "index": 0},
+        {"node": "Check Missed CronJobs", "type": "main", "index": 0},
+        {"node": "Check Flux Health", "type": "main", "index": 0},
+        {"node": "Check Released PVs", "type": "main", "index": 0}
+      ]]
+    },
+    "Manual Trigger": {
+      "main": [[
+        {"node": "Check Pod Restarts", "type": "main", "index": 0},
+        {"node": "Check Pending Pods", "type": "main", "index": 0},
+        {"node": "Check Storage Pressure", "type": "main", "index": 0},
+        {"node": "Check Missed CronJobs", "type": "main", "index": 0},
+        {"node": "Check Flux Health", "type": "main", "index": 0},
+        {"node": "Check Released PVs", "type": "main", "index": 0}
+      ]]
+    },
+    "Check Pod Restarts": {"main": [[{"node": "Aggregate Results", "type": "main", "index": 0}]]},
+    "Check Pending Pods": {"main": [[{"node": "Aggregate Results", "type": "main", "index": 0}]]},
+    "Check Storage Pressure": {"main": [[{"node": "Aggregate Results", "type": "main", "index": 0}]]},
+    "Check Missed CronJobs": {"main": [[{"node": "Aggregate Results", "type": "main", "index": 0}]]},
+    "Check Flux Health": {"main": [[{"node": "Aggregate Results", "type": "main", "index": 0}]]},
+    "Check Released PVs": {"main": [[{"node": "Aggregate Results", "type": "main", "index": 0}]]},
+    "Aggregate Results": {"main": [[{"node": "Any Issues?", "type": "main", "index": 0}]]},
+    "Any Issues?": {
+      "main": [
+        [{"node": "LLM Summary", "type": "main", "index": 0}],
+        [{"node": "All Healthy", "type": "main", "index": 0}]
+      ]
+    },
+    "LLM Summary": {"main": [[{"node": "Format Alert", "type": "main", "index": 0}]]},
+    "Format Alert": {
+      "main": [[
+        {"node": "Send to Alertmanager", "type": "main", "index": 0},
+        {"node": "Send to Discord", "type": "main", "index": 0}
+      ]]
+    }
+  },
+  "settings": {"executionOrder": "v1"},
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "pinData": {}
+}
