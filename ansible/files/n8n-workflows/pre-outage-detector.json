@@ -150,7 +150,7 @@
         "conditions": {
           "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
           "conditions": [
-            {"id": "cond-1", "leftValue": "={{ $json.issueCount }}", "rightValue": "0", "operator": {"type": "number", "operation": "gt"}}
+            {"id": "cond-1", "leftValue": "={{ $json.issueCount }}", "rightValue": 0, "operator": {"type": "number", "operation": "gt"}}
           ],
           "combinator": "and"
         },
@@ -168,14 +168,15 @@
         "url": "http://10.0.20.2:11434/v1/chat/completions",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\"model\":\"default\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a sysadmin assistant. Summarize these infrastructure findings in 1-2 sentences for an alert. Be specific about what's wrong and urgency level.\"},{\"role\":\"user\",\"content\":\"{{ JSON.stringify($json.issues) }}\"}],\"max_tokens\":150}",
+        "jsonBody": "={\"model\":\"default\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a sysadmin assistant. Summarize these infrastructure findings in 1-2 sentences for an alert. Be specific about what's wrong and urgency level.\"},{\"role\":\"user\",\"content\":\"Issues found: {{ $json.issues.map(i => i.check + ' (' + i.severity + '): ' + i.details).join('; ') }}\"}],\"max_tokens\":150}",
         "options": {"timeout": 30000}
       },
       "id": "llm-summary",
       "name": "LLM Summary",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1150, 300]
+      "position": [1150, 300],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -190,7 +191,9 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://alertmanager.lanmine.local/api/v2/alerts",
+        "url": "http://10.0.10.40/api/v2/alerts",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "Host", "value": "alertmanager.lanmine.local"}]},
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "=[{\"labels\":{\"alertname\":\"PreOutageDetected\",\"severity\":\"{{ $json.status }}\",\"source\":\"n8n-preoutage\"},\"annotations\":{\"summary\":\"Pre-outage pattern detected\",\"description\":\"{{ $json.summary.replace(/\"/g, \"'\") }}\"}}]",
@@ -200,7 +203,8 @@
       "name": "Send to Alertmanager",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1550, 200]
+      "position": [1550, 200],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -262,7 +266,7 @@
         [{"node": "All Healthy", "type": "main", "index": 0}]
       ]
     },
-    "LLM Summary": {"main": [[{"node": "Format Alert", "type": "main", "index": 0}]]},
+    "LLM Summary": {"main": [[{"node": "Format Alert", "type": "main", "index": 0}], [{"node": "Format Alert", "type": "main", "index": 0}]]},
     "Format Alert": {
       "main": [[
         {"node": "Send to Alertmanager", "type": "main", "index": 0},
