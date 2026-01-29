@@ -212,7 +212,7 @@
         "url": "{{DISCORD_WEBHOOK_URL}}",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\"embeds\":[{\"title\":\"Pre-Outage Alert\",\"description\":\"{{ $json.summary.replace(/\"/g, \"'\") }}\",\"color\":{{ $json.status === 'critical' ? 15158332 : 16776960 }},\"fields\":[{\"name\":\"Status\",\"value\":\"{{ $json.status }}\",\"inline\":true},{\"name\":\"Issues\",\"value\":\"{{ $json.issueCount }}\",\"inline\":true}],\"timestamp\":\"{{ $json.timestamp }}\"}]}",
+        "jsonBody": "={\"embeds\":[{\"title\":\"Pre-Outage Alert\",\"description\":\"{{ $json.summary.replace(/\"/g, \"'\") }}\",\"color\":{{ $json.status === 'critical' ? 15158332 : 16776960 }},\"fields\":[{\"name\":\"Status\",\"value\":\"{{ $json.status }}\",\"inline\":true},{\"name\":\"Count\",\"value\":\"{{ $json.issueCount }}\",\"inline\":true},{\"name\":\"Details\",\"value\":\"{{ $json.issues.map(i => '• ' + i.check + ' (' + i.severity + '): ' + i.details).join('\\\\n') }}\",\"inline\":false}],\"timestamp\":\"{{ $json.timestamp }}\"}]}",
         "options": {"timeout": 10000}
       },
       "id": "discord",
