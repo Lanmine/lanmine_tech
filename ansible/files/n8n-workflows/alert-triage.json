@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Handle both direct alerts and Alertmanager webhook format\nconst rawInput = $input.first().json;\nconst input = rawInput.body || rawInput;\n\n// Alertmanager sends {alerts: [...]} array\nconst alerts = input.alerts || [input];\n\nreturn alerts.map(alert => {\n  const labels = alert.labels || {};\n  const annotations = alert.annotations || {};\n  \n  return {\n    json: {\n      alertname: alert.alertname || labels.alertname || 'unknown',\n      severity: alert.severity || labels.severity || 'warning',\n      status: alert.status || 'firing',\n      instance: alert.instance || labels.instance || labels.host || 'unknown',\n      description: alert.description || annotations.description || annotations.summary || '',\n      runbook_url: annotations.runbook_url || '',\n      starts_at: alert.startsAt || new Date().toISOString(),\n      raw: JSON.stringify(alert, null, 2)\n    }\n  };\n});"
+        "jsCode": "// Handle both direct alerts and Alertmanager webhook format\nconst rawInput = $input.first().json;\nconst input = rawInput.body || rawInput;\n\n// Alertmanager sends {alerts: [...]} array\nconst alerts = input.alerts || [input];\n\n// Sanitize string for JSON (escape special chars)\nconst sanitize = (s) => String(s || '').replace(/[\\x00-\\x1f\\\\\"]/g, c => {\n  if (c === '\\\"') return '\\\\\"';\n  if (c === '\\\\') return '\\\\\\\\';\n  if (c === '\\n') return ' ';\n  if (c === '\\r') return '';\n  if (c === '\\t') return ' ';\n  return '';\n}).substring(0, 500);\n\nreturn alerts.slice(0, 1).map(alert => {\n  const labels = alert.labels || {};\n  const annotations = alert.annotations || {};\n  \n  return {\n    json: {\n      alertname: sanitize(alert.alertname || labels.alertname || 'unknown'),\n      severity: sanitize(alert.severity || labels.severity || 'warning'),\n      status: sanitize(alert.status || 'firing'),\n      instance: sanitize(alert.instance || labels.instance || labels.host || 'unknown'),\n      description: sanitize(alert.description || annotations.description || annotations.summary || 'No description')\n    }\n  };\n});"
       },
       "id": "code-extract",
       "name": "Extract Alert Info",
@@ -27,11 +27,21 @@
     },
     {
       "parameters": {
+        "jsCode": "const alert = $input.first().json;\nconst systemPrompt = `You analyze infrastructure alerts. Respond ONLY with JSON, no other text.\n\nExample: {\"priority\":\"P1\",\"category\":\"infrastructure\",\"action\":\"immediate\",\"summary\":\"Disk full\",\"remediation\":[\"Clear logs\"],\"commands\":[\"df -h\"]}\n\nPriority: P1=down, P2=degraded, P3=warning, P4=noise`;\n\nconst userPrompt = `Alert: ${alert.alertname}\\nSeverity: ${alert.severity}\\nStatus: ${alert.status}\\nInstance: ${alert.instance}\\nDescription: ${alert.description}`;\n\nreturn [{\n  json: {\n    requestBody: {\n      model: 'default',\n      stream: false,\n      messages: [\n        { role: 'system', content: systemPrompt },\n        { role: 'user', content: userPrompt }\n      ]\n    },\n    alertInfo: alert\n  }\n}];"
+      },
+      "id": "code-build-request",
+      "name": "Build LLM Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "http://10.0.20.2:11434/api/chat",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"default\",\n  \"stream\": false,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You analyze infrastructure alerts. Respond ONLY with JSON, no other text.\\n\\nExample response for disk full:\\n{\\\"priority\\\":\\\"P1\\\",\\\"category\\\":\\\"infrastructure\\\",\\\"action\\\":\\\"immediate\\\",\\\"summary\\\":\\\"Disk space critical on vault-01\\\",\\\"remediation\\\":[\\\"Find large files\\\",\\\"Clear old logs\\\"],\\\"commands\\\":[\\\"df -h\\\",\\\"du -sh /var/*\\\"]}\\n\\nExample for high memory:\\n{\\\"priority\\\":\\\"P2\\\",\\\"category\\\":\\\"infrastructure\\\",\\\"action\\\":\\\"investigate\\\",\\\"summary\\\":\\\"High memory usage on postgres-01\\\",\\\"remediation\\\":[\\\"Check for memory leaks\\\",\\\"Restart service if needed\\\"],\\\"commands\\\":[\\\"free -h\\\",\\\"ps aux --sort=-%mem | head\\\"]}\\n\\nPriority: P1=down/data loss, P2=degraded, P3=warning, P4=noise\\nCommands must be actual shell commands only, no descriptions.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Alert: {{ $json.alertname }}\\nSeverity: {{ $json.severity }}\\nStatus: {{ $json.status }}\\nInstance: {{ $json.instance }}\\nDescription: {{ $json.description }}\"\n    }\n  ]\n}",
+        "jsonBody": "={{ JSON.stringify($json.requestBody) }}",
         "options": {
           "timeout": 60000
         }
@@ -40,11 +50,11 @@
       "name": "Analyze with LLM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [600, 300]
+      "position": [750, 300]
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst alertInfo = $('Extract Alert Info').first().json;\n\n// Extract LLM response\nlet llmContent = response.message?.content || '';\n\n// Try to parse JSON from response\nlet analysis = {};\ntry {\n  // Find JSON in response (might have markdown)\n  const jsonMatch = llmContent.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    analysis = JSON.parse(jsonMatch[0]);\n  }\n} catch (e) {\n  // If JSON parse fails, create basic response\n  analysis = {\n    priority: 'P3',\n    category: 'unknown',\n    action: 'investigate',\n    summary: llmContent.substring(0, 200),\n    remediation: ['Review alert manually'],\n    commands: []\n  };\n}\n\n// Clean up commands (remove leading '- ' if present)\nconst cleanArray = (arr) => (arr || []).map(s => s.replace(/^-\\s*/, '').trim()).filter(s => s);\n\nreturn [{\n  json: {\n    alert: {\n      name: alertInfo.alertname,\n      severity: alertInfo.severity,\n      status: alertInfo.status,\n      instance: alertInfo.instance,\n      description: alertInfo.description\n    },\n    triage: {\n      priority: analysis.priority || 'P3',\n      category: analysis.category || 'unknown',\n      action: analysis.action || 'investigate',\n      summary: analysis.summary || 'Analysis unavailable',\n      remediation: cleanArray(analysis.remediation),\n      commands: cleanArray(analysis.commands)\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const response = $input.first().json;\nconst alertInfo = $('Build LLM Request').first().json.alertInfo;\n\n// Extract LLM response\nlet llmContent = response.message?.content || '';\n\n// Try to parse JSON from response\nlet analysis = {};\ntry {\n  const jsonMatch = llmContent.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    analysis = JSON.parse(jsonMatch[0]);\n  }\n} catch (e) {\n  analysis = {\n    priority: 'P3',\n    category: 'unknown',\n    action: 'investigate',\n    summary: llmContent.substring(0, 200),\n    remediation: ['Review alert manually'],\n    commands: []\n  };\n}\n\nconst cleanArray = (arr) => (arr || []).map(s => s.replace(/^-\\s*/, '').trim()).filter(s => s);\n\nreturn [{\n  json: {\n    alert: {\n      name: alertInfo.alertname,\n      severity: alertInfo.severity,\n      status: alertInfo.status,\n      instance: alertInfo.instance,\n      description: alertInfo.description\n    },\n    triage: {\n      priority: analysis.priority || 'P3',\n      category: analysis.category || 'unknown',\n      action: analysis.action || 'investigate',\n      summary: analysis.summary || 'Analysis unavailable',\n      remediation: cleanArray(analysis.remediation),\n      commands: cleanArray(analysis.commands)\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
       },
       "id": "code-format",
       "name": "Format Response",
@@ -54,18 +64,28 @@
     },
     {
       "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst colors = { P1: 15158332, P2: 15105570, P3: 16776960, P4: 8421504 };\nconst remediation = data.triage.remediation.length > 0 \n  ? data.triage.remediation.map((r, i) => `${i+1}. ${r}`).join('\\n') \n  : 'None suggested';\n\nreturn [{\n  json: {\n    discordPayload: {\n      embeds: [{\n        title: `${data.triage.priority} Alert: ${data.alert.name}`,\n        description: data.triage.summary,\n        color: colors[data.triage.priority] || 8421504,\n        fields: [\n          { name: 'Instance', value: data.alert.instance, inline: true },\n          { name: 'Severity', value: data.alert.severity, inline: true },\n          { name: 'Action', value: data.triage.action, inline: true },\n          { name: 'Category', value: data.triage.category, inline: true },\n          { name: 'Remediation', value: remediation, inline: false }\n        ],\n        timestamp: data.timestamp\n      }]\n    },\n    originalData: data\n  }\n}];"
+      },
+      "id": "code-discord",
+      "name": "Build Discord Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [950, 400]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://discord.com/api/webhooks/1466404547000926303/lS35p3llIKOyzBceuRHyzQ3tuk--7VfOW2Fx6hOgDxz9Tgd-JEwQXVI6-6sTgVDLb7yq",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"embeds\": [{\n    \"title\": \"{{ $json.triage.priority }} Alert: {{ $json.alert.name }}\",\n    \"description\": \"{{ $json.triage.summary }}\",\n    \"color\": {{ $json.triage.priority === 'P1' ? 15158332 : $json.triage.priority === 'P2' ? 15105570 : $json.triage.priority === 'P3' ? 16776960 : 8421504 }},\n    \"fields\": [\n      {\"name\": \"Instance\", \"value\": \"{{ $json.alert.instance }}\", \"inline\": true},\n      {\"name\": \"Severity\", \"value\": \"{{ $json.alert.severity }}\", \"inline\": true},\n      {\"name\": \"Action\", \"value\": \"{{ $json.triage.action }}\", \"inline\": true},\n      {\"name\": \"Category\", \"value\": \"{{ $json.triage.category }}\", \"inline\": true},\n      {\"name\": \"Remediation\", \"value\": \"{{ $json.triage.remediation.length > 0 ? $json.triage.remediation.map((r, i) => (i+1) + '. ' + r).join('\\\\n') : 'None suggested' }}\", \"inline\": false}\n    ],\n    \"timestamp\": \"{{ $json.timestamp }}\"\n  }]\n}",
+        "jsonBody": "={{ JSON.stringify($json.discordPayload) }}",
         "options": {}
       },
       "id": "discord-notify",
       "name": "Send to Discord",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1000, 400]
+      "position": [1100, 400]
     },
     {
       "parameters": {
@@ -84,6 +104,9 @@
       "main": [[{"node": "Extract Alert Info", "type": "main", "index": 0}]]
     },
     "Extract Alert Info": {
+      "main": [[{"node": "Build LLM Request", "type": "main", "index": 0}]]
+    },
+    "Build LLM Request": {
       "main": [[{"node": "Analyze with LLM", "type": "main", "index": 0}]]
     },
     "Analyze with LLM": {
@@ -93,9 +116,12 @@
       "main": [
         [
           {"node": "Respond to Webhook", "type": "main", "index": 0},
-          {"node": "Send to Discord", "type": "main", "index": 0}
+          {"node": "Build Discord Message", "type": "main", "index": 0}
         ]
       ]
+    },
+    "Build Discord Message": {
+      "main": [[{"node": "Send to Discord", "type": "main", "index": 0}]]
     }
   },
   "settings": {
