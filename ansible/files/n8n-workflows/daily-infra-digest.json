@@ -1,0 +1,276 @@
+{
+  "name": "Daily Infrastructure Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "cronExpression", "expression": "0 8 * * *"}]
+        }
+      },
+      "id": "schedule-1",
+      "name": "Daily 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "infra-status",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Manual Check",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 200],
+      "webhookId": "infra-status"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "count(kube_node_info)"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-nodes",
+      "name": "Node Count",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 50]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"})"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-nodes-ready",
+      "name": "Nodes Ready",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 150]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "count(kube_pod_status_phase{phase=\"Running\"})"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-pods-running",
+      "name": "Pods Running",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 250]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "count(kube_pod_status_phase{phase=~\"Pending|Failed|Unknown\"}) or vector(0)"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-pods-unhealthy",
+      "name": "Pods Unhealthy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 350]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "avg(100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100))"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-cpu",
+      "name": "Cluster CPU",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 450]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "avg(100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)))"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-memory",
+      "name": "Cluster Memory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 550]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "count(ALERTS{alertstate=\"firing\"}) or vector(0)"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-alerts",
+      "name": "Firing Alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 650]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "min(kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes) * 100"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-storage",
+      "name": "Storage Free",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 750]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "sum(increase(kube_pod_container_status_restarts_total[24h]))"}
+          ]
+        },
+        "options": {"timeout": 10000}
+      },
+      "id": "prom-restarts",
+      "name": "Restarts 24h",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 850]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build infrastructure status digest\nconst getValue = (name, defaultVal = 0) => {\n  try {\n    const items = $items(name);\n    const result = items?.[0]?.json?.data?.result?.[0]?.value?.[1];\n    return result ? parseFloat(result) : defaultVal;\n  } catch { return defaultVal; }\n};\n\nconst nodes = Math.round(getValue('Node Count'));\nconst nodesReady = Math.round(getValue('Nodes Ready'));\nconst podsRunning = Math.round(getValue('Pods Running'));\nconst podsUnhealthy = Math.round(getValue('Pods Unhealthy'));\nconst cpuPct = getValue('Cluster CPU').toFixed(1);\nconst memPct = getValue('Cluster Memory').toFixed(1);\nconst firingAlerts = Math.round(getValue('Firing Alerts'));\nconst storageFreePct = getValue('Storage Free', 100).toFixed(1);\nconst restarts24h = Math.round(getValue('Restarts 24h'));\n\n// Determine overall health\nlet health = 'healthy';\nlet healthEmoji = ':white_check_mark:';\nconst issues = [];\n\nif (nodesReady < nodes) {\n  health = 'degraded';\n  healthEmoji = ':warning:';\n  issues.push(`${nodes - nodesReady} node(s) not ready`);\n}\nif (podsUnhealthy > 0) {\n  health = 'degraded';\n  healthEmoji = ':warning:';\n  issues.push(`${podsUnhealthy} unhealthy pod(s)`);\n}\nif (firingAlerts > 0) {\n  health = 'degraded';\n  healthEmoji = ':warning:';\n  issues.push(`${firingAlerts} firing alert(s)`);\n}\nif (parseFloat(storageFreePct) < 15) {\n  health = 'degraded';\n  healthEmoji = ':warning:';\n  issues.push(`Storage low (${storageFreePct}% free)`);\n}\nif (parseFloat(cpuPct) > 85) {\n  issues.push(`High CPU usage (${cpuPct}%)`);\n}\nif (parseFloat(memPct) > 85) {\n  issues.push(`High memory usage (${memPct}%)`);\n}\n\nconst summary = issues.length > 0 \n  ? issues.join(', ')\n  : 'All systems operational';\n\nreturn [{\n  json: {\n    health,\n    healthEmoji,\n    summary,\n    nodes: `${nodesReady}/${nodes}`,\n    pods: `${podsRunning} running`,\n    podsUnhealthy,\n    cpu: `${cpuPct}%`,\n    memory: `${memPct}%`,\n    storage: `${storageFreePct}% free`,\n    alerts: firingAlerts,\n    restarts24h,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "aggregate",
+      "name": "Build Digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "{{DISCORD_WEBHOOK_URL}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"embeds\":[{\"title\":\"{{ $json.healthEmoji }} Infrastructure Status\",\"description\":\"{{ $json.summary }}\",\"color\":{{ $json.health === 'healthy' ? 5763719 : 16776960 }},\"fields\":[{\"name\":\"Nodes\",\"value\":\"{{ $json.nodes }}\",\"inline\":true},{\"name\":\"Pods\",\"value\":\"{{ $json.pods }}\",\"inline\":true},{\"name\":\"Unhealthy\",\"value\":\"{{ $json.podsUnhealthy }}\",\"inline\":true},{\"name\":\"CPU\",\"value\":\"{{ $json.cpu }}\",\"inline\":true},{\"name\":\"Memory\",\"value\":\"{{ $json.memory }}\",\"inline\":true},{\"name\":\"Storage\",\"value\":\"{{ $json.storage }}\",\"inline\":true},{\"name\":\"Firing Alerts\",\"value\":\"{{ $json.alerts }}\",\"inline\":true},{\"name\":\"Restarts (24h)\",\"value\":\"{{ $json.restarts24h }}\",\"inline\":true}],\"timestamp\":\"{{ $json.timestamp }}\"}]}",
+        "options": {"timeout": 10000}
+      },
+      "id": "discord",
+      "name": "Post to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return clean JSON for webhook response\nconst data = $items('Build Digest')[0].json;\nreturn [{ json: data }];"
+      },
+      "id": "response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 500]
+    }
+  ],
+  "connections": {
+    "Daily 08:00": {
+      "main": [[
+        {"node": "Node Count", "type": "main", "index": 0},
+        {"node": "Nodes Ready", "type": "main", "index": 0},
+        {"node": "Pods Running", "type": "main", "index": 0},
+        {"node": "Pods Unhealthy", "type": "main", "index": 0},
+        {"node": "Cluster CPU", "type": "main", "index": 0},
+        {"node": "Cluster Memory", "type": "main", "index": 0},
+        {"node": "Firing Alerts", "type": "main", "index": 0},
+        {"node": "Storage Free", "type": "main", "index": 0},
+        {"node": "Restarts 24h", "type": "main", "index": 0}
+      ]]
+    },
+    "Manual Check": {
+      "main": [[
+        {"node": "Node Count", "type": "main", "index": 0},
+        {"node": "Nodes Ready", "type": "main", "index": 0},
+        {"node": "Pods Running", "type": "main", "index": 0},
+        {"node": "Pods Unhealthy", "type": "main", "index": 0},
+        {"node": "Cluster CPU", "type": "main", "index": 0},
+        {"node": "Cluster Memory", "type": "main", "index": 0},
+        {"node": "Firing Alerts", "type": "main", "index": 0},
+        {"node": "Storage Free", "type": "main", "index": 0},
+        {"node": "Restarts 24h", "type": "main", "index": 0}
+      ]]
+    },
+    "Node Count": {"main": [[{"node": "Build Digest", "type": "main", "index": 0}]]},
+    "Nodes Ready": {"main": [[{"node": "Build Digest", "type": "main", "index": 0}]]},
+    "Pods Running": {"main": [[{"node": "Build Digest", "type": "main", "index": 0}]]},
+    "Pods Unhealthy": {"main": [[{"node": "Build Digest", "type": "main", "index": 0}]]},
+    "Cluster CPU": {"main": [[{"node": "Build Digest", "type": "main", "index": 0}]]},
+    "Cluster Memory": {"main": [[{"node": "Build Digest", "type": "main", "index": 0}]]},
+    "Firing Alerts": {"main": [[{"node": "Build Digest", "type": "main", "index": 0}]]},
+    "Storage Free": {"main": [[{"node": "Build Digest", "type": "main", "index": 0}]]},
+    "Restarts 24h": {"main": [[{"node": "Build Digest", "type": "main", "index": 0}]]},
+    "Build Digest": {
+      "main": [[
+        {"node": "Post to Discord", "type": "main", "index": 0},
+        {"node": "Webhook Response", "type": "main", "index": 0}
+      ]]
+    }
+  },
+  "settings": {"executionOrder": "v1"},
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "pinData": {}
+}
