@@ -191,7 +191,7 @@ spec:
               matchers:
                 - severity=~"critical|warning"
               continue: true  # Continue to n8n for analysis
-            - receiver: 'n8n-analysis'
+            - receiver: 'n8n-triage'
               matchers:
                 - severity=~"critical|warning"
         receivers:
@@ -202,9 +202,9 @@ spec:
                 send_resolved: true
                 headers:
                   Subject: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'
-          - name: 'n8n-analysis'
+          - name: 'n8n-triage'
             webhook_configs:
-              - url: 'http://10.0.10.27:5678/webhook/alert-analysis'
+              - url: 'http://10.0.10.27:5678/webhook/alert-triage'
                 send_resolved: true
         inhibit_rules:
           - source_matchers:

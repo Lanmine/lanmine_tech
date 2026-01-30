@@ -1,0 +1,70 @@
+{
+  "name": "Alert Triage",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "alert-triage",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Alert Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "alert-triage"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle both direct alerts and Alertmanager webhook format\nconst rawInput = $input.first().json;\nconst input = rawInput.body || rawInput;\n\n// Alertmanager sends {alerts: [...]} array\nconst alerts = input.alerts || [input];\n\nreturn alerts.map(alert => {\n  const labels = alert.labels || {};\n  const annotations = alert.annotations || {};\n  \n  return {\n    json: {\n      alertname: alert.alertname || labels.alertname || 'unknown',\n      severity: alert.severity || labels.severity || 'warning',\n      status: alert.status || 'firing',\n      instance: alert.instance || labels.instance || labels.host || 'unknown',\n      description: alert.description || annotations.description || annotations.summary || '',\n      runbook_url: annotations.runbook_url || '',\n      starts_at: alert.startsAt || new Date().toISOString(),\n      raw: JSON.stringify(alert, null, 2)\n    }\n  };\n});"
+      },
+      "id": "code-extract",
+      "name": "Extract Alert Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://10.0.20.2:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"default\",\n  \"stream\": false,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an infrastructure alert analyst. Analyze alerts and provide triage.\\n\\nRespond in this exact JSON format:\\n{\\n  \\\"priority\\\": \\\"P1|P2|P3|P4\\\",\\n  \\\"category\\\": \\\"infrastructure|application|network|security|noise\\\",\\n  \\\"action\\\": \\\"immediate|investigate|monitor|ignore\\\",\\n  \\\"summary\\\": \\\"One sentence summary\\\",\\n  \\\"remediation\\\": [\\\"Step 1\\\", \\\"Step 2\\\"],\\n  \\\"commands\\\": [\\\"diagnostic command 1\\\"]\\n}\\n\\nPriority guide:\\n- P1: Service down, data loss risk\\n- P2: Degraded performance, needs attention\\n- P3: Warning, monitor closely\\n- P4: Informational, noise\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Alert: {{ $json.alertname }}\\nSeverity: {{ $json.severity }}\\nStatus: {{ $json.status }}\\nInstance: {{ $json.instance }}\\nDescription: {{ $json.description }}\"\n    }\n  ]\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "ollama-analyze",
+      "name": "Analyze with LLM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst alertInfo = $('Extract Alert Info').first().json;\n\n// Extract LLM response\nlet llmContent = response.message?.content || '';\n\n// Try to parse JSON from response\nlet analysis = {};\ntry {\n  // Find JSON in response (might have markdown)\n  const jsonMatch = llmContent.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    analysis = JSON.parse(jsonMatch[0]);\n  }\n} catch (e) {\n  // If JSON parse fails, create basic response\n  analysis = {\n    priority: 'P3',\n    category: 'unknown',\n    action: 'investigate',\n    summary: llmContent.substring(0, 200),\n    remediation: ['Review alert manually'],\n    commands: []\n  };\n}\n\nreturn [{\n  json: {\n    alert: {\n      name: alertInfo.alertname,\n      severity: alertInfo.severity,\n      status: alertInfo.status,\n      instance: alertInfo.instance,\n      description: alertInfo.description\n    },\n    triage: {\n      priority: analysis.priority || 'P3',\n      category: analysis.category || 'unknown',\n      action: analysis.action || 'investigate',\n      summary: analysis.summary || 'Analysis unavailable',\n      remediation: analysis.remediation || [],\n      commands: analysis.commands || []\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "code-format",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 300]
+    }
+  ],
+  "connections": {
+    "Alert Webhook": {
+      "main": [[{"node": "Extract Alert Info", "type": "main", "index": 0}]]
+    },
+    "Extract Alert Info": {
+      "main": [[{"node": "Analyze with LLM", "type": "main", "index": 0}]]
+    },
+    "Analyze with LLM": {
+      "main": [[{"node": "Format Response", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
