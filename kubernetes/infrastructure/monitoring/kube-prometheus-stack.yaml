@@ -183,6 +183,14 @@ spec:
             - receiver: 'null'
               matchers:
                 - alertname="AlertmanagerFailedToSendAlerts"
+            # Silence InfoInhibitor (meta-alert, noise)
+            - receiver: 'null'
+              matchers:
+                - alertname="InfoInhibitor"
+            # Silence CPUThrottlingHigh (common in constrained homelab)
+            - receiver: 'null'
+              matchers:
+                - alertname="CPUThrottlingHigh"
         receivers:
           - name: 'null'  # Null receiver for silencing alerts
           - name: 'discord'
