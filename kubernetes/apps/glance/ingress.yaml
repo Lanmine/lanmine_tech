@@ -5,6 +5,7 @@ metadata:
   namespace: glance
   annotations:
     tailscale.com/funnel: "false"
+    tailscale.com/hostname: "glance"
 spec:
   ingressClassName: tailscale
   defaultBackend:
