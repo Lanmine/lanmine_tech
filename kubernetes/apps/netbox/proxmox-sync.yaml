@@ -49,11 +49,67 @@ data:
 
         return vms
 
+    def get_or_create_cluster(headers):
+        """Get or create the Proxmox cluster in NetBox, return cluster_id or None on error"""
+        # Check if cluster exists
+        resp = requests.get(f"{NETBOX_URL}/api/virtualization/clusters/?name=Proxmox", headers=headers)
+        if resp.status_code != 200:
+            print(f"  Error fetching clusters: {resp.status_code} {resp.text}")
+            return None
+        clusters = resp.json().get('results', [])
+        if clusters:
+            return clusters[0]['id']
+
+        # Get or create cluster type
+        resp = requests.get(f"{NETBOX_URL}/api/virtualization/cluster-types/?slug=proxmox", headers=headers)
+        if resp.status_code != 200:
+            print(f"  Error fetching cluster types: {resp.status_code}")
+            return None
+        cluster_types = resp.json().get('results', [])
+
+        if cluster_types:
+            cluster_type_id = cluster_types[0]['id']
+        else:
+            # Create cluster type
+            resp = requests.post(f"{NETBOX_URL}/api/virtualization/cluster-types/", headers=headers, json={'name': 'Proxmox', 'slug': 'proxmox'})
+            if resp.status_code == 201:
+                cluster_type_id = resp.json()['id']
+                print(f"  Created cluster type: Proxmox")
+            elif resp.status_code == 400 and 'already exists' in resp.text.lower():
+                # Race condition - fetch again
+                resp = requests.get(f"{NETBOX_URL}/api/virtualization/cluster-types/?slug=proxmox", headers=headers)
+                cluster_types = resp.json().get('results', [])
+                if cluster_types:
+                    cluster_type_id = cluster_types[0]['id']
+                else:
+                    print(f"  Error: cluster type creation failed and not found: {resp.text}")
+                    return None
+            else:
+                print(f"  Error creating cluster type: {resp.status_code} {resp.text}")
+                return None
+
+        # Create cluster
+        resp = requests.post(f"{NETBOX_URL}/api/virtualization/clusters/", headers=headers, json={'name': 'Proxmox', 'type': cluster_type_id})
+        if resp.status_code == 201:
+            print(f"  Created cluster: Proxmox")
+            return resp.json()['id']
+        elif resp.status_code == 400 and 'already exists' in resp.text.lower():
+            # Race condition - fetch again
+            resp = requests.get(f"{NETBOX_URL}/api/virtualization/clusters/?name=Proxmox", headers=headers)
+            clusters = resp.json().get('results', [])
+            if clusters:
+                return clusters[0]['id']
+        print(f"  Error creating cluster: {resp.status_code} {resp.text}")
+        return None
+
     def get_or_create_netbox_vm(name, vm_type, status, vmid, node, mem_mb, cpus):
         headers = {'Authorization': f'Token {NETBOX_TOKEN}', 'Content-Type': 'application/json'}
 
         # Check if VM exists
         resp = requests.get(f"{NETBOX_URL}/api/virtualization/virtual-machines/?name={name}", headers=headers)
+        if resp.status_code != 200:
+            print(f"  {name}: error fetching - {resp.status_code}")
+            return None
         results = resp.json().get('results', [])
 
         if results:
@@ -70,25 +126,10 @@ data:
             return vm_id
 
         # Get or create cluster
-        resp = requests.get(f"{NETBOX_URL}/api/virtualization/clusters/?name=Proxmox", headers=headers)
-        clusters = resp.json().get('results', [])
-        if clusters:
-            cluster_id = clusters[0]['id']
-        else:
-            # Get cluster type
-            resp = requests.get(f"{NETBOX_URL}/api/virtualization/cluster-types/?slug=proxmox", headers=headers)
-            cluster_types = resp.json().get('results', [])
-            if not cluster_types:
-                # Create cluster type
-                resp = requests.post(f"{NETBOX_URL}/api/virtualization/cluster-types/", headers=headers, json={'name': 'Proxmox', 'slug': 'proxmox'})
-                cluster_type_id = resp.json()['id']
-            else:
-                cluster_type_id = cluster_types[0]['id']
-
-            # Create cluster
-            resp = requests.post(f"{NETBOX_URL}/api/virtualization/clusters/", headers=headers, json={'name': 'Proxmox', 'type': cluster_type_id})
-            cluster_id = resp.json()['id']
-            print(f"  Created cluster: Proxmox")
+        cluster_id = get_or_create_cluster(headers)
+        if not cluster_id:
+            print(f"  {name}: skipped - no cluster")
+            return None
 
         # Create VM
         nb_status = 'active' if status == 'running' else 'offline'
