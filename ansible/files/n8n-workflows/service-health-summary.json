@@ -1,0 +1,52 @@
+{
+  "name": "Service Health Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "health-summary",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Health Check",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "health-summary"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "up"}
+          ]
+        },
+        "options": {"allowUnauthorizedCerts": true}
+      },
+      "id": "prom-1",
+      "name": "Query Targets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.data?.result || [];\nconst up = data.filter(r => r.value[1] === '1').length;\nconst down = data.filter(r => r.value[1] === '0');\nconst downList = down.map(r => r.metric.instance || r.metric.job).slice(0, 10).join(', ');\n\nreturn [{json: {\n  status: down.length > 0 ? 'degraded' : 'healthy',\n  total: data.length,\n  up: up,\n  down: down.length,\n  downList: downList || 'none',\n  message: down.length > 0 ? `${down.length} services down: ${downList}` : 'All services operational',\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "code-1",
+      "name": "Format Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Health Check": {"main": [[{"node": "Query Targets", "type": "main", "index": 0}]]},
+    "Query Targets": {"main": [[{"node": "Format Status", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"}
+}

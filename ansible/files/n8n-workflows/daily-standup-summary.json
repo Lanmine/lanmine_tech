@@ -1,0 +1,87 @@
+{
+  "name": "Daily Standup Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "cronExpression", "expression": "0 8 * * 1-5"}]}
+      },
+      "id": "schedule-1",
+      "name": "Weekdays 8am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "standup",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 500],
+      "webhookId": "standup"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{"name": "query", "value": "up"}]
+        },
+        "options": {"allowUnauthorizedCerts": true}
+      },
+      "id": "prom-up-1",
+      "name": "Query Up Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{"name": "query", "value": "ALERTS{alertstate=\"firing\"}"}]
+        },
+        "options": {"allowUnauthorizedCerts": true}
+      },
+      "id": "prom-alerts-1",
+      "name": "Query Firing Alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 500]
+    },
+    {
+      "parameters": {"mode": "append"},
+      "id": "merge-1",
+      "name": "Merge Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst upData = items[0]?.json?.data?.result || [];\nconst alertData = items[1]?.json?.data?.result || [];\n\nconst up = upData.filter(r => r.value[1] === '1').length;\nconst down = upData.filter(r => r.value[1] === '0');\nconst downList = down.map(r => r.metric.job || r.metric.instance).slice(0, 5).join(', ');\nconst firingAlerts = alertData.map(a => a.metric.alertname).filter((v,i,a) => a.indexOf(v) === i).slice(0, 5).join(', ');\n\nreturn [{json: {\n  status: down.length > 0 ? 'degraded' : alertData.length > 0 ? 'alerts' : 'healthy',\n  upCount: up,\n  downCount: down.length,\n  totalTargets: upData.length,\n  downServices: downList || 'none',\n  firingAlerts: firingAlerts || 'none',\n  alertCount: alertData.length,\n  summary: `Targets: ${up}/${upData.length} up. Alerts: ${alertData.length} firing. Down: ${downList || 'none'}`,\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "code-format-1",
+      "name": "Format Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    }
+  ],
+  "connections": {
+    "Weekdays 8am": {"main": [[{"node": "Query Up Status", "type": "main", "index": 0}, {"node": "Query Firing Alerts", "type": "main", "index": 0}]]},
+    "Manual Trigger": {"main": [[{"node": "Query Up Status", "type": "main", "index": 0}, {"node": "Query Firing Alerts", "type": "main", "index": 0}]]},
+    "Query Up Status": {"main": [[{"node": "Merge Data", "type": "main", "index": 0}]]},
+    "Query Firing Alerts": {"main": [[{"node": "Merge Data", "type": "main", "index": 1}]]},
+    "Merge Data": {"main": [[{"node": "Format Status", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"}
+}
