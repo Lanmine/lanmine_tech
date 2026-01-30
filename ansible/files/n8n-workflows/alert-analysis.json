@@ -12,25 +12,43 @@
       "name": "Alertmanager Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [200, 300],
+      "position": [
+        200,
+        300
+      ],
       "webhookId": "alert-analysis"
     },
     {
       "parameters": {
-        "jsCode": "// Parse Alertmanager webhook payload\nconst payload = $input.first().json;\nconst alerts = payload.alerts || [];\n\nif (alerts.length === 0) {\n  return [{ json: { skip: true, reason: 'No alerts in payload' } }];\n}\n\n// Format alerts for LLM analysis\nconst alertSummaries = alerts.map(a => {\n  const labels = a.labels || {};\n  const annotations = a.annotations || {};\n  return {\n    name: labels.alertname || 'Unknown',\n    severity: labels.severity || 'unknown',\n    status: a.status || 'unknown',\n    instance: labels.instance || labels.pod || labels.node || 'N/A',\n    namespace: labels.namespace || 'N/A',\n    summary: annotations.summary || '',\n    description: annotations.description || '',\n    startsAt: a.startsAt,\n    endsAt: a.endsAt\n  };\n});\n\n// Group by status\nconst firing = alertSummaries.filter(a => a.status === 'firing');\nconst resolved = alertSummaries.filter(a => a.status === 'resolved');\n\nreturn [{\n  json: {\n    skip: false,\n    totalAlerts: alerts.length,\n    firingCount: firing.length,\n    resolvedCount: resolved.length,\n    alerts: alertSummaries,\n    firing,\n    resolved,\n    rawStatus: payload.status,\n    groupKey: payload.groupKey\n  }\n}];"
+        "jsCode": "// Parse Alertmanager webhook payload\nconst input = $input.first().json;\n// Handle both direct body and nested body\nconst payload = input.body || input;\nconst alerts = payload.alerts || [];\n\nif (alerts.length === 0) {\n  return [{ json: { skip: true, reason: \"No alerts in payload\", debug: JSON.stringify(input).substring(0, 500) } }];\n}\n\n// Format alerts for LLM analysis\nconst alertSummaries = alerts.map(a => {\n  const labels = a.labels || {};\n  const annotations = a.annotations || {};\n  return {\n    name: labels.alertname || \"Unknown\",\n    severity: labels.severity || \"unknown\",\n    status: a.status || \"unknown\",\n    instance: labels.instance || labels.pod || labels.node || \"N/A\",\n    namespace: labels.namespace || \"N/A\",\n    summary: annotations.summary || \"\",\n    description: annotations.description || \"\",\n    startsAt: a.startsAt,\n    endsAt: a.endsAt\n  };\n});\n\n// Group by status\nconst firing = alertSummaries.filter(a => a.status === \"firing\");\nconst resolved = alertSummaries.filter(a => a.status === \"resolved\");\n\nreturn [{\n  json: {\n    skip: false,\n    totalAlerts: alerts.length,\n    firingCount: firing.length,\n    resolvedCount: resolved.length,\n    alerts: alertSummaries,\n    firing,\n    resolved,\n    rawStatus: payload.status,\n    groupKey: payload.groupKey\n  }\n}];"
       },
       "id": "parse-alerts",
       "name": "Parse Alerts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [400, 300]
+      "position": [
+        400,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
-            {"id": "cond-1", "leftValue": "={{ $json.skip }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
           ],
           "combinator": "and"
         },
@@ -40,7 +58,10 @@
       "name": "Should Process?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [600, 300]
+      "position": [
+        600,
+        300
+      ]
     },
     {
       "parameters": {
@@ -49,13 +70,18 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ model: 'default', messages: [{ role: 'system', content: 'You are a senior SRE analyzing infrastructure alerts. Provide a brief, actionable analysis. Format: 1) What is happening (1-2 sentences), 2) Likely cause, 3) Recommended action. Be concise - max 150 words total.' }, { role: 'user', content: 'Analyze these alerts:\\n\\n' + $json.alerts.map(a => `[${a.status.toUpperCase()}] ${a.name} (${a.severity})\\nInstance: ${a.instance}\\nSummary: ${a.summary}\\nDescription: ${a.description}`).join('\\n\\n') }], max_tokens: 300 }) }}",
-        "options": {"timeout": 60000}
+        "options": {
+          "timeout": 60000
+        }
       },
       "id": "llm-analysis",
       "name": "LLM Analysis",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [850, 200],
+      "position": [
+        850,
+        200
+      ],
       "onError": "continueErrorOutput"
     },
     {
@@ -66,7 +92,10 @@
       "name": "Format Output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1050, 200]
+      "position": [
+        1050,
+        200
+      ]
     },
     {
       "parameters": {
@@ -75,13 +104,18 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ embeds: [{ title: $json.emoji + ' Alert Analysis', description: $json.analysis, color: $json.color, fields: [{ name: 'Firing', value: String($json.firingCount), inline: true }, { name: 'Resolved', value: String($json.resolvedCount), inline: true }, { name: 'Alerts', value: $json.alertList || 'None', inline: false }], timestamp: $json.timestamp }] }) }}",
-        "options": {"timeout": 10000}
+        "options": {
+          "timeout": 10000
+        }
       },
       "id": "discord",
       "name": "Post to Discord",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1250, 200]
+      "position": [
+        1250,
+        200
+      ]
     },
     {
       "parameters": {
@@ -93,7 +127,10 @@
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1450, 200]
+      "position": [
+        1450,
+        200
+      ]
     },
     {
       "parameters": {
@@ -105,21 +142,95 @@
       "name": "Respond Skip",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [850, 400]
+      "position": [
+        850,
+        400
+      ]
     }
   ],
   "connections": {
-    "Alertmanager Webhook": {"main": [[{"node": "Parse Alerts", "type": "main", "index": 0}]]},
-    "Parse Alerts": {"main": [[{"node": "Should Process?", "type": "main", "index": 0}]]},
-    "Should Process?": {
+    "Alertmanager Webhook": {
       "main": [
-        [{"node": "Respond Skip", "type": "main", "index": 0}],
-        [{"node": "LLM Analysis", "type": "main", "index": 0}]
+        [
+          {
+            "node": "Parse Alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "LLM Analysis": {"main": [[{"node": "Format Output", "type": "main", "index": 0}], [{"node": "Format Output", "type": "main", "index": 0}]]},
-    "Format Output": {"main": [[{"node": "Post to Discord", "type": "main", "index": 0}]]},
-    "Post to Discord": {"main": [[{"node": "Respond OK", "type": "main", "index": 0}]]}
+    "Parse Alerts": {
+      "main": [
+        [
+          {
+            "node": "Should Process?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Process?": {
+      "main": [
+        [
+          {
+            "node": "Respond Skip",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LLM Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Analysis": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Output": {
+      "main": [
+        [
+          {
+            "node": "Post to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Discord": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": {"executionOrder": "v1"}
+  "settings": {
+    "executionOrder": "v1"
+  }
 }
