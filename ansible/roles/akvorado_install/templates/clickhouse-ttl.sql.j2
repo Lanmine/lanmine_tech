@@ -1,0 +1,10 @@
+-- ClickHouse TTL configuration for Akvorado flow data
+-- Managed by Ansible - do not edit manually
+-- Retention: {{ akvorado_retention_days }} days
+
+-- Set TTL on flows table to auto-delete old data
+-- Akvorado creates the table as 'flows' in the 'default' database
+ALTER TABLE default.flows MODIFY TTL TimeReceived + INTERVAL {{ akvorado_retention_days }} DAY DELETE;
+
+-- Force TTL cleanup to run (optional, will happen automatically)
+-- OPTIMIZE TABLE default.flows FINAL;

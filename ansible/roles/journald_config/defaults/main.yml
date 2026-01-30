@@ -1,0 +1,17 @@
+---
+# journald configuration defaults
+
+# Maximum disk space journald can use (persistent logs)
+journald_system_max_use: "2G"
+
+# Maximum size of individual journal files
+journald_system_max_file_size: "100M"
+
+# Maximum retention time for logs
+journald_max_retention_sec: "30day"
+
+# Maximum disk space for runtime logs (volatile)
+journald_runtime_max_use: "500M"
+
+# Compress logs larger than this
+journald_compress: "yes"

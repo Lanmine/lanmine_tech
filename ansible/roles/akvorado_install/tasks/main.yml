@@ -53,8 +53,48 @@
     mode: '0644'
   notify: Restart akvorado
 
+- name: Deploy ClickHouse TTL script
+  template:
+    src: clickhouse-ttl.sql.j2
+    dest: "{{ akvorado_install_dir }}/clickhouse-ttl.sql"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
 - name: Start Akvorado containers
   community.docker.docker_compose_v2:
     project_src: "{{ akvorado_install_dir }}"
     state: present
   become: true
+
+- name: Wait for ClickHouse to be ready
+  uri:
+    url: "http://localhost:{{ clickhouse_http_port }}/"
+    method: GET
+    status_code: 200
+  register: clickhouse_ready
+  until: clickhouse_ready.status == 200
+  retries: 30
+  delay: 5
+
+- name: Wait for flows table to exist (created by Akvorado)
+  uri:
+    url: "http://localhost:{{ clickhouse_http_port }}/"
+    method: POST
+    body: "SELECT count() FROM system.tables WHERE database = 'default' AND name = 'flows'"
+    status_code: 200
+  register: flows_table_check
+  until: flows_table_check.content | int > 0
+  retries: 60
+  delay: 10
+  changed_when: false
+
+- name: Apply ClickHouse TTL for data retention ({{ akvorado_retention_days }} days)
+  uri:
+    url: "http://localhost:{{ clickhouse_http_port }}/"
+    method: POST
+    body: "ALTER TABLE default.flows MODIFY TTL TimeReceived + INTERVAL {{ akvorado_retention_days }} DAY DELETE"
+    status_code: 200
+  register: ttl_result
+  changed_when: true
+  failed_when: false  # TTL may already be set

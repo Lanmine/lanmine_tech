@@ -1,17 +1,14 @@
 ---
-# PANDA9000 installation defaults
+# Open WebUI installation defaults (replaces panda9000 voice assistant)
 
 # Installation directory
-panda9000_install_dir: /opt/panda9000
+openwebui_install_dir: /opt/open-webui
 
 # Web UI port
-panda9000_web_port: 8080
+openwebui_web_port: 8080
 
-# Whisper STT port (internal)
-panda9000_whisper_port: 8001
+# Ollama backend URL
+openwebui_ollama_url: "http://10.0.20.2:11434"
 
-# Kokoro TTS port (internal)
-panda9000_kokoro_port: 8002
-
-# n8n secrets (includes Azure OpenAI credentials)
-n8n_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/n8n', validate_certs=true).secret }}"
+# Open WebUI image
+openwebui_image: "ghcr.io/open-webui/open-webui:main"

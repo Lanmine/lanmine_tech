@@ -1,6 +1,6 @@
 ---
-- name: Restart panda9000
+- name: Restart open-webui
   community.docker.docker_compose_v2:
-    project_src: "{{ panda9000_install_dir }}"
+    project_src: "{{ openwebui_install_dir }}"
     state: restarted
   become: true

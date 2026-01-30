@@ -1,43 +1,31 @@
+# Open WebUI Docker Compose
+# Managed by Ansible - do not edit manually
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "100m"
+    max-file: "3"
+
 services:
-  panda9000:
-    build: ./panda9000
-    container_name: panda9000
+  open-webui:
+    image: {{ openwebui_image }}
+    container_name: open-webui
     restart: unless-stopped
+    logging: *default-logging
     ports:
-      - "{{ panda9000_web_port }}:8080"
+      - "{{ openwebui_web_port }}:8080"
     environment:
-      - WHISPER_URL=http://whisper:8000
-      - KOKORO_URL=http://kokoro:8880
-      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
-      - AZURE_OPENAI_KEY=${AZURE_OPENAI_KEY}
-      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT}
+      - OLLAMA_BASE_URL={{ openwebui_ollama_url }}
+      - WEBUI_AUTH=false
+      - ENABLE_SIGNUP=false
     volumes:
-      # Mount source files for live updates without rebuild
-      - {{ panda9000_install_dir }}/panda9000/static:/app/static:ro
-      - {{ panda9000_install_dir }}/panda9000/server.py:/app/server.py:ro
-    depends_on:
-      whisper:
-        condition: service_started
-      kokoro:
-        condition: service_started
+      - open-webui-data:/app/backend/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  whisper:
-    image: fedirz/faster-whisper-server:latest-cpu
-    container_name: panda9000-whisper
-    restart: unless-stopped
-    environment:
-      - WHISPER__MODEL=Systran/faster-whisper-small
-    volumes:
-      - {{ panda9000_install_dir }}/models/whisper:/root/.cache/huggingface
-
-  kokoro:
-    image: ghcr.io/remsky/kokoro-fastapi-cpu:v0.2.2
-    container_name: panda9000-kokoro
-    restart: unless-stopped
-    volumes:
-      - {{ panda9000_install_dir }}/models/kokoro:/app/models
+volumes:
+  open-webui-data:

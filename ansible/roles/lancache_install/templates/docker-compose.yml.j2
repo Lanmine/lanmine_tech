@@ -1,9 +1,16 @@
 ---
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "100m"
+    max-file: "3"
+
 services:
   lancache-dns:
     image: lancachenet/lancache-dns:latest
     container_name: lancache-dns
     restart: unless-stopped
+    logging: *default-logging
     environment:
       - UPSTREAM_DNS={{ lancache_upstream_dns }}
       - USE_GENERIC_CACHE=true
@@ -17,6 +24,7 @@ services:
     image: lancachenet/monolithic:latest
     container_name: lancache-monolithic
     restart: unless-stopped
+    logging: *default-logging
     environment:
       - CACHE_DISK_SIZE={{ lancache_cache_disk_size }}
       - CACHE_MAX_AGE=3650d
@@ -33,6 +41,7 @@ services:
     image: nginx/nginx-prometheus-exporter:latest
     container_name: lancache-exporter
     restart: unless-stopped
+    logging: *default-logging
     command:
       - --nginx.scrape-uri=http://lancache:8080/nginx_status
     ports:

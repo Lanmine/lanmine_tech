@@ -71,9 +71,10 @@ Secrets loaded via `load_tf_secrets.sh`:
 | `vault_backup` | Vault file storage backup, encrypt with age |
 | `postgres_backup` | PostgreSQL pg_dump, encrypt with age |
 | `rsyslog_forward` | Configure rsyslog to forward logs to Loki |
-| `akvorado_install` | Install Akvorado flow collector via Docker |
+| `akvorado_install` | Install Akvorado flow collector via Docker (30-day TTL) |
 | `lancache_install` | Install LANcache game download cache via Docker |
 | `n8n_install` | Install n8n workflow automation via Docker |
+| `journald_config` | Configure journald log rotation (2GB max, 30 days) |
 
 **Playbooks:**
 | Playbook | Purpose |
@@ -84,6 +85,7 @@ Secrets loaded via `load_tf_secrets.sh`:
 | `deploy-lancache.yml` | Install and configure LANcache |
 | `deploy-n8n.yml` | Install and configure n8n |
 | `deploy-n8n-workflows.yml` | Deploy n8n workflows from JSON files |
+| `configure-journald.yml` | Configure journald log rotation on linux_vms |
 
 **Inventory Sources:**
 - `inventory/hosts.yml` - Static inventory for infrastructure VMs

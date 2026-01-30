@@ -3,9 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "rule": {
-          "interval": [{"field": "cronExpression", "expression": "0 9 * * *"}]
-        }
+        "rule": {"interval": [{"field": "cronExpression", "expression": "0 9 * * *"}]}
       },
       "id": "schedule-1",
       "name": "Daily 09:00",
@@ -29,87 +27,29 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://10.0.10.26:8123/",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {"name": "default_format", "value": "JSON"}
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "string",
-        "body": "SELECT replaceRegexpOne(toString(SrcAddr), '^::ffff:', '') as SrcAddr, replaceRegexpOne(toString(DstAddr), '^::ffff:', '') as DstAddr, sum(Bytes) as TotalBytes, sum(Packets) as TotalPackets FROM flows WHERE TimeReceived >= now() - INTERVAL 24 HOUR GROUP BY SrcAddr, DstAddr ORDER BY TotalBytes DESC LIMIT 20",
-        "options": {"timeout": 30000}
+        "jsCode": "// Query all ClickHouse data in one node\nconst CLICKHOUSE_URL = 'http://10.0.10.26:8123/?default_format=JSON';\n\nconst queries = {\n  totals: 'SELECT sum(Bytes) as TotalBytes, sum(Packets) as TotalPackets, uniq(SrcAddr) as UniqueSources, uniq(DstAddr) as UniqueDestinations FROM flows WHERE TimeReceived >= now() - INTERVAL 24 HOUR',\n  topSources: \"SELECT replaceRegexpOne(toString(SrcAddr), '^::ffff:', '') as SrcAddr, sum(Bytes) as TotalBytes FROM flows WHERE TimeReceived >= now() - INTERVAL 24 HOUR GROUP BY SrcAddr ORDER BY TotalBytes DESC LIMIT 10\",\n  topFlows: \"SELECT replaceRegexpOne(toString(SrcAddr), '^::ffff:', '') as SrcAddr, replaceRegexpOne(toString(DstAddr), '^::ffff:', '') as DstAddr, sum(Bytes) as TotalBytes, sum(Packets) as TotalPackets FROM flows WHERE TimeReceived >= now() - INTERVAL 24 HOUR GROUP BY SrcAddr, DstAddr ORDER BY TotalBytes DESC LIMIT 20\"\n};\n\nconst results = {};\nconst debug = {};\n\nfor (const [name, query] of Object.entries(queries)) {\n  try {\n    const response = await this.helpers.httpRequest({\n      method: 'POST',\n      url: CLICKHOUSE_URL,\n      body: query,\n      headers: { 'Content-Type': 'text/plain' },\n      timeout: 30000\n    });\n    results[name] = response;\n    debug[name] = { status: 'ok', dataCount: response?.data?.length || 0 };\n  } catch (e) {\n    debug[name] = { status: 'error', message: e.message };\n    results[name] = { data: [] };\n  }\n}\n\nreturn [{ json: { results, debug } }];"
       },
-      "id": "query-top-flows",
-      "name": "Top Flows (24h)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [450, 200],
-      "onError": "continueErrorOutput"
+      "id": "fetch-data",
+      "name": "Fetch All Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://10.0.10.26:8123/",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {"name": "default_format", "value": "JSON"}
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "string",
-        "body": "SELECT sum(Bytes) as TotalBytes, sum(Packets) as TotalPackets, uniq(SrcAddr) as UniqueSources, uniq(DstAddr) as UniqueDestinations FROM flows WHERE TimeReceived >= now() - INTERVAL 24 HOUR",
-        "options": {"timeout": 30000}
-      },
-      "id": "query-totals",
-      "name": "Traffic Totals",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [450, 350],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://10.0.10.26:8123/",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {"name": "default_format", "value": "JSON"}
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "string",
-        "body": "SELECT replaceRegexpOne(toString(SrcAddr), '^::ffff:', '') as SrcAddr, sum(Bytes) as TotalBytes FROM flows WHERE TimeReceived >= now() - INTERVAL 24 HOUR GROUP BY SrcAddr ORDER BY TotalBytes DESC LIMIT 10",
-        "options": {"timeout": 30000}
-      },
-      "id": "query-top-sources",
-      "name": "Top Sources",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [450, 500],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Aggregate flow data for LLM analysis\nconst formatBytes = (bytes) => {\n  if (!bytes || bytes === 0) return '0 B';\n  const k = 1024;\n  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];\n  const i = Math.floor(Math.log(bytes) / Math.log(k));\n  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];\n};\n\nconst getInput = (name) => {\n  try {\n    const items = $items(name);\n    return items?.[0]?.json?.data || [];\n  } catch { return []; }\n};\n\nconst topFlows = getInput('Top Flows (24h)');\nconst totals = getInput('Traffic Totals')?.[0] || {};\nconst topSources = getInput('Top Sources');\n\n// Check if we got data\nconst hasData = topFlows.length > 0 || Object.keys(totals).length > 0;\n\nif (!hasData) {\n  return [{\n    json: {\n      hasData: false,\n      summary: 'No flow data available for the last 24 hours.',\n      totalTraffic: '0 B',\n      totalPackets: 0,\n      uniqueSources: 0,\n      uniqueDestinations: 0,\n      topTalkers: [],\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\n// Format top talkers\nconst topTalkers = topSources.slice(0, 5).map(s => ({\n  ip: s.SrcAddr,\n  bytes: formatBytes(parseInt(s.TotalBytes))\n}));\n\n// Build context for LLM\nconst flowContext = {\n  totalBytes: formatBytes(parseInt(totals.TotalBytes || 0)),\n  totalPackets: parseInt(totals.TotalPackets || 0).toLocaleString(),\n  uniqueSources: parseInt(totals.UniqueSources || 0),\n  uniqueDestinations: parseInt(totals.UniqueDestinations || 0),\n  topTalkers: topTalkers,\n  topFlowPairs: topFlows.slice(0, 5).map(f => ({\n    src: f.SrcAddr,\n    dst: f.DstAddr,\n    bytes: formatBytes(parseInt(f.TotalBytes))\n  }))\n};\n\nreturn [{\n  json: {\n    hasData: true,\n    ...flowContext,\n    timestamp: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const formatBytes = (bytes) => {\n  if (!bytes || bytes === 0) return '0 B';\n  const k = 1024;\n  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];\n  const i = Math.floor(Math.log(bytes) / Math.log(k));\n  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];\n};\n\nconst input = $input.first()?.json || {};\nconst results = input.results || {};\nconst debug = input.debug || {};\n\nconst totals = results.totals?.data?.[0] || {};\nconst topSources = results.topSources?.data || [];\nconst topFlows = results.topFlows?.data || [];\n\nconst hasData = topFlows.length > 0 || Object.keys(totals).length > 0;\n\nif (!hasData) {\n  return [{ json: { hasData: false, summary: 'No flow data available.', debug, timestamp: new Date().toISOString() } }];\n}\n\nconst topTalkers = topSources.slice(0, 5).map(s => ({ ip: s.SrcAddr, bytes: formatBytes(parseInt(s.TotalBytes)) }));\n\nreturn [{\n  json: {\n    hasData: true,\n    totalBytes: formatBytes(parseInt(totals.TotalBytes || 0)),\n    totalPackets: parseInt(totals.TotalPackets || 0).toLocaleString(),\n    uniqueSources: parseInt(totals.UniqueSources || 0),\n    uniqueDestinations: parseInt(totals.UniqueDestinations || 0),\n    topTalkers,\n    topFlowPairs: topFlows.slice(0, 5).map(f => ({ src: f.SrcAddr, dst: f.DstAddr, bytes: formatBytes(parseInt(f.TotalBytes)) })),\n    timestamp: new Date().toISOString()\n  }\n}];"
       },
       "id": "aggregate-data",
       "name": "Aggregate Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 350]
+      "position": [700, 300]
     },
     {
       "parameters": {
         "conditions": {
           "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
-          "conditions": [
-            {"id": "cond-1", "leftValue": "={{ $json.hasData }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}
-          ],
+          "conditions": [{"id": "cond-1", "leftValue": "={{ $json.hasData }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}],
           "combinator": "and"
         },
         "options": {}
@@ -118,7 +58,7 @@
       "name": "Has Data?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [900, 350]
+      "position": [900, 300]
     },
     {
       "parameters": {
@@ -126,25 +66,25 @@
         "url": "http://10.0.20.2:11434/v1/chat/completions",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'default', messages: [{ role: 'system', content: 'You are a network analyst. Summarize network flow data in 2-3 sentences. Highlight: 1) Overall traffic volume, 2) Top talkers and what they might be (if recognizable IPs), 3) Any patterns worth noting. Be concise and informative.' }, { role: 'user', content: 'Network flow summary for last 24 hours:\\n\\nTotal traffic: ' + $json.totalBytes + '\\nTotal packets: ' + $json.totalPackets + '\\nUnique sources: ' + $json.uniqueSources + '\\nUnique destinations: ' + $json.uniqueDestinations + '\\n\\nTop talkers by bytes:\\n' + $json.topTalkers.map(t => t.ip + ': ' + t.bytes).join('\\n') + '\\n\\nTop flow pairs:\\n' + $json.topFlowPairs.map(f => f.src + ' -> ' + f.dst + ': ' + f.bytes).join('\\n') }], max_tokens: 250 }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'default', messages: [{ role: 'system', content: 'You are a network analyst. Summarize network flow data in 2-3 sentences. Highlight: 1) Overall traffic volume, 2) Top talkers and what they might be (if recognizable IPs), 3) Any patterns worth noting. Be concise.' }, { role: 'user', content: 'Network flow summary for last 24h:\\n\\nTotal: ' + $json.totalBytes + ', ' + $json.totalPackets + ' packets\\nUnique: ' + $json.uniqueSources + ' src, ' + $json.uniqueDestinations + ' dst\\n\\nTop talkers:\\n' + $json.topTalkers.map(t => t.ip + ': ' + t.bytes).join('\\n') + '\\n\\nTop flows:\\n' + $json.topFlowPairs.map(f => f.src + ' -> ' + f.dst + ': ' + f.bytes).join('\\n') }], max_tokens: 200 }) }}",
         "options": {"timeout": 60000}
       },
       "id": "llm-summary",
       "name": "LLM Summary",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1100, 250],
+      "position": [1100, 200],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "jsCode": "const flowData = $items('Aggregate Data')[0].json;\nconst llmResponse = $input.first()?.json || {};\n\nlet summary = '';\ntry {\n  summary = llmResponse.choices?.[0]?.message?.content || '';\n} catch (e) {\n  summary = '';\n}\n\n// Fallback\nif (!summary) {\n  summary = `24h traffic: ${flowData.totalBytes}, ${flowData.totalPackets} packets. Top source: ${flowData.topTalkers[0]?.ip || 'N/A'} (${flowData.topTalkers[0]?.bytes || '0 B'}).`;\n}\n\n// Format top talkers for embed\nconst talkerList = flowData.topTalkers.map(t => \n  `\\`${t.ip}\\`: ${t.bytes}`\n).join('\\n') || 'No data';\n\nreturn [{\n  json: {\n    summary,\n    totalBytes: flowData.totalBytes,\n    totalPackets: flowData.totalPackets,\n    uniqueSources: flowData.uniqueSources,\n    uniqueDestinations: flowData.uniqueDestinations,\n    talkerList,\n    timestamp: flowData.timestamp\n  }\n}];"
+        "jsCode": "const flowData = $items('Aggregate Data')[0].json;\nconst llmResponse = $input.first()?.json || {};\n\nlet summary = llmResponse.choices?.[0]?.message?.content || '';\nif (!summary) {\n  summary = `24h traffic: ${flowData.totalBytes}, ${flowData.totalPackets} packets. Top source: ${flowData.topTalkers[0]?.ip || 'N/A'} (${flowData.topTalkers[0]?.bytes || '0 B'}).`;\n}\n\nconst talkerList = flowData.topTalkers.map(t => `\\`${t.ip}\\`: ${t.bytes}`).join('\\n') || 'No data';\n\nreturn [{ json: { summary, totalBytes: flowData.totalBytes, totalPackets: flowData.totalPackets, uniqueSources: flowData.uniqueSources, uniqueDestinations: flowData.uniqueDestinations, talkerList, timestamp: flowData.timestamp } }];"
       },
       "id": "format-output",
       "name": "Format Output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 250]
+      "position": [1300, 200]
     },
     {
       "parameters": {
@@ -159,61 +99,37 @@
       "name": "Post to Discord",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1500, 250]
+      "position": [1500, 200]
     },
     {
       "parameters": {
-        "jsCode": "// Return JSON response for webhook\nconst data = $items('Format Output')[0]?.json || $items('Aggregate Data')[0]?.json;\nreturn [{ json: data }];"
+        "jsCode": "const data = $items('Format Output')[0]?.json || $items('Aggregate Data')[0]?.json;\nreturn [{ json: data }];"
       },
       "id": "response",
       "name": "Webhook Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 450]
+      "position": [1500, 400]
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { status: 'no_data', message: 'No flow data available' } }];"
+        "jsCode": "const aggData = $items('Aggregate Data')[0]?.json || {};\nreturn [{ json: { status: 'no_data', message: 'No flow data available', debug: aggData.debug } }];"
       },
       "id": "no-data",
       "name": "No Data Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 450]
+      "position": [1100, 400]
     }
   ],
   "connections": {
-    "Daily 09:00": {
-      "main": [[
-        {"node": "Top Flows (24h)", "type": "main", "index": 0},
-        {"node": "Traffic Totals", "type": "main", "index": 0},
-        {"node": "Top Sources", "type": "main", "index": 0}
-      ]]
-    },
-    "Manual Trigger": {
-      "main": [[
-        {"node": "Top Flows (24h)", "type": "main", "index": 0},
-        {"node": "Traffic Totals", "type": "main", "index": 0},
-        {"node": "Top Sources", "type": "main", "index": 0}
-      ]]
-    },
-    "Top Flows (24h)": {"main": [[{"node": "Aggregate Data", "type": "main", "index": 0}], [{"node": "Aggregate Data", "type": "main", "index": 0}]]},
-    "Traffic Totals": {"main": [[{"node": "Aggregate Data", "type": "main", "index": 0}], [{"node": "Aggregate Data", "type": "main", "index": 0}]]},
-    "Top Sources": {"main": [[{"node": "Aggregate Data", "type": "main", "index": 0}], [{"node": "Aggregate Data", "type": "main", "index": 0}]]},
+    "Daily 09:00": {"main": [[{"node": "Fetch All Data", "type": "main", "index": 0}]]},
+    "Manual Trigger": {"main": [[{"node": "Fetch All Data", "type": "main", "index": 0}]]},
+    "Fetch All Data": {"main": [[{"node": "Aggregate Data", "type": "main", "index": 0}]]},
     "Aggregate Data": {"main": [[{"node": "Has Data?", "type": "main", "index": 0}]]},
-    "Has Data?": {
-      "main": [
-        [{"node": "LLM Summary", "type": "main", "index": 0}],
-        [{"node": "No Data Response", "type": "main", "index": 0}]
-      ]
-    },
+    "Has Data?": {"main": [[{"node": "LLM Summary", "type": "main", "index": 0}], [{"node": "No Data Response", "type": "main", "index": 0}]]},
     "LLM Summary": {"main": [[{"node": "Format Output", "type": "main", "index": 0}], [{"node": "Format Output", "type": "main", "index": 0}]]},
-    "Format Output": {
-      "main": [[
-        {"node": "Post to Discord", "type": "main", "index": 0},
-        {"node": "Webhook Response", "type": "main", "index": 0}
-      ]]
-    }
+    "Format Output": {"main": [[{"node": "Post to Discord", "type": "main", "index": 0}, {"node": "Webhook Response", "type": "main", "index": 0}]]}
   },
   "settings": {"executionOrder": "v1"}
 }

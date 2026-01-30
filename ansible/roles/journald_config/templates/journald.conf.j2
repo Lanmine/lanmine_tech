@@ -1,0 +1,20 @@
+# /etc/systemd/journald.conf
+# Managed by Ansible - do not edit manually
+#
+# See journald.conf(5) for details.
+
+[Journal]
+# Persistent storage (on disk)
+Storage=persistent
+Compress={{ journald_compress }}
+
+# Disk usage limits
+SystemMaxUse={{ journald_system_max_use }}
+SystemMaxFileSize={{ journald_system_max_file_size }}
+MaxRetentionSec={{ journald_max_retention_sec }}
+
+# Runtime (volatile) limits
+RuntimeMaxUse={{ journald_runtime_max_use }}
+
+# Forward to syslog (for rsyslog integration)
+ForwardToSyslog=yes

@@ -1,6 +1,7 @@
 ---
-# Deploy PANDA9000 voice interface
-- name: Deploy PANDA9000
+# Deploy Open WebUI (local LLM chat interface)
+# Replaces the old panda9000 voice assistant
+- name: Deploy Open WebUI
   hosts: panda9000_servers
   gather_facts: true
   roles:

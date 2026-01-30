@@ -2,10 +2,17 @@
 # Managed by Ansible - do not edit manually
 # Database: External PostgreSQL on postgres-01 (10.0.10.23)
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "100m"
+    max-file: "3"
+
 services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *default-logging
     command: redis-server --appendonly yes
     volumes:
       - redis-data:/data
@@ -18,9 +25,12 @@ services:
   n8n:
     image: n8nio/n8n:{{ n8n_version }}
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       redis:
         condition: service_healthy
+    extra_hosts:
+      - "prometheus.lanmine.local:10.0.10.40"
     ports:
       - "{{ n8n_web_port }}:5678"
     environment:
@@ -64,8 +74,11 @@ services:
   n8n-worker:
     image: n8nio/n8n:{{ n8n_version }}
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       - n8n
+    extra_hosts:
+      - "prometheus.lanmine.local:10.0.10.40"
     command: worker
     environment:
       DB_TYPE: postgresdb

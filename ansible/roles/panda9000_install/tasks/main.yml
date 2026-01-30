@@ -1,4 +1,6 @@
 ---
+# Open WebUI installation (replaces panda9000 voice assistant)
+
 - name: Install required packages
   apt:
     name:
@@ -23,50 +25,40 @@
     append: true
   become: true
 
-- name: Create panda9000 directories
+- name: Stop and remove old panda9000 containers (if present)
+  community.docker.docker_compose_v2:
+    project_src: /opt/panda9000
+    state: absent
+  become: true
+  ignore_errors: true
+
+- name: Remove old panda9000 directory (if present)
   file:
-    path: "{{ item }}"
+    path: /opt/panda9000
+    state: absent
+  become: true
+
+- name: Create Open WebUI directory
+  file:
+    path: "{{ openwebui_install_dir }}"
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0755'
-  loop:
-    - "{{ panda9000_install_dir }}"
-    - "{{ panda9000_install_dir }}/panda9000"
-    - "{{ panda9000_install_dir }}/panda9000/static"
-    - "{{ panda9000_install_dir }}/models"
   become: true
-
-- name: Deploy panda9000 application files
-  copy:
-    src: "panda9000/"
-    dest: "{{ panda9000_install_dir }}/panda9000/"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: '0644'
-  notify: Restart panda9000
 
 - name: Deploy docker-compose file
   template:
     src: docker-compose.yml.j2
-    dest: "{{ panda9000_install_dir }}/docker-compose.yml"
+    dest: "{{ openwebui_install_dir }}/docker-compose.yml"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart panda9000
+  notify: Restart open-webui
 
-- name: Deploy environment file
-  template:
-    src: panda.env.j2
-    dest: "{{ panda9000_install_dir }}/.env"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: '0600'
-  notify: Restart panda9000
-
-- name: Start panda9000 containers
+- name: Start Open WebUI container
   community.docker.docker_compose_v2:
-    project_src: "{{ panda9000_install_dir }}"
+    project_src: "{{ openwebui_install_dir }}"
     state: present
     pull: always
   become: true

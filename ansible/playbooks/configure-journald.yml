@@ -1,0 +1,9 @@
+---
+# Configure journald log rotation on Linux VMs
+# Run with: ansible-playbook playbooks/configure-journald.yml
+
+- name: Configure journald on Linux VMs
+  hosts: linux_vms
+  gather_facts: true
+  roles:
+    - journald_config
