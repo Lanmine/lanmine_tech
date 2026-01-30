@@ -191,6 +191,11 @@ spec:
             - receiver: 'null'
               matchers:
                 - alertname="CPUThrottlingHigh"
+            # Silence KubeJobFailed for netbox sync (known script bug)
+            - receiver: 'null'
+              matchers:
+                - alertname="KubeJobFailed"
+                - namespace="netbox"
         receivers:
           - name: 'null'  # Null receiver for silencing alerts
           - name: 'discord'
