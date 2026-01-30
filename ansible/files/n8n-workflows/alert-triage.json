@@ -5,7 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "alert-triage",
-        "responseMode": "lastNode",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "webhook-1",
@@ -31,7 +31,7 @@
         "url": "http://10.0.20.2:11434/api/chat",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"default\",\n  \"stream\": false,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an infrastructure alert analyst. Analyze alerts and provide triage.\\n\\nRespond in this exact JSON format:\\n{\\n  \\\"priority\\\": \\\"P1|P2|P3|P4\\\",\\n  \\\"category\\\": \\\"infrastructure|application|network|security|noise\\\",\\n  \\\"action\\\": \\\"immediate|investigate|monitor|ignore\\\",\\n  \\\"summary\\\": \\\"One sentence summary\\\",\\n  \\\"remediation\\\": [\\\"Step 1\\\", \\\"Step 2\\\"],\\n  \\\"commands\\\": [\\\"diagnostic command 1\\\"]\\n}\\n\\nPriority guide:\\n- P1: Service down, data loss risk\\n- P2: Degraded performance, needs attention\\n- P3: Warning, monitor closely\\n- P4: Informational, noise\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Alert: {{ $json.alertname }}\\nSeverity: {{ $json.severity }}\\nStatus: {{ $json.status }}\\nInstance: {{ $json.instance }}\\nDescription: {{ $json.description }}\"\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"model\": \"default\",\n  \"stream\": false,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You analyze infrastructure alerts. Respond ONLY with JSON, no other text.\\n\\nExample response for disk full:\\n{\\\"priority\\\":\\\"P1\\\",\\\"category\\\":\\\"infrastructure\\\",\\\"action\\\":\\\"immediate\\\",\\\"summary\\\":\\\"Disk space critical on vault-01\\\",\\\"remediation\\\":[\\\"Find large files\\\",\\\"Clear old logs\\\"],\\\"commands\\\":[\\\"df -h\\\",\\\"du -sh /var/*\\\"]}\\n\\nExample for high memory:\\n{\\\"priority\\\":\\\"P2\\\",\\\"category\\\":\\\"infrastructure\\\",\\\"action\\\":\\\"investigate\\\",\\\"summary\\\":\\\"High memory usage on postgres-01\\\",\\\"remediation\\\":[\\\"Check for memory leaks\\\",\\\"Restart service if needed\\\"],\\\"commands\\\":[\\\"free -h\\\",\\\"ps aux --sort=-%mem | head\\\"]}\\n\\nPriority: P1=down/data loss, P2=degraded, P3=warning, P4=noise\\nCommands must be actual shell commands only, no descriptions.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Alert: {{ $json.alertname }}\\nSeverity: {{ $json.severity }}\\nStatus: {{ $json.status }}\\nInstance: {{ $json.instance }}\\nDescription: {{ $json.description }}\"\n    }\n  ]\n}",
         "options": {
           "timeout": 60000
         }
@@ -44,13 +44,39 @@
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst alertInfo = $('Extract Alert Info').first().json;\n\n// Extract LLM response\nlet llmContent = response.message?.content || '';\n\n// Try to parse JSON from response\nlet analysis = {};\ntry {\n  // Find JSON in response (might have markdown)\n  const jsonMatch = llmContent.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    analysis = JSON.parse(jsonMatch[0]);\n  }\n} catch (e) {\n  // If JSON parse fails, create basic response\n  analysis = {\n    priority: 'P3',\n    category: 'unknown',\n    action: 'investigate',\n    summary: llmContent.substring(0, 200),\n    remediation: ['Review alert manually'],\n    commands: []\n  };\n}\n\nreturn [{\n  json: {\n    alert: {\n      name: alertInfo.alertname,\n      severity: alertInfo.severity,\n      status: alertInfo.status,\n      instance: alertInfo.instance,\n      description: alertInfo.description\n    },\n    triage: {\n      priority: analysis.priority || 'P3',\n      category: analysis.category || 'unknown',\n      action: analysis.action || 'investigate',\n      summary: analysis.summary || 'Analysis unavailable',\n      remediation: analysis.remediation || [],\n      commands: analysis.commands || []\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const response = $input.first().json;\nconst alertInfo = $('Extract Alert Info').first().json;\n\n// Extract LLM response\nlet llmContent = response.message?.content || '';\n\n// Try to parse JSON from response\nlet analysis = {};\ntry {\n  // Find JSON in response (might have markdown)\n  const jsonMatch = llmContent.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    analysis = JSON.parse(jsonMatch[0]);\n  }\n} catch (e) {\n  // If JSON parse fails, create basic response\n  analysis = {\n    priority: 'P3',\n    category: 'unknown',\n    action: 'investigate',\n    summary: llmContent.substring(0, 200),\n    remediation: ['Review alert manually'],\n    commands: []\n  };\n}\n\n// Clean up commands (remove leading '- ' if present)\nconst cleanArray = (arr) => (arr || []).map(s => s.replace(/^-\\s*/, '').trim()).filter(s => s);\n\nreturn [{\n  json: {\n    alert: {\n      name: alertInfo.alertname,\n      severity: alertInfo.severity,\n      status: alertInfo.status,\n      instance: alertInfo.instance,\n      description: alertInfo.description\n    },\n    triage: {\n      priority: analysis.priority || 'P3',\n      category: analysis.category || 'unknown',\n      action: analysis.action || 'investigate',\n      summary: analysis.summary || 'Analysis unavailable',\n      remediation: cleanArray(analysis.remediation),\n      commands: cleanArray(analysis.commands)\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
       },
       "id": "code-format",
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1466404547000926303/lS35p3llIKOyzBceuRHyzQ3tuk--7VfOW2Fx6hOgDxz9Tgd-JEwQXVI6-6sTgVDLb7yq",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"embeds\": [{\n    \"title\": \"{{ $json.triage.priority }} Alert: {{ $json.alert.name }}\",\n    \"description\": \"{{ $json.triage.summary }}\",\n    \"color\": {{ $json.triage.priority === 'P1' ? 15158332 : $json.triage.priority === 'P2' ? 15105570 : $json.triage.priority === 'P3' ? 16776960 : 8421504 }},\n    \"fields\": [\n      {\"name\": \"Instance\", \"value\": \"{{ $json.alert.instance }}\", \"inline\": true},\n      {\"name\": \"Severity\", \"value\": \"{{ $json.alert.severity }}\", \"inline\": true},\n      {\"name\": \"Action\", \"value\": \"{{ $json.triage.action }}\", \"inline\": true},\n      {\"name\": \"Category\", \"value\": \"{{ $json.triage.category }}\", \"inline\": true},\n      {\"name\": \"Remediation\", \"value\": \"{{ $json.triage.remediation.length > 0 ? $json.triage.remediation.map((r, i) => (i+1) + '. ' + r).join('\\\\n') : 'None suggested' }}\", \"inline\": false}\n    ],\n    \"timestamp\": \"{{ $json.timestamp }}\"\n  }]\n}",
+        "options": {}
+      },
+      "id": "discord-notify",
+      "name": "Send to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1000, 200]
     }
   ],
   "connections": {
@@ -62,6 +88,14 @@
     },
     "Analyze with LLM": {
       "main": [[{"node": "Format Response", "type": "main", "index": 0}]]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {"node": "Respond to Webhook", "type": "main", "index": 0},
+          {"node": "Send to Discord", "type": "main", "index": 0}
+        ]
+      ]
     }
   },
   "settings": {
