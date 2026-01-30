@@ -1,0 +1,147 @@
+{
+  "name": "Certificate Expiry Check",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "cronExpression", "expression": "0 7 * * *"}]
+        }
+      },
+      "id": "schedule-1",
+      "name": "Daily 7am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "cert-check",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 400],
+      "webhookId": "cert-check"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "(probe_ssl_earliest_cert_expiry - time()) / 86400"}
+          ]
+        },
+        "options": {"allowUnauthorizedCerts": true}
+      },
+      "id": "prom-1",
+      "name": "Query Cert Expiry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.data?.result || [];\nconst certs = data.map(r => {\n  const days = Math.floor(parseFloat(r.value[1]));\n  const instance = r.metric.instance.replace('https://', '').split('/')[0];\n  return {instance, days};\n}).sort((a,b) => a.days - b.days);\n\nconst expiring = certs.filter(c => c.days < 14);\nconst warning = certs.filter(c => c.days >= 14 && c.days < 30);\nconst ok = certs.filter(c => c.days >= 30);\n\nconst summary = certs.slice(0, 10).map(c => `${c.instance}=${c.days}d`).join(', ');\nreturn [{json: {\n  certData: summary,\n  expiringCount: Number(expiring.length),\n  warningCount: warning.length,\n  okCount: ok.length,\n  totalCerts: certs.length,\n  expiringList: expiring.map(c => c.instance).join(', ') || 'none'\n}}];"
+      },
+      "id": "code-format-1",
+      "name": "Format Cert Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "loose"},
+          "conditions": [
+            {"id": "cond-1", "leftValue": "={{ $json.expiringCount }}", "rightValue": "0", "operator": {"type": "number", "operation": "gt"}}
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-1",
+      "name": "Any Expiring?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://10.0.20.2:11434/v1/chat/completions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"model\":\"default\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a sysadmin. Reply in 1 sentence MAX.\"},{\"role\":\"user\",\"content\":\"These certs expire in <14 days: {{ $json.expiringList }}. What's the priority?\"}],\"max_tokens\":250}",
+        "options": {"timeout": 180000}
+      },
+      "id": "ollama-1",
+      "name": "Assess Priority",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst msg = response.choices?.[0]?.message || {};\nlet assessment = msg.content || '';\nif (!assessment && msg.reasoning) {\n  const r = msg.reasoning.toLowerCase();\n  if (r.includes('critical') || r.includes('immediate')) assessment = 'Critical - renew immediately';\n  else if (r.includes('high') || r.includes('soon')) assessment = 'High priority - renew this week';\n  else assessment = 'Review certificates soon';\n}\nconst prev = $items('Format Cert Data')[0].json;\nreturn [{json: {\n  status: 'expiring',\n  assessment: assessment || 'Certificates expiring soon',\n  expiring: prev.expiringList,\n  expiringCount: prev.expiringCount,\n  totalCerts: prev.totalCerts,\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "code-assess-1",
+      "name": "Format Assessment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "tech@lanmine.no",
+        "toEmail": "tech@lanmine.no",
+        "subject": "={{ '[Lanmine] Cert Expiry Alert - ' + $json.expiringCount + ' cert(s) expiring' }}",
+        "emailType": "text",
+        "text": "={{ $json.assessment + '\\n\\nExpiring certificates: ' + $json.expiring + '\\n\\nTotal monitored: ' + $json.totalCerts }}",
+        "options": {}
+      },
+      "id": "email-1",
+      "name": "Send Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1500, 200],
+      "credentials": {
+        "smtp": {
+          "id": "j0cYa795FJitFBqt",
+          "name": "Lanmine SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $items('Format Cert Data')[0].json;\nreturn [{json: {\n  status: 'ok',\n  message: 'All certificates valid for 14+ days',\n  warningCount: prev.warningCount,\n  okCount: prev.okCount,\n  totalCerts: prev.totalCerts,\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "code-ok-1",
+      "name": "All OK",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 400]
+    }
+  ],
+  "connections": {
+    "Daily 7am": {"main": [[{"node": "Query Cert Expiry", "type": "main", "index": 0}]]},
+    "Manual Trigger": {"main": [[{"node": "Query Cert Expiry", "type": "main", "index": 0}]]},
+    "Query Cert Expiry": {"main": [[{"node": "Format Cert Data", "type": "main", "index": 0}]]},
+    "Format Cert Data": {"main": [[{"node": "Any Expiring?", "type": "main", "index": 0}]]},
+    "Any Expiring?": {
+      "main": [
+        [{"node": "Assess Priority", "type": "main", "index": 0}],
+        [{"node": "All OK", "type": "main", "index": 0}]
+      ]
+    },
+    "Assess Priority": {"main": [[{"node": "Format Assessment", "type": "main", "index": 0}]]},
+    "Format Assessment": {"main": [[{"node": "Send Alert", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"}
+}

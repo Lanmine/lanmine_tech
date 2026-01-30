@@ -1,0 +1,63 @@
+{
+  "name": "Infrastructure Disk Check",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "cronExpression", "expression": "0 6 * * *"}]}
+      },
+      "id": "schedule-1",
+      "name": "Daily 6am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "disk-check",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 400],
+      "webhookId": "disk-check"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "100 - ((node_filesystem_avail_bytes{fstype=~\"ext4|xfs\"} / node_filesystem_size_bytes{fstype=~\"ext4|xfs\"}) * 100)"}
+          ]
+        },
+        "options": {"allowUnauthorizedCerts": true}
+      },
+      "id": "prom-1",
+      "name": "Query Disk Usage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.first().json.data?.result || [];\nconst disks = results.map(r => {\n  const host = (r.metric.instance || 'unknown').split(':')[0];\n  const mount = r.metric.mountpoint || '/';\n  const usage = parseFloat(r.value[1]).toFixed(1);\n  return {host, mount, usage: parseFloat(usage)};\n}).sort((a,b) => b.usage - a.usage);\n\nconst critical = disks.filter(d => d.usage > 90);\nconst warning = disks.filter(d => d.usage > 80 && d.usage <= 90);\nconst summary = disks.slice(0, 10).map(d => `${d.host}:${d.mount}=${d.usage}%`).join(', ');\n\nreturn [{json: {\n  status: critical.length > 0 ? 'critical' : warning.length > 0 ? 'warning' : 'ok',\n  summary: summary || 'no disk data',\n  criticalCount: critical.length,\n  warningCount: warning.length,\n  totalDisks: disks.length,\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "code-1",
+      "name": "Format Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Daily 6am": {"main": [[{"node": "Query Disk Usage", "type": "main", "index": 0}]]},
+    "Manual Trigger": {"main": [[{"node": "Query Disk Usage", "type": "main", "index": 0}]]},
+    "Query Disk Usage": {"main": [[{"node": "Format Results", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"}
+}

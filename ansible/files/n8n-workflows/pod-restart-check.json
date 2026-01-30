@@ -1,0 +1,125 @@
+{
+  "name": "Pod Restart Check",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "cronExpression", "expression": "0 */4 * * *"}]
+        }
+      },
+      "id": "schedule-1",
+      "name": "Every 4 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "pod-restarts",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 400],
+      "webhookId": "pod-restarts"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "increase(kube_pod_container_status_restarts_total[4h]) > 0"}
+          ]
+        },
+        "options": {"allowUnauthorizedCerts": true}
+      },
+      "id": "prom-1",
+      "name": "Query Pod Restarts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.data?.result || [];\nconst pods = data.map(r => {\n  const restarts = Math.floor(parseFloat(r.value[1]));\n  const pod = r.metric.pod || 'unknown';\n  const ns = r.metric.namespace || 'default';\n  return {pod, namespace: ns, restarts};\n}).filter(p => p.restarts > 0).sort((a,b) => b.restarts - a.restarts);\n\nconst critical = pods.filter(p => p.restarts >= 5);\nconst warning = pods.filter(p => p.restarts >= 2 && p.restarts < 5);\n\nconst summary = pods.slice(0, 10).map(p => `${p.namespace}/${p.pod}:${p.restarts}`).join(', ');\nreturn [{json: {\n  podData: summary || 'none',\n  criticalCount: critical.length,\n  warningCount: warning.length,\n  totalRestarts: pods.reduce((a,p) => a + p.restarts, 0),\n  affectedPods: pods.length\n}}];"
+      },
+      "id": "code-format-1",
+      "name": "Format Restart Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "loose"},
+          "conditions": [
+            {"id": "cond-1", "leftValue": "={{ $json.criticalCount }}", "rightValue": "0", "operator": {"type": "number", "operation": "gt"}}
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-1",
+      "name": "Critical Restarts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://10.0.20.2:11434/v1/chat/completions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"model\":\"default\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a Kubernetes admin. Assess in 1 sentence: what's the likely cause?\"},{\"role\":\"user\",\"content\":\"Pods restarting (last 4h): {{ $json.podData }}\"}],\"max_tokens\":250}",
+        "options": {"timeout": 180000}
+      },
+      "id": "ollama-1",
+      "name": "Assess Cause",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst msg = response.choices?.[0]?.message || {};\nlet assessment = msg.content || '';\nif (!assessment && msg.reasoning) {\n  const r = msg.reasoning.toLowerCase();\n  if (r.includes('oom') || r.includes('memory')) assessment = 'Possible OOM - check resource limits';\n  else if (r.includes('crash') || r.includes('error')) assessment = 'Application crash - check logs';\n  else if (r.includes('liveness') || r.includes('health')) assessment = 'Health check failing - review probe config';\n  else assessment = 'Review pod logs for root cause';\n}\nconst prev = $items('Format Restart Data')[0].json;\nreturn [{json: {\n  status: 'critical',\n  assessment: assessment || 'High restart count detected',\n  criticalPods: prev.criticalCount,\n  totalRestarts: prev.totalRestarts,\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "code-assess-1",
+      "name": "Format Assessment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $items('Format Restart Data')[0].json;\nreturn [{json: {\n  status: prev.warningCount > 0 ? 'warning' : 'ok',\n  message: prev.warningCount > 0 ? `${prev.warningCount} pods with minor restarts` : 'No significant pod restarts',\n  affectedPods: prev.affectedPods,\n  totalRestarts: prev.totalRestarts,\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "code-ok-1",
+      "name": "Minor/None",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 400]
+    }
+  ],
+  "connections": {
+    "Every 4 Hours": {"main": [[{"node": "Query Pod Restarts", "type": "main", "index": 0}]]},
+    "Manual Trigger": {"main": [[{"node": "Query Pod Restarts", "type": "main", "index": 0}]]},
+    "Query Pod Restarts": {"main": [[{"node": "Format Restart Data", "type": "main", "index": 0}]]},
+    "Format Restart Data": {"main": [[{"node": "Critical Restarts?", "type": "main", "index": 0}]]},
+    "Critical Restarts?": {
+      "main": [
+        [{"node": "Assess Cause", "type": "main", "index": 0}],
+        [{"node": "Minor/None", "type": "main", "index": 0}]
+      ]
+    },
+    "Assess Cause": {"main": [[{"node": "Format Assessment", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"}
+}
