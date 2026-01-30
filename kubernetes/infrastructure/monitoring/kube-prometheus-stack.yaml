@@ -190,6 +190,10 @@ spec:
             - receiver: 'email'
               matchers:
                 - severity=~"critical|warning"
+              continue: true  # Continue to n8n for analysis
+            - receiver: 'n8n-analysis'
+              matchers:
+                - severity=~"critical|warning"
         receivers:
           - name: 'null'  # Null receiver for silencing alerts
           - name: 'email'
@@ -198,6 +202,10 @@ spec:
                 send_resolved: true
                 headers:
                   Subject: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'
+          - name: 'n8n-analysis'
+            webhook_configs:
+              - url: 'http://10.0.10.27:5678/webhook/alert-analysis'
+                send_resolved: true
         inhibit_rules:
           - source_matchers:
               - severity="critical"
