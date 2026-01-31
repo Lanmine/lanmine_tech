@@ -1,11 +1,22 @@
 repos:
   # TruffleHog - scan for secrets before commit
+  # IMPORTANT: Do NOT use --only-verified flag - it silently skips internal credentials
   - repo: https://github.com/trufflesecurity/trufflehog
     rev: v3.88.0
     hooks:
       - id: trufflehog
         name: TruffleHog Secret Scan
-        entry: trufflehog git file://. --since-commit HEAD --only-verified --fail --no-update
+        entry: trufflehog git file://. --since-commit HEAD --fail --no-update
+        language: system
+        pass_filenames: false
+
+  # Gitleaks - entropy-based secret detection (catches what TruffleHog misses)
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+        name: Gitleaks Secret Scan
+        entry: gitleaks protect --staged --verbose
         language: system
         pass_filenames: false
 

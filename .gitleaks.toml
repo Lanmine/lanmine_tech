@@ -1,0 +1,46 @@
+# Gitleaks configuration for Lanmine infrastructure
+# Extends default rules with custom patterns for internal secrets
+
+[extend]
+useDefault = true
+
+# Custom rules for infrastructure-specific secrets
+[[rules]]
+id = "kubernetes-secret-stringdata"
+description = "Kubernetes Secret with stringData containing potential secrets"
+regex = '''stringData:\s*\n(?:.*\n)*?\s*(?:password|secret|token|key|api[_-]?key):\s*["']?([A-Za-z0-9+/=_-]{20,})["']?'''
+tags = ["kubernetes", "secret"]
+
+[[rules]]
+id = "radius-shared-secret"
+description = "RADIUS shared secret"
+regex = '''(?i)radius[_-]?(?:shared[_-]?)?secret["\s:=]+["']?([A-Za-z0-9+/=_-]{16,})["']?'''
+tags = ["radius", "network"]
+
+[[rules]]
+id = "vault-approle-secret"
+description = "Vault AppRole secret_id"
+regex = '''secret[_-]?id["\s:=]+["']?([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})["']?'''
+tags = ["vault", "approle"]
+
+[[rules]]
+id = "django-secret-key"
+description = "Django SECRET_KEY"
+regex = '''(?i)secret[_-]?key["\s:=]+["']?([A-Za-z0-9!@#$%^&*()_+={}\[\]:;"'<>,.?/\\|`~-]{40,})["']?'''
+tags = ["django", "python"]
+
+[[rules]]
+id = "high-entropy-password"
+description = "High entropy password field"
+regex = '''password:\s*["']?([A-Za-z0-9+/=_-]{24,})["']?'''
+entropy = 3.5
+tags = ["password"]
+
+# Allow patterns (reduce false positives)
+[allowlist]
+paths = [
+  '''\.example$''',
+  '''\.template$''',
+  '''_example\.yaml$''',
+  '''_template\.yaml$''',
+]

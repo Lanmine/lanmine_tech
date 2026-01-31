@@ -30,3 +30,7 @@ Thumbs.db
 .idea/
 .vscode/
 .worktrees/
+
+# Kubernetes secrets with plaintext credentials - use ExternalSecret instead
+kubernetes/apps/netbox/secrets.yaml
+kubernetes/infrastructure/cert-manager/vault-approle-secret.yaml
