@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentik-ldap
+  namespace: authentik
+  labels:
+    app: authentik-ldap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authentik-ldap
+  template:
+    metadata:
+      labels:
+        app: authentik-ldap
+    spec:
+      containers:
+      - name: ldap
+        image: ghcr.io/goauthentik/ldap:2025.10.3
+        ports:
+        - name: ldap
+          containerPort: 3389
+          protocol: TCP
+        - name: ldaps
+          containerPort: 6636
+          protocol: TCP
+        - name: metrics
+          containerPort: 9300
+          protocol: TCP
+        env:
+        - name: AUTHENTIK_HOST
+          value: "http://10.0.10.25:9000"
+        - name: AUTHENTIK_INSECURE
+          value: "true"
+        - name: AUTHENTIK_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: authentik-ldap-token
+              key: token
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        livenessProbe:
+          tcpSocket:
+            port: 3389
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          tcpSocket:
+            port: 3389
+          initialDelaySeconds: 10
+          periodSeconds: 10
