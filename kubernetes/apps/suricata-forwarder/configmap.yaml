@@ -1,0 +1,128 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: suricata-forwarder-script
+  namespace: monitoring
+data:
+  forward.py: |
+    #!/usr/bin/env python3
+    """
+    Suricata EVE Log Forwarder
+    Fetches alerts from OPNsense Suricata API and pushes to Loki
+    """
+    import os
+    import json
+    import time
+    import requests
+    from datetime import datetime, timezone
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    OPNSENSE_URL = os.environ.get('OPNSENSE_URL', 'https://10.0.10.1')
+    API_KEY = os.environ.get('API_KEY')
+    API_SECRET = os.environ.get('API_SECRET')
+    LOKI_URL = os.environ.get('LOKI_URL', 'http://loki:3100')
+    STATE_FILE = '/state/last_processed_timestamp'
+
+    def get_last_timestamp():
+        try:
+            with open(STATE_FILE, 'r') as f:
+                return f.read().strip()
+        except:
+            return None
+
+    def save_last_timestamp(ts):
+        with open(STATE_FILE, 'w') as f:
+            f.write(ts)
+
+    def fetch_alerts():
+        url = f"{OPNSENSE_URL}/api/ids/service/queryAlerts"
+        resp = requests.post(
+            url,
+            auth=(API_KEY, API_SECRET),
+            json={},
+            verify=False,
+            timeout=30
+        )
+        resp.raise_for_status()
+        return resp.json().get('rows', [])
+
+    def push_to_loki(alerts):
+        if not alerts:
+            return 0
+
+        streams = []
+        for alert in alerts:
+            ts = alert.get('timestamp', '')
+            try:
+                dt = datetime.fromisoformat(ts.replace('+0100', '+01:00').replace('+0000', '+00:00'))
+                ts_ns = str(int(dt.timestamp() * 1e9))
+            except:
+                ts_ns = str(int(time.time() * 1e9))
+
+            log_entry = json.dumps(alert)
+
+            severity = "3"
+            alert_text = alert.get('alert', '')
+            if 'ATTACK' in alert_text or 'EXPLOIT' in alert_text:
+                severity = "1"
+            elif 'MALWARE' in alert_text or 'TROJAN' in alert_text:
+                severity = "2"
+
+            stream = {
+                "stream": {
+                    "job": "suricata",
+                    "app": "suricata",
+                    "host": "opnsense",
+                    "type": "ids",
+                    "event_type": alert.get('event_type', 'alert'),
+                    "alert_severity": severity,
+                    "cluster": "lanmine"
+                },
+                "values": [[ts_ns, log_entry]]
+            }
+            streams.append(stream)
+
+        loki_payload = {"streams": streams}
+        resp = requests.post(
+            f"{LOKI_URL}/loki/api/v1/push",
+            json=loki_payload,
+            headers={"Content-Type": "application/json"},
+            timeout=30
+        )
+        resp.raise_for_status()
+        return len(alerts)
+
+    def main():
+        print(f"Starting Suricata log forwarder at {datetime.now(timezone.utc).isoformat()}")
+
+        last_ts = get_last_timestamp()
+        print(f"Last processed timestamp: {last_ts}")
+
+        try:
+            alerts = fetch_alerts()
+            print(f"Fetched {len(alerts)} alerts from OPNsense")
+
+            if last_ts:
+                new_alerts = [a for a in alerts if a.get('timestamp', '') > last_ts]
+            else:
+                new_alerts = alerts
+
+            print(f"New alerts to process: {len(new_alerts)}")
+
+            if new_alerts:
+                pushed = push_to_loki(new_alerts)
+                print(f"Pushed {pushed} alerts to Loki")
+
+                latest_ts = max(a.get('timestamp', '') for a in new_alerts)
+                save_last_timestamp(latest_ts)
+                print(f"Saved timestamp: {latest_ts}")
+            else:
+                print("No new alerts to process")
+
+        except Exception as e:
+            print(f"Error: {e}")
+            raise
+
+    if __name__ == '__main__':
+        main()

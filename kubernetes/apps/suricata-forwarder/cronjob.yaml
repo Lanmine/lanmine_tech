@@ -1,0 +1,62 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: suricata-log-forwarder
+  namespace: monitoring
+spec:
+  schedule: "*/1 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: forwarder
+              image: python:3.11-slim
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  # Install requests only if not already cached
+                  pip install --cache-dir /cache/pip -q requests urllib3 && \
+                  python /scripts/forward.py
+              env:
+                - name: OPNSENSE_URL
+                  value: "https://10.0.10.1"
+                - name: LOKI_URL
+                  value: "http://loki:3100"
+                - name: API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: opnsense-api-credentials
+                      key: api_key
+                - name: API_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: opnsense-api-credentials
+                      key: api_secret
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 64Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              volumeMounts:
+                - name: script
+                  mountPath: /scripts
+                - name: cache
+                  mountPath: /cache
+                - name: cache
+                  mountPath: /state
+                  subPath: state
+          volumes:
+            - name: script
+              configMap:
+                name: suricata-forwarder-script
+            - name: cache
+              persistentVolumeClaim:
+                claimName: suricata-forwarder-cache
