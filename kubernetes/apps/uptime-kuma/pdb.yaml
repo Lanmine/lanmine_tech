@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: uptime-kuma
+  namespace: uptime-kuma
+spec:
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: uptime-kuma

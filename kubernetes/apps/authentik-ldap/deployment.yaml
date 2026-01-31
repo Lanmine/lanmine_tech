@@ -15,8 +15,19 @@ spec:
       labels:
         app: authentik-ldap
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: ldap
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         image: ghcr.io/goauthentik/ldap:2025.10.3
         ports:
         - name: ldap

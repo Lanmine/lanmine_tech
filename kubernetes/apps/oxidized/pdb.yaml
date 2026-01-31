@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: oxidized
+  namespace: oxidized
+spec:
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: oxidized

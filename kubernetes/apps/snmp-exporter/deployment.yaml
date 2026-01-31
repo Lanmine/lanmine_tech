@@ -15,8 +15,19 @@ spec:
       labels:
         app: snmp-exporter
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: snmp-exporter
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           image: prom/snmp-exporter:v0.26.0
           args:
             - --config.file=/etc/snmp_exporter/snmp.yml
@@ -49,6 +60,10 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
         - name: netbox-sync
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           image: python:3.11-alpine
           command:
             - /bin/sh

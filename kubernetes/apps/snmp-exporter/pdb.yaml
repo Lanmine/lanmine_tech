@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: snmp-exporter
+  namespace: snmp-exporter
+spec:
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: snmp-exporter

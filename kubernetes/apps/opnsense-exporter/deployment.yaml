@@ -15,8 +15,19 @@ spec:
       labels:
         app: opnsense-exporter
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: exporter
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           image: ghcr.io/athennamind/opnsense-exporter:latest
           args:
             - --opnsense.protocol=http

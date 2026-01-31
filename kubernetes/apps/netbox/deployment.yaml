@@ -15,6 +15,13 @@ spec:
       labels:
         app: netbox
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       hostAliases:
       - ip: "10.0.10.25"
         hostnames:
@@ -22,6 +29,10 @@ spec:
       initContainers:
       - name: netbox-init
         image: netboxcommunity/netbox:v4.2
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
         command:
         - /bin/sh
         - -c
@@ -109,6 +120,10 @@ spec:
       containers:
       - name: netbox
         image: netboxcommunity/netbox:v4.2
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 8080
           name: http

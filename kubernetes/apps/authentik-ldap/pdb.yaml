@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: authentik-ldap
+  namespace: authentik
+spec:
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: authentik-ldap

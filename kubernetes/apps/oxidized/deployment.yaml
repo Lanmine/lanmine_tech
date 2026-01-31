@@ -19,8 +19,14 @@ spec:
     spec:
       securityContext:
         fsGroup: 30000
+        seccompProfile:
+          type: RuntimeDefault
       initContainers:
         - name: render-config
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           image: bhgedigital/envsubst:latest
           command:
             - sh
@@ -72,6 +78,10 @@ spec:
             - name: rendered-config
               mountPath: /oxidized-config
         - name: init-git-repo
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           image: alpine/git:latest
           command:
             - sh
@@ -113,6 +123,10 @@ spec:
               mountPath: /oxidized-config
       containers:
         - name: oxidized
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           image: oxidized/oxidized:latest
           ports:
             - containerPort: 8888
@@ -122,6 +136,10 @@ spec:
             - name: oxidized-data
               mountPath: /home/oxidized/.config/oxidized
         - name: netbox-sync
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           image: alpine:latest
           command:
             - /bin/sh
