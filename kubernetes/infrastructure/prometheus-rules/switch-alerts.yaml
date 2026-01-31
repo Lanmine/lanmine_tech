@@ -14,10 +14,16 @@ spec:
         description: 'Interface {{ $labels.ifDescr }} on {{ $labels.device }} has gone down.'
         summary: 'Switch interface down: {{ $labels.device }}/{{ $labels.ifDescr }}'
       expr: |
-        ifOperStatus{device=~"mgmt-sw-.*|opnsense"} == 2
-        and
-        ifAdminStatus{device=~"mgmt-sw-.*|opnsense"} == 1
-      for: 2m
+        # Only alert on interfaces with custom descriptions (configured ports)
+        # Exclude: default names (GigabitEthernet, FastEthernet), virtual (lo, enc, pflog, pfsync, Null, Vl1)
+        (
+          (ifOperStatus{device=~"mgmt-sw-.*|opnsense"} == 2)
+          and on(instance, ifIndex)
+          (ifAdminStatus{device=~"mgmt-sw-.*|opnsense"} == 1)
+        )
+        * on(instance, ifIndex) group_left(ifDescr)
+        (ifDescr{ifDescr!~"GigabitEthernet.*|TenGigabitEthernet.*|FastEthernet.*|Null.*|Vl1|lo.*|enc.*|pflog.*|pfsync.*|igb[0-9]|Stack.*"})
+      for: 5m
       labels:
         severity: warning
         component: network
