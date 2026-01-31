@@ -1,24 +1,18 @@
-theme: jekyll-theme-hacker
 title: Lanmine Infrastructure
 description: A living blog documenting the daily life of homelab infrastructure
-show_downloads: false
+url: "https://lanmine.github.io/lanmine_tech"
+
+remote_theme: jekyll/minima
+markdown: kramdown
+
+minima:
+  skin: dark
 
 # Blog settings
-permalink: /blog/:year/:month/:day/:title/
-paginate: 10
-paginate_path: "/blog/page:num/"
+permalink: /:year/:month/:day/:title/
+show_excerpts: true
 
-# Build settings
 plugins:
   - jekyll-feed
-  - jekyll-paginate
   - jekyll-seo-tag
-
-# Default front matter
-defaults:
-  - scope:
-      path: "_posts"
-      type: "posts"
-    values:
-      layout: "post"
-      author: "infra-bot"
+  - jekyll-remote-theme
