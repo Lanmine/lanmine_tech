@@ -1,4 +1,24 @@
 theme: jekyll-theme-hacker
 title: Lanmine Infrastructure
-description: LAN party infrastructure for Lanmine.no
+description: A living blog documenting the daily life of homelab infrastructure
 show_downloads: false
+
+# Blog settings
+permalink: /blog/:year/:month/:day/:title/
+paginate: 10
+paginate_path: "/blog/page:num/"
+
+# Build settings
+plugins:
+  - jekyll-feed
+  - jekyll-paginate
+  - jekyll-seo-tag
+
+# Default front matter
+defaults:
+  - scope:
+      path: "_posts"
+      type: "posts"
+    values:
+      layout: "post"
+      author: "infra-bot"

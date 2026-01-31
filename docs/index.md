@@ -14,23 +14,36 @@ lanmine@infra
 OS        Proxmox VE 8 / Talos v1.11
 Host      Dell PowerEdge R630
 Kernel    Kubernetes v1.34.1
-Uptime    35+ days
 
 VMs       9 running
 K8s       3 nodes (1 CP, 2 workers)
 
 Network   OPNsense 24.x
 VLANs     Infra, Contestants, OOB
-DNS       Kea DHCP + LANcache
 
 IaC       Terraform + Ansible
-GitOps    Flux CD v2.7
+GitOps    ArgoCD v3.2
 Secrets   HashiCorp Vault
 
 Monitor   Prometheus + Grafana
 Alerts    n8n → Discord
-Uptime    Uptime Kuma
-
-Storage   Longhorn
-Backup    age-encrypted → Git
 ```
+
+---
+
+## Recent Updates
+
+{% for post in site.posts limit:5 %}
+### [{{ post.title }}]({{ post.url | relative_url }})
+<small>{{ post.date | date: "%B %d, %Y" }}</small>
+
+{{ post.excerpt | strip_html | truncatewords: 50 }}
+
+---
+{% endfor %}
+
+{% if site.posts.size == 0 %}
+*No posts yet. Daily updates coming soon.*
+{% endif %}
+
+[View all posts](/lanmine_tech/blog/)

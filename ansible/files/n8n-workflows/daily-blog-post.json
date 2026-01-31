@@ -1,0 +1,210 @@
+{
+  "name": "Daily Blog Post",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 21 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-1",
+      "name": "Daily 21:00 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://prometheus.lionfish-caiman.ts.net/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "up"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "id": "prom-health",
+      "name": "Query Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://prometheus.lionfish-caiman.ts.net/api/v1/alerts",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "id": "prom-alerts",
+      "name": "Query Alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 350]
+    },
+    {
+      "parameters": {
+        "command": "kubectl get pods -A --no-headers | wc -l && echo 'pods' && kubectl get pods -A --no-headers | grep -v Running | grep -v Completed | wc -l && echo 'unhealthy'"
+      },
+      "id": "k8s-status",
+      "name": "K8s Status",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [500, 500]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/ubuntu-mgmt01/infra/lanmine_tech && git log --oneline --since='24 hours ago' --no-merges | head -10"
+      },
+      "id": "git-changes",
+      "name": "Git Changes",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [500, 650]
+    },
+    {
+      "parameters": {
+        "jsCode": "const health = $('Query Health').first().json;\nconst alerts = $('Query Alerts').first().json;\nconst k8sRaw = $('K8s Status').first().json.stdout || '';\nconst gitRaw = $('Git Changes').first().json.stdout || '';\n\n// Parse health metrics\nconst upMetrics = health.data?.result || [];\nconst totalServices = upMetrics.length;\nconst healthyServices = upMetrics.filter(m => m.value[1] === '1').length;\n\n// Parse alerts\nconst firingAlerts = (alerts.data?.alerts || []).filter(a => a.state === 'firing');\nconst criticalAlerts = firingAlerts.filter(a => a.labels.severity === 'critical');\n\n// Parse k8s\nconst k8sLines = k8sRaw.trim().split('\\n');\nconst totalPods = parseInt(k8sLines[0]) || 0;\nconst unhealthyPods = parseInt(k8sLines[2]) || 0;\n\n// Parse git changes\nconst commits = gitRaw.trim().split('\\n').filter(l => l.length > 0);\n\n// Sanitize commit messages (remove IPs, secrets, etc)\nconst sanitizedCommits = commits.map(c => {\n  return c\n    .replace(/\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b/g, '[redacted]')\n    .replace(/\\b[A-Za-z0-9]{32,}\\b/g, '[token]')\n    .replace(/password|secret|key|token/gi, '[redacted]');\n});\n\nreturn [{\n  json: {\n    date: new Date().toISOString().split('T')[0],\n    healthPercent: Math.round((healthyServices / totalServices) * 100) || 100,\n    totalServices,\n    healthyServices,\n    firingAlerts: firingAlerts.length,\n    criticalAlerts: criticalAlerts.length,\n    totalPods,\n    unhealthyPods,\n    commits: sanitizedCommits,\n    commitCount: commits.length\n  }\n}];"
+      },
+      "id": "aggregate-data",
+      "name": "Aggregate Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 400]
+    },
+    {
+      "parameters": {
+        "modelId": { "value": "={{ $env.AZURE_OPENAI_DEPLOYMENT }}" },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a friendly infrastructure blogger writing daily updates for a homelab. Write in a casual, engaging tone. Never include IP addresses, hostnames, secrets, or technical identifiers. Focus on the human story - what's working, what changed, interesting observations. Keep it concise (150-250 words). Use markdown formatting."
+            },
+            {
+              "role": "user",
+              "content": "Write a blog post for {{ $json.date }}.\n\nData:\n- Health: {{ $json.healthPercent }}% ({{ $json.healthyServices }}/{{ $json.totalServices }} services up)\n- Alerts: {{ $json.firingAlerts }} firing ({{ $json.criticalAlerts }} critical)\n- Kubernetes: {{ $json.totalPods }} pods ({{ $json.unhealthyPods }} unhealthy)\n- Commits today: {{ $json.commitCount }}\n\nRecent changes:\n{{ $json.commits.join('\\n') }}\n\nWrite a title and body. Make it feel like a personal log entry, not a status report."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "llm-write",
+      "name": "Write Blog Post",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1,
+      "position": [1000, 400],
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "1",
+          "name": "Azure OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const llmResponse = $input.first().json.text || $input.first().json.message?.content || '';\nconst data = $('Aggregate Data').first().json;\nconst date = data.date;\n\n// Extract title from LLM response (first line starting with #)\nlet title = 'Daily Update';\nlet body = llmResponse;\n\nconst lines = llmResponse.split('\\n');\nfor (const line of lines) {\n  if (line.startsWith('# ')) {\n    title = line.replace('# ', '').trim();\n    body = lines.slice(lines.indexOf(line) + 1).join('\\n').trim();\n    break;\n  } else if (line.startsWith('## ')) {\n    title = line.replace('## ', '').trim();\n    body = lines.slice(lines.indexOf(line) + 1).join('\\n').trim();\n    break;\n  }\n}\n\n// Create filename\nconst filename = `${date}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}.md`;\n\n// Create front matter\nconst frontMatter = `---\\nlayout: post\\ntitle: \"${title}\"\\ndate: ${date}\\nauthor: infra-bot\\ncategories: [daily, automated]\\n---\\n\\n`;\n\nreturn [{\n  json: {\n    filename,\n    title,\n    content: frontMatter + body,\n    date\n  }\n}];"
+      },
+      "id": "format-post",
+      "name": "Format Post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/ubuntu-mgmt01/infra/lanmine_tech && echo '{{ $json.content }}' > docs/_posts/{{ $json.filename }} && git add docs/_posts/{{ $json.filename }} && git commit -m 'blog: {{ $json.title }}' && git push"
+      },
+      "id": "git-commit",
+      "name": "Commit & Push",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1500, 400]
+    },
+    {
+      "parameters": {
+        "content": "=**Blog Post Published**\n\n{{ $('Format Post').first().json.title }}\n\n[View on GitHub Pages](https://lanmine.github.io/lanmine_tech/)",
+        "options": {}
+      },
+      "id": "discord-notify",
+      "name": "Notify Discord",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [1750, 400],
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "1",
+          "name": "Discord Webhook"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 21:00 UTC": {
+      "main": [
+        [
+          { "node": "Query Health", "type": "main", "index": 0 },
+          { "node": "Query Alerts", "type": "main", "index": 0 },
+          { "node": "K8s Status", "type": "main", "index": 0 },
+          { "node": "Git Changes", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Query Health": {
+      "main": [
+        [{ "node": "Aggregate Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Query Alerts": {
+      "main": [
+        [{ "node": "Aggregate Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "K8s Status": {
+      "main": [
+        [{ "node": "Aggregate Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Git Changes": {
+      "main": [
+        [{ "node": "Aggregate Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Aggregate Data": {
+      "main": [
+        [{ "node": "Write Blog Post", "type": "main", "index": 0 }]
+      ]
+    },
+    "Write Blog Post": {
+      "main": [
+        [{ "node": "Format Post", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format Post": {
+      "main": [
+        [{ "node": "Commit & Push", "type": "main", "index": 0 }]
+      ]
+    },
+    "Commit & Push": {
+      "main": [
+        [{ "node": "Notify Discord", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
