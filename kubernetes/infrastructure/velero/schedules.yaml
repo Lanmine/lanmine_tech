@@ -1,0 +1,66 @@
+---
+# Daily full cluster backup - keeps 7 days
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-full-backup
+  namespace: velero
+spec:
+  schedule: "0 2 * * *"  # 2 AM daily
+  template:
+    ttl: 168h  # 7 days retention
+    includedNamespaces:
+      - "*"
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+    includeClusterResources: true
+    snapshotVolumes: true
+    storageLocation: default
+    volumeSnapshotLocations:
+      - default
+---
+# Hourly critical namespaces backup - keeps 24 hours
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: hourly-critical-backup
+  namespace: velero
+spec:
+  schedule: "0 * * * *"  # Every hour
+  template:
+    ttl: 24h
+    includedNamespaces:
+      - monitoring
+      - argocd
+      - netbox
+      - uptime-kuma
+      - velero
+    includeClusterResources: false
+    snapshotVolumes: true
+    storageLocation: default
+    volumeSnapshotLocations:
+      - default
+---
+# Weekly full backup with long retention - keeps 30 days
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: weekly-full-backup
+  namespace: velero
+spec:
+  schedule: "0 3 * * 0"  # 3 AM every Sunday
+  template:
+    ttl: 720h  # 30 days retention
+    includedNamespaces:
+      - "*"
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+    includeClusterResources: true
+    snapshotVolumes: true
+    storageLocation: default
+    volumeSnapshotLocations:
+      - default

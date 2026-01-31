@@ -259,3 +259,45 @@ spec:
       for: 15m
       labels:
         severity: warning
+
+  - name: velero-backups
+    rules:
+    - alert: VeleroBackupFailed
+      annotations:
+        description: 'Velero backup {{ $labels.schedule }} failed. Check velero logs for details.'
+        summary: 'Velero backup failed: {{ $labels.schedule }}'
+      expr: |
+        increase(velero_backup_failure_total[1h]) > 0
+      for: 5m
+      labels:
+        severity: critical
+
+    - alert: VeleroBackupPartiallyFailed
+      annotations:
+        description: 'Velero backup {{ $labels.schedule }} partially failed with some items not backed up.'
+        summary: 'Velero backup partially failed: {{ $labels.schedule }}'
+      expr: |
+        increase(velero_backup_partial_failure_total[1h]) > 0
+      for: 5m
+      labels:
+        severity: warning
+
+    - alert: VeleroNoRecentBackup
+      annotations:
+        description: 'No successful Velero backup in the last 25 hours. Check if backups are running.'
+        summary: 'No recent Velero backup'
+      expr: |
+        time() - velero_backup_last_successful_timestamp{schedule="daily-full-backup"} > 90000
+      for: 1h
+      labels:
+        severity: warning
+
+    - alert: VeleroBackupStorageLocationUnavailable
+      annotations:
+        description: 'Velero backup storage location {{ $labels.name }} is unavailable.'
+        summary: 'Backup storage unavailable: {{ $labels.name }}'
+      expr: |
+        velero_backup_storage_location_available == 0
+      for: 15m
+      labels:
+        severity: critical
