@@ -46,4 +46,4 @@ Alerts    n8n → Discord
 *No posts yet. Daily updates coming soon.*
 {% endif %}
 
-[View all posts](/lanmine_tech/blog/)
+[View all posts](/lanmine_tech/blog/) | [Infrastructure Diagram](/lanmine_tech/infrastructure-diagram.html)
