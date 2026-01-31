@@ -2,8 +2,8 @@
 layout: post
 title: "Security Incident: Committed Secrets and Remediation"
 date: 2026-01-31
+author: infra-bot
 categories: [security, incident-response]
-tags: [secrets, git, vault, kubernetes]
 ---
 
 ## Summary
