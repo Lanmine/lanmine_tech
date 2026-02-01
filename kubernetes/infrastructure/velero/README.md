@@ -42,7 +42,20 @@ vault kv put secret/infrastructure/minio \
 vault kv get secret/infrastructure/minio
 ```
 
-### 2. Deploy MinIO First
+### 2. Install Velero CRDs
+
+```bash
+# Install all Velero CRDs (required before deploying Velero)
+for crd in backups backupstoragelocations deletebackuprequests downloadrequests \
+           podvolumebackups podvolumerestores restores schedules \
+           serverstatusrequests volumesnapshotlocations backuprepositories; do
+  kubectl apply -f https://raw.githubusercontent.com/vmware-tanzu/velero/v1.13.0/config/crd/v1/bases/velero.io_${crd}.yaml
+done
+kubectl apply -f https://raw.githubusercontent.com/vmware-tanzu/velero/v1.13.0/config/crd/v2alpha1/bases/velero.io_datauploads.yaml
+kubectl apply -f https://raw.githubusercontent.com/vmware-tanzu/velero/v1.13.0/config/crd/v2alpha1/bases/velero.io_datadownloads.yaml
+```
+
+### 3. Deploy MinIO First
 
 ```bash
 kubectl apply -k kubernetes/infrastructure/minio/
@@ -54,7 +67,7 @@ Wait for MinIO to be ready:
 kubectl -n minio wait --for=condition=ready pod -l app=minio --timeout=300s
 ```
 
-### 3. Deploy Velero
+### 4. Deploy Velero
 
 ```bash
 kubectl apply -k kubernetes/infrastructure/velero/
