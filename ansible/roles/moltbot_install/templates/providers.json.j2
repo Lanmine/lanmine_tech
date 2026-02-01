@@ -1,0 +1,12 @@
+{
+  "providers": [
+    {
+      "name": "litellm",
+      "type": "openai",
+      "api_base": "{{ moltbot_litellm_url }}",
+      "models": ["gpt-4", "gpt-4-turbo", "gpt-4o", "gpt-4o-mini"],
+      "default": true
+    }
+  ],
+  "default_model": "{{ moltbot_default_model }}"
+}

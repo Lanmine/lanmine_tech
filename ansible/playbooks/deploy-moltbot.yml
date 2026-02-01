@@ -1,0 +1,11 @@
+---
+# Deploy Moltbot AI assistant
+# Usage: ansible-playbook playbooks/deploy-moltbot.yml
+
+- name: Deploy Moltbot
+  hosts: moltbot_servers
+  become: false
+  gather_facts: true
+
+  roles:
+    - role: moltbot_install

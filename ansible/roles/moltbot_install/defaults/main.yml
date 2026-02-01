@@ -1,0 +1,26 @@
+---
+# moltbot installation defaults
+
+# Docker image
+moltbot_image: "moltbot/moltbot:latest"
+
+# Installation directory
+moltbot_install_dir: /opt/moltbot
+
+# Gateway port
+moltbot_gateway_port: 18789
+
+# Bridge port
+moltbot_bridge_port: 18790
+
+# LiteLLM proxy URL
+moltbot_litellm_url: "http://10.0.10.41:4000/v1"
+
+# LiteLLM API key (from Vault)
+moltbot_litellm_api_key: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/azure-openai', url='https://vault-01.lionfish-caiman.ts.net:8200', validate_certs=true).secret.litellm_master_key }}"
+
+# Default AI model
+moltbot_default_model: "gpt-4o"
+
+# Vault secrets (loaded at runtime)
+moltbot_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get', 'infrastructure/moltbot', url='https://vault-01.lionfish-caiman.ts.net:8200', validate_certs=true).secret }}"

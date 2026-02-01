@@ -1,0 +1,6 @@
+---
+- name: Restart moltbot
+  community.docker.docker_compose_v2:
+    project_src: "{{ moltbot_install_dir }}"
+    state: restarted
+  become: true

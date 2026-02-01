@@ -1,0 +1,40 @@
+# Moltbot Docker Compose
+# Managed by Ansible - do not edit manually
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "100m"
+    max-file: "3"
+
+services:
+  moltbot:
+    image: {{ moltbot_image }}
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "{{ moltbot_gateway_port }}:18789"
+      - "{{ moltbot_bridge_port }}:18790"
+    environment:
+      # OpenAI-compatible API via LiteLLM
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_API_BASE: ${OPENAI_API_BASE}
+      # Gateway authentication
+      CLAWDBOT_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN}
+      # Discord
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      # Slack (optional)
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+      SLACK_APP_TOKEN: ${SLACK_APP_TOKEN}
+      # State directory
+      MOLTBOT_STATE_DIR: /home/node/.moltbot
+    volumes:
+      - {{ moltbot_install_dir }}/config:/home/node/.moltbot
+      - {{ moltbot_install_dir }}/workspace:/app/workspace
+      - {{ moltbot_install_dir }}/config/providers.json:/app/providers.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:18789/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

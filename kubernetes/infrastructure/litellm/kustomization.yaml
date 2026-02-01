@@ -8,5 +8,7 @@ resources:
   - configmap.yaml
   - deployment.yaml
   - service.yaml
+  - service-lb.yaml
   - pdb.yaml
   - servicemonitor.yaml
+  - ingress-tailscale.yaml

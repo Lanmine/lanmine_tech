@@ -134,6 +134,18 @@ locals {
       template_id = 9000 # ubuntu-24.04-template
       description = "PANDA9000 voice interface"
     }
+
+    moltbot = {
+      name        = "moltbot-01"
+      vm_id       = 9180
+      cpu         = 2
+      memory      = 4096
+      ip          = "10.0.10.29/24"
+      tags        = ["infrastructure", "assistant"]
+      agent       = true
+      template_id = 9000 # ubuntu-24.04-template
+      description = "Moltbot AI assistant with Discord integration"
+    }
   }
 }
 
