@@ -9,3 +9,4 @@ resources:
   - n8n
   - netbox
   - uptime-kuma
+  - moltbot

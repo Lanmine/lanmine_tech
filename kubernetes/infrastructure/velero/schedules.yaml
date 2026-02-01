@@ -37,6 +37,7 @@ spec:
       - netbox
       - uptime-kuma
       - velero
+      - moltbot
     includeClusterResources: false
     snapshotVolumes: true
     storageLocation: default

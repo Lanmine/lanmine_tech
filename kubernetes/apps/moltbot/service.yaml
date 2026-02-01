@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: moltbot
+  namespace: moltbot
+  labels:
+    app: moltbot
+spec:
+  selector:
+    app: moltbot
+  ports:
+    - port: 18789
+      targetPort: 18789
+      name: gateway
+      protocol: TCP
+    - port: 18790
+      targetPort: 18790
+      name: bridge
+      protocol: TCP

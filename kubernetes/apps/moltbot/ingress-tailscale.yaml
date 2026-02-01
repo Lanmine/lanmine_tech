@@ -1,0 +1,18 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: moltbot-tailscale
+  namespace: moltbot
+  annotations:
+    tailscale.com/funnel: "false"
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: moltbot
+      port:
+        number: 18789
+  tls:
+    - hosts:
+        - moltbot

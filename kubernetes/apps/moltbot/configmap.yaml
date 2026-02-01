@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: moltbot-config
+  namespace: moltbot
+data:
+  providers.json: |
+    {
+      "providers": [
+        {
+          "name": "litellm",
+          "type": "openai",
+          "api_base": "http://litellm.litellm.svc.cluster.local:4000/v1",
+          "models": ["gpt-4", "gpt-4-turbo", "gpt-4o", "gpt-4o-mini"],
+          "default": true
+        }
+      ],
+      "default_model": "gpt-4o"
+    }

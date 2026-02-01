@@ -14,3 +14,4 @@ resources:
   - crowdsec
   - network-policies
   - snmp-exporter
+  - litellm

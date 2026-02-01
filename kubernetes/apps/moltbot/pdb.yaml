@@ -1,0 +1,11 @@
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: moltbot
+  namespace: moltbot
+spec:
+  minAvailable: 0
+  selector:
+    matchLabels:
+      app: moltbot

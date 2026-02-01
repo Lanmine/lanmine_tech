@@ -1,0 +1,111 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: moltbot
+  namespace: moltbot
+  labels:
+    app: moltbot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: moltbot
+  template:
+    metadata:
+      labels:
+        app: moltbot
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: moltbot
+          image: moltbot/moltbot:latest
+          ports:
+            - name: gateway
+              containerPort: 18789
+              protocol: TCP
+            - name: bridge
+              containerPort: 18790
+              protocol: TCP
+          env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: moltbot-litellm
+                  key: api-key
+            - name: OPENAI_API_BASE
+              value: "http://litellm.litellm.svc.cluster.local:4000/v1"
+            - name: CLAWDBOT_GATEWAY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: moltbot-secrets
+                  key: gateway-token
+            - name: DISCORD_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: moltbot-secrets
+                  key: discord-bot-token
+            - name: SLACK_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: moltbot-secrets
+                  key: slack-bot-token
+            - name: SLACK_APP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: moltbot-secrets
+                  key: slack-app-token
+          volumeMounts:
+            - name: workspace
+              mountPath: /app/workspace
+            - name: config-storage
+              mountPath: /app/config
+            - name: providers-config
+              mountPath: /app/providers.json
+              subPath: providers.json
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 18789
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 18789
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: moltbot-workspace
+        - name: config-storage
+          persistentVolumeClaim:
+            claimName: moltbot-config
+        - name: providers-config
+          configMap:
+            name: moltbot-config
