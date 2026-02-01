@@ -43,4 +43,6 @@ paths = [
   '''\.template$''',
   '''_example\.yaml$''',
   '''_template\.yaml$''',
+  '''docs/plans/.*''',
+  '''docs/_posts/.*''',
 ]
