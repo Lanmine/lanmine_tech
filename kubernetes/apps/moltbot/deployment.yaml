@@ -67,10 +67,13 @@ spec:
             - name: workspace
               mountPath: /app/workspace
             - name: config-storage
-              mountPath: /app/config
+              mountPath: /home/node/.moltbot
             - name: providers-config
               mountPath: /app/providers.json
               subPath: providers.json
+            - name: moltbot-yaml-config
+              mountPath: /home/node/.moltbot/config.yaml
+              subPath: config.yaml
           resources:
             requests:
               memory: "256Mi"
@@ -109,3 +112,9 @@ spec:
         - name: providers-config
           configMap:
             name: moltbot-config
+        - name: moltbot-yaml-config
+          configMap:
+            name: moltbot-config
+            items:
+              - key: config.yaml
+                path: config.yaml

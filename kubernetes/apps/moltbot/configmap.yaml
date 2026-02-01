@@ -18,3 +18,9 @@ data:
       ],
       "default_model": "gpt-4o"
     }
+  config.yaml: |
+    plugins:
+      deny:
+        - discord
+    channels:
+      discord: {}
