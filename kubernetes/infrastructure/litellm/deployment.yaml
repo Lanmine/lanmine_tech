@@ -16,6 +16,10 @@ spec:
       labels:
         app: litellm
     spec:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -25,7 +29,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: litellm
-          image: ghcr.io/berriai/litellm:main-latest
+          image: ghcr.io/berriai/litellm:main-stable
           args:
             - --config
             - /app/config.yaml
@@ -74,7 +78,7 @@ spec:
                 - ALL
           livenessProbe:
             httpGet:
-              path: /health
+              path: /health/liveliness
               port: 4000
             initialDelaySeconds: 30
             periodSeconds: 10
@@ -82,7 +86,7 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/readiness
               port: 4000
             initialDelaySeconds: 10
             periodSeconds: 5
