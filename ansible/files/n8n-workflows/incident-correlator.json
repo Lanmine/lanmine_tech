@@ -1,0 +1,136 @@
+{
+  "name": "Incident Correlator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "correlate-incident",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Incident Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "correlate-incident"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{"name": "query", "value": "ALERTS{alertstate=\"firing\"}"}]
+        },
+        "options": {"allowUnauthorizedCerts": true}
+      },
+      "id": "prom-alerts-1",
+      "name": "Get Firing Alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [400, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://prometheus.lanmine.local/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{"name": "query", "value": "up == 0"}]
+        },
+        "options": {"allowUnauthorizedCerts": true}
+      },
+      "id": "prom-down-1",
+      "name": "Get Down Services",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [400, 400]
+    },
+    {
+      "parameters": {"mode": "append"},
+      "id": "merge-1",
+      "name": "Merge Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst alertData = items[0]?.json?.data?.result || [];\nconst downData = items[1]?.json?.data?.result || [];\n\nconst alerts = alertData.map(a => ({\n  name: a.metric.alertname,\n  severity: a.metric.severity || 'warning',\n  instance: a.metric.instance || a.metric.job || 'unknown'\n}));\n\nconst downServices = downData.map(d => d.metric.job || d.metric.instance || 'unknown');\n\nconst alertSummary = alerts.slice(0, 10).map(a => `${a.name}(${a.instance})`).join(', ');\nconst downSummary = downServices.slice(0, 5).join(', ');\n\nreturn [{json: {\n  alertCount: alerts.length,\n  downCount: downServices.length,\n  alerts: alerts,\n  downServices: downServices,\n  alertSummary: alertSummary || 'none',\n  downSummary: downSummary || 'none',\n  hasIncident: alerts.length > 0 || downServices.length > 0\n}}];"
+      },
+      "id": "code-gather-1",
+      "name": "Gather Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "loose"},
+          "conditions": [
+            {"id": "cond-1", "leftValue": "={{ $json.hasIncident }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-1",
+      "name": "Has Incident?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://10.0.20.2:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({model: 'llama3.1:8b', stream: false, messages: [{role: 'system', content: 'You are an SRE correlating infrastructure incidents. Given alerts and down services, identify the root cause and blast radius. Infrastructure: Kubernetes (Talos), Proxmox VMs (vault, postgres, authentik, akvorado, n8n), OPNsense firewall, Cisco switches. Respond with JSON only: {\"incidentSeverity\":\"P1-P4\",\"rootCause\":\"hypothesis\",\"blastRadius\":[\"affected1\"],\"correlatedEvents\":[\"event1\"],\"immediateActions\":[\"action1\"],\"timeline\":\"sequence of events\"}'}, {role: 'user', content: 'Firing alerts: ' + $json.alertSummary + '\\nDown services: ' + $json.downSummary}]}) }}",
+        "options": {"timeout": 120000}
+      },
+      "id": "ollama-1",
+      "name": "Correlate & Analyze",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1200, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst prev = $('Gather Context').first().json;\nlet analysis = {};\ntry {\n  const content = response.message?.content || '';\n  const match = content.match(/\\{[\\s\\S]*\\}/);\n  if (match) analysis = JSON.parse(match[0]);\n} catch(e) {}\n\nreturn [{json: {\n  incidentSeverity: analysis.incidentSeverity || 'P3',\n  rootCause: analysis.rootCause || 'Multiple correlated events - investigation needed',\n  blastRadius: analysis.blastRadius || [],\n  correlatedEvents: analysis.correlatedEvents || [],\n  immediateActions: analysis.immediateActions || ['Review firing alerts', 'Check service health'],\n  timeline: analysis.timeline || 'Unable to determine sequence',\n  alertCount: prev.alertCount,\n  downCount: prev.downCount,\n  alertSummary: prev.alertSummary,\n  downSummary: prev.downSummary,\n  analyzedBy: 'llama3.1:8b',\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "code-format-1",
+      "name": "Format Correlation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: {\n  incidentSeverity: 'none',\n  rootCause: 'No active incidents',\n  blastRadius: [],\n  correlatedEvents: [],\n  immediateActions: [],\n  timeline: 'N/A',\n  alertCount: 0,\n  downCount: 0,\n  status: 'healthy',\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "code-ok-1",
+      "name": "No Incident",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 400]
+    }
+  ],
+  "connections": {
+    "Incident Trigger": {"main": [[{"node": "Get Firing Alerts", "type": "main", "index": 0}, {"node": "Get Down Services", "type": "main", "index": 0}]]},
+    "Get Firing Alerts": {"main": [[{"node": "Merge Data", "type": "main", "index": 0}]]},
+    "Get Down Services": {"main": [[{"node": "Merge Data", "type": "main", "index": 1}]]},
+    "Merge Data": {"main": [[{"node": "Gather Context", "type": "main", "index": 0}]]},
+    "Gather Context": {"main": [[{"node": "Has Incident?", "type": "main", "index": 0}]]},
+    "Has Incident?": {
+      "main": [
+        [{"node": "Correlate & Analyze", "type": "main", "index": 0}],
+        [{"node": "No Incident", "type": "main", "index": 0}]
+      ]
+    },
+    "Correlate & Analyze": {"main": [[{"node": "Format Correlation", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"}
+}

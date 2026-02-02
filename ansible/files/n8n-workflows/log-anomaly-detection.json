@@ -1,0 +1,126 @@
+{
+  "name": "Log Anomaly Detection",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "cronExpression", "expression": "*/15 * * * *"}]}
+      },
+      "id": "schedule-1",
+      "name": "Every 15min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "log-anomaly",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 500],
+      "webhookId": "log-anomaly"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/query_range",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "query", "value": "{job=~\".+\"} |~ \"(?i)(error|fail|exception|critical|panic|fatal)\""},
+            {"name": "start", "value": "={{ Math.floor(Date.now()/1000) - 900 }}"},
+            {"name": "end", "value": "={{ Math.floor(Date.now()/1000) }}"},
+            {"name": "limit", "value": "100"}
+          ]
+        },
+        "options": {"timeout": 30000}
+      },
+      "id": "loki-1",
+      "name": "Query Error Logs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.data?.result || [];\nconst logs = [];\nconst sourceCounts = {};\n\nfor (const stream of data) {\n  const labels = stream.stream || {};\n  const source = labels.job || labels.app || labels.namespace || 'unknown';\n  sourceCounts[source] = (sourceCounts[source] || 0) + (stream.values?.length || 0);\n  \n  for (const [ts, line] of (stream.values || []).slice(0, 20)) {\n    logs.push({source, line: line.substring(0, 200)});\n  }\n}\n\nconst totalErrors = Object.values(sourceCounts).reduce((a,b) => a+b, 0);\nconst topSources = Object.entries(sourceCounts).sort((a,b) => b[1]-a[1]).slice(0, 5);\nconst sampleLogs = logs.slice(0, 10).map(l => `[${l.source}] ${l.line}`).join('\\n');\n\nreturn [{json: {\n  totalErrors,\n  topSources: topSources.map(([k,v]) => `${k}:${v}`).join(', '),\n  sampleLogs,\n  sourceCount: Object.keys(sourceCounts).length,\n  needsAnalysis: totalErrors > 10\n}}];"
+      },
+      "id": "code-parse-1",
+      "name": "Parse Logs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "loose"},
+          "conditions": [
+            {"id": "cond-1", "leftValue": "={{ $json.needsAnalysis }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-1",
+      "name": "High Error Rate?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://10.0.20.2:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({model: 'llama3.1:8b', stream: false, messages: [{role: 'system', content: 'You are an SRE analyzing error logs from a Kubernetes homelab. Identify patterns, likely root causes, and prioritize issues. Respond with JSON only: {\"severity\":\"critical|warning|info\",\"pattern\":\"identified pattern\",\"likelyCause\":\"root cause hypothesis\",\"affectedServices\":[\"svc1\"],\"recommendations\":[\"action1\"],\"requiresAttention\":true/false}'}, {role: 'user', content: 'Error count: ' + $json.totalErrors + ' in 15min\\nTop sources: ' + $json.topSources + '\\nSample logs:\\n' + $json.sampleLogs}]}) }}",
+        "options": {"timeout": 120000}
+      },
+      "id": "ollama-1",
+      "name": "Analyze Patterns",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst prev = $('Parse Logs').first().json;\nlet analysis = {};\ntry {\n  const content = response.message?.content || '';\n  const match = content.match(/\\{[\\s\\S]*\\}/);\n  if (match) analysis = JSON.parse(match[0]);\n} catch(e) {}\n\nreturn [{json: {\n  status: analysis.severity || 'warning',\n  pattern: analysis.pattern || 'Multiple errors detected',\n  likelyCause: analysis.likelyCause || 'Unknown - review logs manually',\n  affectedServices: analysis.affectedServices || [],\n  recommendations: analysis.recommendations || ['Check application logs', 'Review recent deployments'],\n  requiresAttention: analysis.requiresAttention !== false,\n  totalErrors: prev.totalErrors,\n  topSources: prev.topSources,\n  analyzedBy: 'llama3.1:8b',\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "code-format-1",
+      "name": "Format Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Parse Logs').first().json;\nreturn [{json: {\n  status: 'healthy',\n  pattern: 'Normal error rate',\n  likelyCause: 'No anomaly detected',\n  affectedServices: [],\n  recommendations: [],\n  requiresAttention: false,\n  totalErrors: prev.totalErrors,\n  topSources: prev.topSources,\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "code-ok-1",
+      "name": "Normal Rate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 500]
+    }
+  ],
+  "connections": {
+    "Every 15min": {"main": [[{"node": "Query Error Logs", "type": "main", "index": 0}]]},
+    "Manual Trigger": {"main": [[{"node": "Query Error Logs", "type": "main", "index": 0}]]},
+    "Query Error Logs": {"main": [[{"node": "Parse Logs", "type": "main", "index": 0}]]},
+    "Parse Logs": {"main": [[{"node": "High Error Rate?", "type": "main", "index": 0}]]},
+    "High Error Rate?": {
+      "main": [
+        [{"node": "Analyze Patterns", "type": "main", "index": 0}],
+        [{"node": "Normal Rate", "type": "main", "index": 0}]
+      ]
+    },
+    "Analyze Patterns": {"main": [[{"node": "Format Analysis", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"}
+}
