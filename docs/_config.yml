@@ -16,3 +16,21 @@ plugins:
   - jekyll-feed
   - jekyll-seo-tag
   - jekyll-remote-theme
+
+# Exclude documentation files from being treated as pages
+exclude:
+  - disaster-recovery-procedures.md
+  - lancache-dns-architecture.md
+  - network-segmentation-vlan20.md
+  - network-topology.md
+  - opnsense-node-exporter-setup.md
+  - port-security-guide.md
+  - switch-password-recovery.md
+  - switch-password-rotation-procedure.md
+  - switch-ztp-testing.md
+  - vault-external-secrets.md
+  - vm-certificate-status.md
+  - wan-resilience-phase1-dns.md
+  - wan-resilience-phase2-vault-pki.md
+  - wan-resilience-plan.md
+  - plans/
