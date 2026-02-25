@@ -1,0 +1,3 @@
+# Directory Movement Placeholder
+
+This commit moves the contents from the root of the repository into `lanmine_41/` folder.
