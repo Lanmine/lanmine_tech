@@ -38,7 +38,7 @@
    power      5x energy drinks
    memory     sleep deprived but functional
   ──────────────────────────────────────────────────────────
-   "Eat. Game. Nap. Repeat. 🐼"
+   Connection established. Snacks loaded. Panda mode: activated. 🐼🐼🐼
   ──────────────────────────────────────────────────────────
 ```
 
