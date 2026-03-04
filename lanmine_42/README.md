@@ -2,10 +2,14 @@
 
 Infrastructure and automation for Lanmine 42.
 
-## Overview
+## Overview layer 1
 
-This directory contains the configuration and deployment files for the Lanmine 42 project.
-
-## Getting Started
-
-Documentation coming soon.
+```mermaid
+graph TD
+    ISP-ODF ---|2m SC/LC Bidirectional| lanmine-gw1
+    lanmine-gw1 ---|100m SM LC/LC| core-sw1
+    lanmine-gw2 ---|100m SM LC/LC| core-sw2
+    lanmine-gw1 ---|1m LC/LC| lanmine-gw2
+    edge-sw1 ---|40m LC/LC| core-sw1
+    edge-sw1 ---|40m LC/LC| core-sw2
+```
